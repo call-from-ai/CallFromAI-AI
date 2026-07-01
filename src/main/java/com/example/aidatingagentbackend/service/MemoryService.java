@@ -1,4 +1,4 @@
-package com.example.aidatingagentbackend.memory;
+package com.example.aidatingagentbackend.service;
 
 import com.example.aidatingagentbackend.dto.MemoryRequest;
 import com.example.aidatingagentbackend.dto.MemoryResponse;

@@ -2,7 +2,7 @@ package com.example.aidatingagentbackend.controller;
 
 import com.example.aidatingagentbackend.dto.MemoryRequest;
 import com.example.aidatingagentbackend.dto.MemoryResponse;
-import com.example.aidatingagentbackend.memory.MemoryService;
+import com.example.aidatingagentbackend.service.MemoryService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;

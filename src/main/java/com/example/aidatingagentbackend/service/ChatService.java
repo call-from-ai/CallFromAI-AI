@@ -1,94 +1,84 @@
 package com.example.aidatingagentbackend.service;
 
+import com.example.aidatingagentbackend.context.ContextLoader;
+import com.example.aidatingagentbackend.context.ContextUpdater;
 import com.example.aidatingagentbackend.dto.ChatRequest;
 import com.example.aidatingagentbackend.dto.ChatResponse;
-import com.example.aidatingagentbackend.engine.EmotionEngine;
-import com.example.aidatingagentbackend.engine.MemoryEngine;
-import com.example.aidatingagentbackend.engine.RelationshipEngine;
-import com.example.aidatingagentbackend.entity.Memory;
-import com.example.aidatingagentbackend.entity.Relationship;
-import com.example.aidatingagentbackend.entity.State;
+import com.example.aidatingagentbackend.dto.Context;
+import com.example.aidatingagentbackend.entity.ChatMessage;
 import com.example.aidatingagentbackend.prompt.PromptBuilder;
-import com.example.aidatingagentbackend.repository.MemoryRepository;
-import com.example.aidatingagentbackend.repository.RelationshipRepository;
-import com.example.aidatingagentbackend.repository.StateRepository;
+import com.example.aidatingagentbackend.repository.ChatMessageRepository;
 import org.springframework.stereotype.Service;
+
+import java.time.LocalDateTime;
 
 @Service
 public class ChatService {
 
     private final PromptBuilder promptBuilder;
-    private final OpenAiService openAiService;
-    private final EmotionEngine emotionEngine;
-    private final RelationshipEngine relationshipEngine;
-    private final MemoryEngine memoryEngine;
-    private final StateRepository stateRepository;
-    private final RelationshipRepository relationshipRepository;
-    private final MemoryRepository memoryRepository;
+    private final GeminiService geminiService;
+
+    private final ContextLoader contextLoader;
+    private final ChatMessageRepository chatMessageRepository;
+    private final ContextUpdater contextUpdater;
 
     public ChatService(
             PromptBuilder promptBuilder,
-            OpenAiService openAiService,
-            EmotionEngine emotionEngine,
-            RelationshipEngine relationshipEngine,
-            MemoryEngine memoryEngine,
-            StateRepository stateRepository,
-            RelationshipRepository relationshipRepository,
-            MemoryRepository memoryRepository
-    ) {
+            GeminiService geminiService,
+            ContextLoader contextLoader,
+            ChatMessageRepository chatMessageRepository,
+            ContextUpdater contextUpdater) {
         this.promptBuilder = promptBuilder;
-        this.openAiService = openAiService;
-        this.emotionEngine = emotionEngine;
-        this.relationshipEngine = relationshipEngine;
-        this.memoryEngine = memoryEngine;
-        this.stateRepository = stateRepository;
-        this.relationshipRepository = relationshipRepository;
-        this.memoryRepository = memoryRepository;
+        this.geminiService = geminiService;
+        this.contextLoader = contextLoader;
+        this.chatMessageRepository = chatMessageRepository;
+        this.contextUpdater = contextUpdater;
     }
 
-    public ChatResponse chat(ChatRequest request) {
-        String prompt = promptBuilder.builder()
-                .userMessage(request.getMessage())
-                .build();
+    public ChatResponse chat(ChatRequest request){
 
-        String reply = openAiService.generate(prompt);
-        updateContextAfterConversation(request.getMessage(), reply);
+        Context context =
+                contextLoader.load(request.getUserId());
+
+        String prompt =
+
+                promptBuilder.builder()
+
+                        .character(context.character())
+
+                        .state(context.state())
+
+                        .relationship(context.relationship())
+
+                        .memories(context.memories())
+
+                        .chatHistory(context.history())
+
+                        .userMessage(request.getMessage())
+
+                        .build();
+        String reply =
+                geminiService.generate(prompt);
+
+        save(request.getUserId(),"USER",request.getMessage());
+        save(request.getUserId(),"ASSISTANT",reply);
+
+        contextUpdater.update(request.getMessage(),reply);
+
         return new ChatResponse(reply);
     }
 
-    private void updateContextAfterConversation(String userMessage, String reply) {
-        State state = stateRepository.findTopByOrderByIdDesc()
-                .orElseGet(State::new);
-        Relationship relationship = relationshipRepository.findTopByOrderByIdDesc()
-                .orElseGet(Relationship::new);
+    private void save(Long characterId,
+                      String role,
+                      String content){
 
-        EmotionEngine.EmotionResult emotionResult = emotionEngine.analyze(state, userMessage);
-        RelationshipEngine.RelationshipResult relationshipResult = relationshipEngine.analyze(relationship, userMessage);
+        ChatMessage message=new ChatMessage();
 
-        state.setEmotion(emotionResult.emotion());
-        state.setEmotionIntensity(emotionResult.emotionIntensity());
-        stateRepository.save(state);
+        message.setCharacterId(characterId);
+        message.setRole(role);
+        message.setContent(content);
+        message.setCreatedAt(LocalDateTime.now());
 
-        relationship.setTrust(relationshipResult.trust());
-        relationship.setCloseness(relationshipResult.closeness());
-        relationshipRepository.save(relationship);
-
-        String conversation = buildConversation(userMessage, reply);
-        MemoryEngine.MemoryDecision memoryDecision = memoryEngine.analyze(
-                conversation,
-                emotionResult.emotion(),
-                emotionResult.emotionIntensity()
-        );
-        if (Boolean.TRUE.equals(memoryDecision.shouldCreate())) {
-            Memory memory = new Memory();
-            memory.setType(memoryDecision.memoryType());
-            memory.setSummary(memoryDecision.episodeSummary());
-            memory.setImportance(memoryDecision.importance());
-            memoryRepository.save(memory);
-        }
-    }
-
-    private String buildConversation(String userMessage, String reply) {
-        return "User: " + userMessage + "\nAssistant: " + reply;
+        chatMessageRepository.save(message);
     }
 }

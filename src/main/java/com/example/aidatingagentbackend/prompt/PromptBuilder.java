@@ -1,9 +1,7 @@
 package com.example.aidatingagentbackend.prompt;
 
+import com.example.aidatingagentbackend.entity.*;
 import com.example.aidatingagentbackend.entity.Character;
-import com.example.aidatingagentbackend.entity.Memory;
-import com.example.aidatingagentbackend.entity.Relationship;
-import com.example.aidatingagentbackend.entity.State;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
@@ -22,11 +20,26 @@ public class PromptBuilder {
         private State state;
         private Relationship relationship;
         private final List<Memory> memories = new ArrayList<>();
+        private final List<ChatMessage> chatHistory = new ArrayList<>();
         private String userMessage;
+
 
         public Builder character(Character character) {
             this.character = character;
             return this;
+        }
+
+
+        public Builder chatHistory(List<ChatMessage> history){
+
+            if(history!=null){
+
+                chatHistory.addAll(history);
+
+            }
+
+            return this;
+
         }
 
         public Builder state(State state) {
@@ -60,20 +73,50 @@ public class PromptBuilder {
             return this;
         }
 
+
+
         public String build() {
             StringBuilder prompt = new StringBuilder();
             prompt.append("You are an AI dating agent.\n");
             prompt.append("Respond naturally, warmly, and consistently with the provided context.\n\n");
 
             appendCharacter(prompt);
+
             appendState(prompt);
+
             appendRelationship(prompt);
+
             appendMemories(prompt);
+
+            appendHistory(prompt);
+
             appendUserMessage(prompt);
 
             return prompt.toString().trim();
         }
 
+        private void appendHistory(StringBuilder prompt){
+
+            if(chatHistory.isEmpty()){
+
+                return;
+
+            }
+
+            prompt.append("[Recent Conversation]\n");
+
+            for(ChatMessage message : chatHistory){
+
+                prompt.append(message.getRole())
+                        .append(": ")
+                        .append(message.getContent())
+                        .append("\n");
+
+            }
+
+            prompt.append("\n");
+
+        }
         private void appendCharacter(StringBuilder prompt) {
             if (character == null) {
                 return;

@@ -3,7 +3,11 @@ package com.example.aidatingagentbackend.repository;
 import com.example.aidatingagentbackend.entity.ChatMessage;
 import org.springframework.data.jpa.repository.JpaRepository;
 
-public interface ChatMessageRepository extends JpaRepository<ChatMessage, Long> {
+import java.util.List;
 
-    // TODO: Add custom chat message queries.
+public interface ChatMessageRepository
+        extends JpaRepository<ChatMessage, Long> {
+
+    List<ChatMessage> findTop20ByCharacterIdOrderByCreatedAtDesc(Long characterId);
+
 }
