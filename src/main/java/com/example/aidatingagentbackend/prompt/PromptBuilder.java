@@ -10,20 +10,31 @@ import java.util.List;
 @Component
 public class PromptBuilder {
 
+    private final SelfStatePromptFormatter selfStatePromptFormatter;
+
+    public PromptBuilder(SelfStatePromptFormatter selfStatePromptFormatter) {
+        this.selfStatePromptFormatter = selfStatePromptFormatter;
+    }
+
     public Builder builder() {
-        return new Builder();
+        return new Builder(selfStatePromptFormatter);
     }
 
     public static class Builder {
 
+        private final SelfStatePromptFormatter selfStatePromptFormatter;
         private Character character;
         private State state;
         private Relationship relationship;
+        private AgentSelfState agentSelfState;
         private final List<Memory> memories = new ArrayList<>();
         private final List<TurningPoint> turningPoints = new ArrayList<>();
         private final List<ChatMessage> chatHistory = new ArrayList<>();
         private String userMessage;
 
+        private Builder(SelfStatePromptFormatter selfStatePromptFormatter) {
+            this.selfStatePromptFormatter = selfStatePromptFormatter;
+        }
 
         public Builder character(Character character) {
             this.character = character;
@@ -50,6 +61,11 @@ public class PromptBuilder {
 
         public Builder relationship(Relationship relationship) {
             this.relationship = relationship;
+            return this;
+        }
+
+        public Builder agentSelfState(AgentSelfState agentSelfState) {
+            this.agentSelfState = agentSelfState;
             return this;
         }
 
@@ -99,6 +115,8 @@ public class PromptBuilder {
             appendState(prompt);
 
             appendRelationship(prompt);
+
+            appendAgentSelfState(prompt);
 
             appendMemories(prompt);
 
@@ -176,6 +194,10 @@ public class PromptBuilder {
             appendLine(prompt, "Relationship Stage", relationship.getRelationshipStage());
             appendLine(prompt, "Days Together", relationship.getDaysTogether());
             prompt.append("\n");
+        }
+
+        private void appendAgentSelfState(StringBuilder prompt) {
+            prompt.append(selfStatePromptFormatter.format(agentSelfState));
         }
 
         private void appendMemories(StringBuilder prompt) {

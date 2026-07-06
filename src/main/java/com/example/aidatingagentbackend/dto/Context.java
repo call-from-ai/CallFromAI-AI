@@ -2,6 +2,7 @@ package com.example.aidatingagentbackend.dto;
 
 import com.example.aidatingagentbackend.entity.Character;
 import com.example.aidatingagentbackend.entity.ChatMessage;
+import com.example.aidatingagentbackend.entity.AgentSelfState;
 import com.example.aidatingagentbackend.entity.Memory;
 import com.example.aidatingagentbackend.entity.Relationship;
 import com.example.aidatingagentbackend.entity.State;
@@ -16,6 +17,8 @@ public record Context(
         State state,
 
         Relationship relationship,
+
+        AgentSelfState agentSelfState,
 
         List<Memory> memories,
 

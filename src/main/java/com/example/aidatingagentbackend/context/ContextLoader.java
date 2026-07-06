@@ -4,6 +4,7 @@ import com.example.aidatingagentbackend.dto.Context;
 import com.example.aidatingagentbackend.entity.Character;
 import com.example.aidatingagentbackend.entity.Relationship;
 import com.example.aidatingagentbackend.entity.State;
+import com.example.aidatingagentbackend.repository.AgentSelfStateRepository;
 import com.example.aidatingagentbackend.repository.CharacterRepository;
 import com.example.aidatingagentbackend.repository.ChatMessageRepository;
 import com.example.aidatingagentbackend.repository.RelationshipRepository;
@@ -17,6 +18,7 @@ public class ContextLoader {
     private final CharacterRepository characterRepository;
     private final StateRepository stateRepository;
     private final RelationshipRepository relationshipRepository;
+    private final AgentSelfStateRepository agentSelfStateRepository;
     private final MemoryRetrievalService memoryRetrievalService;
     private final TurningPointRepository turningPointRepository;
     private final ChatMessageRepository chatRepository;
@@ -25,6 +27,7 @@ public class ContextLoader {
             CharacterRepository characterRepository,
             StateRepository stateRepository,
             RelationshipRepository relationshipRepository,
+            AgentSelfStateRepository agentSelfStateRepository,
             MemoryRetrievalService memoryRetrievalService,
             TurningPointRepository turningPointRepository,
             ChatMessageRepository chatRepository
@@ -32,6 +35,7 @@ public class ContextLoader {
         this.characterRepository = characterRepository;
         this.stateRepository = stateRepository;
         this.relationshipRepository = relationshipRepository;
+        this.agentSelfStateRepository = agentSelfStateRepository;
         this.memoryRetrievalService = memoryRetrievalService;
         this.turningPointRepository = turningPointRepository;
         this.chatRepository = chatRepository;
@@ -58,6 +62,9 @@ public class ContextLoader {
                 state,
 
                 relationship,
+
+                agentSelfStateRepository.findByCharacterId(characterId)
+                        .orElse(null),
 
                 memoryRetrievalService.retrieve(userMessage, state),
 

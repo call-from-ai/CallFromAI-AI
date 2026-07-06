@@ -21,22 +21,26 @@ public class ChatService {
     private final ContextLoader contextLoader;
     private final ChatMessageRepository chatMessageRepository;
     private final ContextUpdater contextUpdater;
+    private final EmotionUpdateService emotionUpdateService;
 
     public ChatService(
             PromptBuilder promptBuilder,
             GeminiService geminiService,
             ContextLoader contextLoader,
             ChatMessageRepository chatMessageRepository,
-            ContextUpdater contextUpdater) {
+            ContextUpdater contextUpdater,
+            EmotionUpdateService emotionUpdateService) {
         this.promptBuilder = promptBuilder;
         this.geminiService = geminiService;
         this.contextLoader = contextLoader;
         this.chatMessageRepository = chatMessageRepository;
         this.contextUpdater = contextUpdater;
+        this.emotionUpdateService = emotionUpdateService;
     }
 
     public ChatResponse chat(ChatRequest request){
 
+        emotionUpdateService.updateBeforeResponse(request.getUserId(), request.getMessage());
         contextUpdater.updateBeforeResponse(request.getMessage());
 
         Context context =
@@ -51,6 +55,8 @@ public class ChatService {
                         .state(context.state())
 
                         .relationship(context.relationship())
+
+                        .agentSelfState(context.agentSelfState())
 
                         .memories(context.memories())
 
