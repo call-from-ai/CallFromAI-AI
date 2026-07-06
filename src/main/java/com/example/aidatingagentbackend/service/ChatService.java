@@ -40,7 +40,7 @@ public class ChatService {
         contextUpdater.updateBeforeResponse(request.getMessage());
 
         Context context =
-                contextLoader.load(request.getUserId());
+                contextLoader.load(request.getUserId(), request.getMessage());
 
         String prompt =
 
@@ -53,6 +53,8 @@ public class ChatService {
                         .relationship(context.relationship())
 
                         .memories(context.memories())
+
+                        .turningPoints(context.turningPoints())
 
                         .chatHistory(context.history())
 

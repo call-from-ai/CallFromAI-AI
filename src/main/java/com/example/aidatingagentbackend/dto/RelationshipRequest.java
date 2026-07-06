@@ -13,6 +13,12 @@ public class RelationshipRequest {
 
     private Integer closeness;
 
+    private Integer conflictLevel;
+
+    private Integer repairProgress;
+
+    private Integer breakupRisk;
+
     private String relationshipStage;
 
     private Integer daysTogether;

@@ -16,6 +16,12 @@ public class RelationshipResponse {
 
     private Integer closeness;
 
+    private Integer conflictLevel;
+
+    private Integer repairProgress;
+
+    private Integer breakupRisk;
+
     private String relationshipStage;
 
     private Integer daysTogether;
@@ -25,6 +31,9 @@ public class RelationshipResponse {
         response.setId(relationship.getId());
         response.setTrust(relationship.getTrust());
         response.setCloseness(relationship.getCloseness());
+        response.setConflictLevel(relationship.getConflictLevel());
+        response.setRepairProgress(relationship.getRepairProgress());
+        response.setBreakupRisk(relationship.getBreakupRisk());
         response.setRelationshipStage(relationship.getRelationshipStage());
         response.setDaysTogether(relationship.getDaysTogether());
         return response;

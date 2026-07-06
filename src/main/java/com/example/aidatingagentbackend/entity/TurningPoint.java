@@ -1,5 +1,6 @@
 package com.example.aidatingagentbackend.entity;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -9,28 +10,27 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.time.LocalDateTime;
+
 @Entity
-@Table(name = "relationships")
+@Table(name = "turning_points")
 @Getter
 @Setter
 @NoArgsConstructor
-public class Relationship {
+public class TurningPoint {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private Integer trust;
+    private String eventType;
 
-    private Integer closeness;
+    @Column(columnDefinition = "TEXT")
+    private String summary;
 
-    private Integer conflictLevel;
+    private String impactEmotion;
 
-    private Integer repairProgress;
+    private Integer impactScore;
 
-    private Integer breakupRisk;
-
-    private String relationshipStage;
-
-    private Integer daysTogether;
+    private LocalDateTime createdAt;
 }

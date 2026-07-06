@@ -20,6 +20,7 @@ public class PromptBuilder {
         private State state;
         private Relationship relationship;
         private final List<Memory> memories = new ArrayList<>();
+        private final List<TurningPoint> turningPoints = new ArrayList<>();
         private final List<ChatMessage> chatHistory = new ArrayList<>();
         private String userMessage;
 
@@ -68,6 +69,15 @@ public class PromptBuilder {
             return this;
         }
 
+        public Builder turningPoints(List<TurningPoint> turningPoints) {
+            if (turningPoints != null) {
+                turningPoints.stream()
+                        .filter(turningPoint -> turningPoint != null)
+                        .forEach(this.turningPoints::add);
+            }
+            return this;
+        }
+
         public Builder userMessage(String userMessage) {
             this.userMessage = userMessage;
             return this;
@@ -81,6 +91,8 @@ public class PromptBuilder {
             prompt.append("Respond naturally, warmly, and consistently with the provided context.\n\n");
             prompt.append("The State and Relationship sections already reflect the latest user message.\n");
             prompt.append("Use them as the character's current inner state while writing the next reply.\n\n");
+            prompt.append("You must answer in a tone that matches the current Emotion and Emotion Intensity.\n");
+            prompt.append("Do not use a tone that contradicts the current emotion.\n\n");
 
             appendCharacter(prompt);
 
@@ -89,6 +101,8 @@ public class PromptBuilder {
             appendRelationship(prompt);
 
             appendMemories(prompt);
+
+            appendTurningPoints(prompt);
 
             appendHistory(prompt);
 
@@ -156,6 +170,9 @@ public class PromptBuilder {
             prompt.append("[Relationship]\n");
             appendLine(prompt, "Trust", relationship.getTrust());
             appendLine(prompt, "Closeness", relationship.getCloseness());
+            appendLine(prompt, "Conflict Level", relationship.getConflictLevel());
+            appendLine(prompt, "Repair Progress", relationship.getRepairProgress());
+            appendLine(prompt, "Breakup Risk", relationship.getBreakupRisk());
             appendLine(prompt, "Relationship Stage", relationship.getRelationshipStage());
             appendLine(prompt, "Days Together", relationship.getDaysTogether());
             prompt.append("\n");
@@ -173,6 +190,23 @@ public class PromptBuilder {
                 appendInline(prompt, "Type", memory.getType());
                 appendInline(prompt, "Summary", memory.getSummary());
                 appendInline(prompt, "Importance", memory.getImportance());
+                prompt.append("\n");
+            }
+            prompt.append("\n");
+        }
+
+        private void appendTurningPoints(StringBuilder prompt) {
+            if (turningPoints.isEmpty()) {
+                return;
+            }
+
+            prompt.append("[Turning Points]\n");
+            for (TurningPoint turningPoint : turningPoints) {
+                prompt.append("- ");
+                appendInline(prompt, "Event", turningPoint.getEventType());
+                appendInline(prompt, "Impact Emotion", turningPoint.getImpactEmotion());
+                appendInline(prompt, "Impact Score", turningPoint.getImpactScore());
+                appendInline(prompt, "Summary", turningPoint.getSummary());
                 prompt.append("\n");
             }
             prompt.append("\n");

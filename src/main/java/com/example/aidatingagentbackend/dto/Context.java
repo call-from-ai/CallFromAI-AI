@@ -5,6 +5,7 @@ import com.example.aidatingagentbackend.entity.ChatMessage;
 import com.example.aidatingagentbackend.entity.Memory;
 import com.example.aidatingagentbackend.entity.Relationship;
 import com.example.aidatingagentbackend.entity.State;
+import com.example.aidatingagentbackend.entity.TurningPoint;
 
 import java.util.List;
 
@@ -17,6 +18,8 @@ public record Context(
         Relationship relationship,
 
         List<Memory> memories,
+
+        List<TurningPoint> turningPoints,
 
         List<ChatMessage> history
 

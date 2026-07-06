@@ -61,6 +61,9 @@ public class RelationshipService {
     private void applyRequest(Relationship relationship, RelationshipRequest request) {
         relationship.setTrust(request.getTrust());
         relationship.setCloseness(request.getCloseness());
+        relationship.setConflictLevel(request.getConflictLevel());
+        relationship.setRepairProgress(request.getRepairProgress());
+        relationship.setBreakupRisk(request.getBreakupRisk());
         relationship.setRelationshipStage(request.getRelationshipStage());
         relationship.setDaysTogether(request.getDaysTogether());
     }
