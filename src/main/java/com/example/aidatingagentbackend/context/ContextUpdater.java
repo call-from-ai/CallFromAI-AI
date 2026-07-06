@@ -40,7 +40,7 @@ public class ContextUpdater {
         }
 
 
-    public void update(String userMessage,String reply){
+    public void updateBeforeResponse(String userMessage){
 
         State state =
                 stateRepository.findTopByOrderByIdDesc()
@@ -64,12 +64,19 @@ public class ContextUpdater {
 
         stateRepository.save(state);
         relationshipRepository.save(relationship);
+    }
+
+    public void updateMemoryAfterResponse(String userMessage,String reply){
+
+        State state =
+                stateRepository.findTopByOrderByIdDesc()
+                        .orElseGet(State::new);
 
         var decision =
                 memoryEngine.analyze(
                         userMessage+"\n"+reply,
-                        emotion.emotion(),
-                        emotion.emotionIntensity());
+                        state.getEmotion(),
+                        state.getEmotionIntensity());
 
         if(Boolean.TRUE.equals(decision.shouldCreate())){
 

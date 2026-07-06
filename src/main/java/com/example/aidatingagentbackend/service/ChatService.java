@@ -37,6 +37,8 @@ public class ChatService {
 
     public ChatResponse chat(ChatRequest request){
 
+        contextUpdater.updateBeforeResponse(request.getMessage());
+
         Context context =
                 contextLoader.load(request.getUserId());
 
@@ -63,7 +65,7 @@ public class ChatService {
         save(request.getUserId(),"USER",request.getMessage());
         save(request.getUserId(),"ASSISTANT",reply);
 
-        contextUpdater.update(request.getMessage(),reply);
+        contextUpdater.updateMemoryAfterResponse(request.getMessage(),reply);
 
         return new ChatResponse(reply);
     }

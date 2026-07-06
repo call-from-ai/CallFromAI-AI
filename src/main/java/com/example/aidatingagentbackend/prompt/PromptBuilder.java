@@ -79,6 +79,8 @@ public class PromptBuilder {
             StringBuilder prompt = new StringBuilder();
             prompt.append("You are an AI dating agent.\n");
             prompt.append("Respond naturally, warmly, and consistently with the provided context.\n\n");
+            prompt.append("The State and Relationship sections already reflect the latest user message.\n");
+            prompt.append("Use them as the character's current inner state while writing the next reply.\n\n");
 
             appendCharacter(prompt);
 
