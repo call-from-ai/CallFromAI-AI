@@ -116,6 +116,8 @@ public class ChatService {
 
                         .preferenceQuestionPlan(context.preferenceQuestionPlan())
 
+                        .conversationTopicPlan(context.conversationTopicPlan())
+
                         .characterPreferences(context.characterPreferences())
 
                         .characterExamples(context.characterExamples())
@@ -301,6 +303,7 @@ public class ChatService {
                 .agentLifeEvents(context.agentLifeEvents())
                 .conversationEvents(context.conversationEvents())
                 .preferenceQuestionPlan(context.preferenceQuestionPlan())
+                .conversationTopicPlan(context.conversationTopicPlan())
                 .characterPreferences(context.characterPreferences())
                 .characterExamples(context.characterExamples())
                 .memories(context.memories())

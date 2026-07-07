@@ -1,6 +1,7 @@
 package com.example.aidatingagentbackend.context;
 
 import com.example.aidatingagentbackend.dto.Context;
+import com.example.aidatingagentbackend.dto.PreferenceQuestionPlan;
 import com.example.aidatingagentbackend.engine.AgentEventType;
 import com.example.aidatingagentbackend.entity.Character;
 import com.example.aidatingagentbackend.entity.AgentGoal;
@@ -25,6 +26,7 @@ import com.example.aidatingagentbackend.service.AgentWorldStateService;
 import com.example.aidatingagentbackend.service.CharacterExampleService;
 import com.example.aidatingagentbackend.service.CharacterPreferenceService;
 import com.example.aidatingagentbackend.service.ConversationEventService;
+import com.example.aidatingagentbackend.service.ConversationTopicService;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -48,6 +50,7 @@ public class ContextLoader {
     private final AgentLifeEventService agentLifeEventService;
     private final ConversationEventService conversationEventService;
     private final CharacterPreferenceService characterPreferenceService;
+    private final ConversationTopicService conversationTopicService;
 
     public ContextLoader(
             CharacterRepository characterRepository,
@@ -65,7 +68,8 @@ public class ContextLoader {
             AgentInitiativeService agentInitiativeService,
             AgentLifeEventService agentLifeEventService,
             ConversationEventService conversationEventService,
-            CharacterPreferenceService characterPreferenceService
+            CharacterPreferenceService characterPreferenceService,
+            ConversationTopicService conversationTopicService
     ) {
         this.characterRepository = characterRepository;
         this.stateRepository = stateRepository;
@@ -83,6 +87,7 @@ public class ContextLoader {
         this.agentLifeEventService = agentLifeEventService;
         this.conversationEventService = conversationEventService;
         this.characterPreferenceService = characterPreferenceService;
+        this.conversationTopicService = conversationTopicService;
     }
 
     public Context load(Long characterId, String userMessage) {
@@ -117,6 +122,7 @@ public class ContextLoader {
         AgentWorldState agentWorldState = agentWorldStateService.findByUserId(characterId);
         AgentGoal agentGoal = agentGoalService.findCurrentGoal(characterId);
         List<AgentLifeEvent> agentLifeEvents = agentLifeEventService.ensureAndFindForPrompt(characterId);
+        PreferenceQuestionPlan preferenceQuestionPlan = characterPreferenceService.plan(characterId, userMessage);
 
         return new Context(
 
@@ -142,13 +148,15 @@ public class ContextLoader {
 
                 conversationEventService.findRecentForPrompt(characterId),
 
-                characterPreferenceService.plan(characterId, userMessage),
+                preferenceQuestionPlan,
 
-                characterPreferenceService.findForPrompt(characterId),
+                conversationTopicService.plan(userMessage, preferenceQuestionPlan),
+
+                characterPreferenceService.findForPrompt(characterId, preferenceQuestionPlan),
 
                 characterExampleService.findRelevantEntities(characterId, resolvedEventType, resolvedTemperature),
 
-                memoryRetrievalService.retrieve(userMessage, state),
+                preferenceQuestionPlan.active() ? List.of() : memoryRetrievalService.retrieve(userMessage, state),
 
                 reflectionService.findRelevantForPrompt(characterId),
 

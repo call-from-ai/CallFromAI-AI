@@ -146,6 +146,7 @@ public class ProactiveChatService {
                 .agentLifeEvents(context.agentLifeEvents())
                 .conversationEvents(context.conversationEvents())
                 .preferenceQuestionPlan(context.preferenceQuestionPlan())
+                .conversationTopicPlan(context.conversationTopicPlan())
                 .characterPreferences(context.characterPreferences())
                 .characterExamples(context.characterExamples())
                 .memories(context.memories())

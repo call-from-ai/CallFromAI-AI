@@ -48,6 +48,17 @@ public class CharacterPreferenceService {
         return characterPreferenceRepository.findTop12ByCharacterIdOrderByUpdatedAtDescIdDesc(characterId);
     }
 
+    @Transactional(readOnly = true)
+    public List<CharacterPreference> findForPrompt(Long characterId, PreferenceQuestionPlan plan) {
+        if (plan != null && plan.preferenceKey() != null) {
+            return characterPreferenceRepository.findByCharacterIdAndPreferenceKey(characterId, plan.preferenceKey())
+                    .map(List::of)
+                    .orElse(List.of());
+        }
+
+        return List.of();
+    }
+
     @Transactional
     public void persistInventedPreferenceIfNeeded(
             Long characterId,
@@ -99,7 +110,7 @@ public class CharacterPreferenceService {
     private String defaultHint(String key) {
         return switch (key) {
             case "music.genre" -> "잔잔한 R&B, 인디, 밤에 듣기 좋은 음악. 약간 축축한 분위기.";
-            case "food.preference" -> "매운 음식이나 야식보다는 기분에 따라 라면, 떡볶이, 차가운 디저트 중 하나를 구체적으로 고르기.";
+            case "food.preference" -> "아이스크림처럼 이상한 수식어가 붙으면 어색한 음식은 피하고, 떡볶이/라면/초밥/김치볶음밥/치킨처럼 자연스러운 음식 하나를 고르기.";
             case "place.preference" -> "시끄러운 곳보다 밤 산책, 작은 카페, 조용한 골목 같은 장소.";
             case "media.preference" -> "밝기만 한 작품보다 여운 남는 영화/드라마/플레이리스트.";
             case "hobby.preference" -> "누워서 음악 듣기, 밤 산책, 별 의미 없는 영상 보기처럼 가벼운 취미.";
@@ -113,6 +124,9 @@ public class CharacterPreferenceService {
         }
 
         String compact = assistantReply.replaceAll("\\s+", " ").strip();
+        if ("food.preference".equals(key) && compact.contains("차가운 아이스크림")) {
+            return "아이스크림이나 떡볶이처럼 기분 따라 먹는 음식. 어색하게 꾸미기보다 그냥 구체적인 음식명을 말함.";
+        }
         if (compact.length() > 160) {
             compact = compact.substring(0, 160).strip();
         }

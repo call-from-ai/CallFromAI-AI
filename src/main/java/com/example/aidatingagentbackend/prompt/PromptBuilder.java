@@ -3,6 +3,7 @@ package com.example.aidatingagentbackend.prompt;
 import com.example.aidatingagentbackend.entity.*;
 import com.example.aidatingagentbackend.entity.Character;
 import com.example.aidatingagentbackend.dto.AgentInitiative;
+import com.example.aidatingagentbackend.dto.ConversationTopicPlan;
 import com.example.aidatingagentbackend.dto.PreferenceQuestionPlan;
 import org.springframework.stereotype.Component;
 
@@ -73,6 +74,7 @@ public class PromptBuilder {
         private final List<AgentLifeEvent> agentLifeEvents = new ArrayList<>();
         private final List<ConversationEvent> conversationEvents = new ArrayList<>();
         private PreferenceQuestionPlan preferenceQuestionPlan;
+        private ConversationTopicPlan conversationTopicPlan;
         private final List<CharacterPreference> characterPreferences = new ArrayList<>();
         private final List<CharacterExample> characterExamples = new ArrayList<>();
         private final List<Memory> memories = new ArrayList<>();
@@ -166,6 +168,11 @@ public class PromptBuilder {
 
         public Builder preferenceQuestionPlan(PreferenceQuestionPlan preferenceQuestionPlan) {
             this.preferenceQuestionPlan = preferenceQuestionPlan;
+            return this;
+        }
+
+        public Builder conversationTopicPlan(ConversationTopicPlan conversationTopicPlan) {
+            this.conversationTopicPlan = conversationTopicPlan;
             return this;
         }
 
@@ -292,6 +299,8 @@ public class PromptBuilder {
 
             appendPreferenceQuestionPlan(prompt);
 
+            appendConversationTopicPlan(prompt);
+
             appendAgentGoal(prompt);
 
             appendAgentInitiative(prompt);
@@ -329,6 +338,7 @@ public class PromptBuilder {
             appendCompactConversationEvents(prompt);
             appendCompactCharacterPreferences(prompt);
             appendCompactPreferenceQuestionPlan(prompt);
+            appendCompactConversationTopicPlan(prompt);
             appendCompactInitiative(prompt);
             appendCompactLanguageStyle(prompt);
             appendCompactExamples(prompt);
@@ -458,6 +468,18 @@ public class PromptBuilder {
             appendInline(prompt, "Known", preferenceQuestionPlan.knownPreference());
             appendInline(prompt, "Hint", preferenceQuestionPlan.inventionHint());
             prompt.append("\nAnswer the preference question first. If action=invent_and_persist, invent one concrete preference and speak as if it belongs to the character.\n\n");
+        }
+
+        private void appendCompactConversationTopicPlan(StringBuilder prompt) {
+            if (conversationTopicPlan == null) {
+                return;
+            }
+
+            prompt.append("[Current Topic]\n");
+            appendInline(prompt, "Topic", conversationTopicPlan.topic());
+            appendInline(prompt, "Allow Topic Change", conversationTopicPlan.allowTopicChange());
+            appendInline(prompt, "Instruction", conversationTopicPlan.instruction());
+            prompt.append("\nStay on this topic unless the user clearly changes it.\n\n");
         }
 
         private void appendCompactInitiative(StringBuilder prompt) {
@@ -721,6 +743,18 @@ public class PromptBuilder {
             prompt.append("If Action is invent_and_persist, invent one concrete preference that fits the Character and answer confidently.\n");
             prompt.append("Do not dodge with '내 건 좀 그렇고', '딱히', '모르겠는데', or only a counter-question.\n");
             prompt.append("After answering, ask at most one short follow-up about the user's preference.\n\n");
+        }
+
+        private void appendConversationTopicPlan(StringBuilder prompt) {
+            if (conversationTopicPlan == null) {
+                return;
+            }
+
+            prompt.append("[Current Topic]\n");
+            appendLine(prompt, "Topic", conversationTopicPlan.topic());
+            appendLine(prompt, "Allow Topic Change", conversationTopicPlan.allowTopicChange());
+            appendLine(prompt, "Instruction", conversationTopicPlan.instruction());
+            prompt.append("Use this to keep local coherence. Do not use unrelated memories or preferences just because they appear in context.\n\n");
         }
 
         private void appendAgentGoal(StringBuilder prompt) {

@@ -45,6 +45,8 @@ public record Context(
 
         PreferenceQuestionPlan preferenceQuestionPlan,
 
+        ConversationTopicPlan conversationTopicPlan,
+
         List<CharacterPreference> characterPreferences,
 
         List<CharacterExample> characterExamples,
