@@ -77,6 +77,8 @@ class GoldenConversationEvaluationTests {
                 null,
                 List.of(),
                 List.of(),
+                null,
+                List.of(),
                 List.of(),
                 List.of(),
                 List.of(),

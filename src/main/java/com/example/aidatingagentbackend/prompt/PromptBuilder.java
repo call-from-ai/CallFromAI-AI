@@ -3,6 +3,7 @@ package com.example.aidatingagentbackend.prompt;
 import com.example.aidatingagentbackend.entity.*;
 import com.example.aidatingagentbackend.entity.Character;
 import com.example.aidatingagentbackend.dto.AgentInitiative;
+import com.example.aidatingagentbackend.dto.PreferenceQuestionPlan;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
@@ -71,6 +72,8 @@ public class PromptBuilder {
         private RelationshipTemperature relationshipTemperature = RelationshipTemperature.NEUTRAL;
         private final List<AgentLifeEvent> agentLifeEvents = new ArrayList<>();
         private final List<ConversationEvent> conversationEvents = new ArrayList<>();
+        private PreferenceQuestionPlan preferenceQuestionPlan;
+        private final List<CharacterPreference> characterPreferences = new ArrayList<>();
         private final List<CharacterExample> characterExamples = new ArrayList<>();
         private final List<Memory> memories = new ArrayList<>();
         private final List<Reflection> reflections = new ArrayList<>();
@@ -157,6 +160,20 @@ public class PromptBuilder {
                 conversationEvents.stream()
                         .filter(event -> event != null)
                         .forEach(this.conversationEvents::add);
+            }
+            return this;
+        }
+
+        public Builder preferenceQuestionPlan(PreferenceQuestionPlan preferenceQuestionPlan) {
+            this.preferenceQuestionPlan = preferenceQuestionPlan;
+            return this;
+        }
+
+        public Builder characterPreferences(List<CharacterPreference> characterPreferences) {
+            if (characterPreferences != null) {
+                characterPreferences.stream()
+                        .filter(preference -> preference != null)
+                        .forEach(this.characterPreferences::add);
             }
             return this;
         }
@@ -271,6 +288,10 @@ public class PromptBuilder {
 
             appendConversationEvents(prompt);
 
+            appendCharacterPreferences(prompt);
+
+            appendPreferenceQuestionPlan(prompt);
+
             appendAgentGoal(prompt);
 
             appendAgentInitiative(prompt);
@@ -306,6 +327,8 @@ public class PromptBuilder {
             appendCompactLife(prompt);
             appendCompactLifeEvents(prompt);
             appendCompactConversationEvents(prompt);
+            appendCompactCharacterPreferences(prompt);
+            appendCompactPreferenceQuestionPlan(prompt);
             appendCompactInitiative(prompt);
             appendCompactLanguageStyle(prompt);
             appendCompactExamples(prompt);
@@ -406,6 +429,35 @@ public class PromptBuilder {
                             .append(event.getAgentReaction())
                             .append("\n"));
             prompt.append("Use these to follow up on concrete user topics instead of repeating generic emotion.\n\n");
+        }
+
+        private void appendCompactCharacterPreferences(StringBuilder prompt) {
+            if (characterPreferences.isEmpty()) {
+                return;
+            }
+
+            prompt.append("[Character Preference Memory]\n");
+            characterPreferences.stream()
+                    .limit(5)
+                    .forEach(preference -> prompt.append("- ")
+                            .append(preference.getPreferenceKey())
+                            .append(": ")
+                            .append(preference.getPreferenceValue())
+                            .append("\n"));
+            prompt.append("\n");
+        }
+
+        private void appendCompactPreferenceQuestionPlan(StringBuilder prompt) {
+            if (preferenceQuestionPlan == null || !preferenceQuestionPlan.active()) {
+                return;
+            }
+
+            prompt.append("[Preference Question Plan]\n");
+            appendInline(prompt, "Action", preferenceQuestionPlan.action());
+            appendInline(prompt, "Key", preferenceQuestionPlan.preferenceKey());
+            appendInline(prompt, "Known", preferenceQuestionPlan.knownPreference());
+            appendInline(prompt, "Hint", preferenceQuestionPlan.inventionHint());
+            prompt.append("\nAnswer the preference question first. If action=invent_and_persist, invent one concrete preference and speak as if it belongs to the character.\n\n");
         }
 
         private void appendCompactInitiative(StringBuilder prompt) {
@@ -632,6 +684,43 @@ public class PromptBuilder {
             }
             prompt.append("If the latest user message adds a concrete fact, respond to that fact before returning to hurt/jealousy.\n");
             prompt.append("Examples: skipped meal -> tell them to eat; development -> ask what they are building; club -> ask what club.\n\n");
+        }
+
+        private void appendCharacterPreferences(StringBuilder prompt) {
+            if (characterPreferences.isEmpty()) {
+                return;
+            }
+
+            prompt.append("[Character Preference Memory]\n");
+            prompt.append("These are character preferences confirmed or invented in prior conversation. Use them consistently without rewriting the core Character.\n");
+            for (CharacterPreference preference : characterPreferences) {
+                prompt.append("- ");
+                appendInline(prompt, "Key", preference.getPreferenceKey());
+                appendInline(prompt, "Value", preference.getPreferenceValue());
+                appendInline(prompt, "Source", preference.getSource());
+                appendInline(prompt, "Confidence", preference.getConfidence());
+                appendInline(prompt, "Stability", preference.getStability());
+                prompt.append("\n");
+            }
+            prompt.append("\n");
+        }
+
+        private void appendPreferenceQuestionPlan(StringBuilder prompt) {
+            if (preferenceQuestionPlan == null || !preferenceQuestionPlan.active()) {
+                return;
+            }
+
+            prompt.append("[Preference Question Plan]\n");
+            appendLine(prompt, "Question Type", preferenceQuestionPlan.questionType());
+            appendLine(prompt, "Preference Key", preferenceQuestionPlan.preferenceKey());
+            appendLine(prompt, "Action", preferenceQuestionPlan.action());
+            appendLine(prompt, "Known Preference", preferenceQuestionPlan.knownPreference());
+            appendLine(prompt, "Invention Hint", preferenceQuestionPlan.inventionHint());
+            appendLine(prompt, "Constraint", preferenceQuestionPlan.constraint());
+            prompt.append("If Action is use_known, answer with the known preference.\n");
+            prompt.append("If Action is invent_and_persist, invent one concrete preference that fits the Character and answer confidently.\n");
+            prompt.append("Do not dodge with '내 건 좀 그렇고', '딱히', '모르겠는데', or only a counter-question.\n");
+            prompt.append("After answering, ask at most one short follow-up about the user's preference.\n\n");
         }
 
         private void appendAgentGoal(StringBuilder prompt) {

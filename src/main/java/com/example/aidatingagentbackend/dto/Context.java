@@ -2,6 +2,7 @@ package com.example.aidatingagentbackend.dto;
 
 import com.example.aidatingagentbackend.entity.Character;
 import com.example.aidatingagentbackend.entity.ChatMessage;
+import com.example.aidatingagentbackend.entity.CharacterPreference;
 import com.example.aidatingagentbackend.entity.AgentSelfState;
 import com.example.aidatingagentbackend.entity.AgentGoal;
 import com.example.aidatingagentbackend.entity.AgentLifeEvent;
@@ -41,6 +42,10 @@ public record Context(
         List<AgentLifeEvent> agentLifeEvents,
 
         List<ConversationEvent> conversationEvents,
+
+        PreferenceQuestionPlan preferenceQuestionPlan,
+
+        List<CharacterPreference> characterPreferences,
 
         List<CharacterExample> characterExamples,
 

@@ -23,6 +23,7 @@ import com.example.aidatingagentbackend.service.AgentLifeEventService;
 import com.example.aidatingagentbackend.service.AgentProfileService;
 import com.example.aidatingagentbackend.service.AgentWorldStateService;
 import com.example.aidatingagentbackend.service.CharacterExampleService;
+import com.example.aidatingagentbackend.service.CharacterPreferenceService;
 import com.example.aidatingagentbackend.service.ConversationEventService;
 import org.springframework.stereotype.Service;
 
@@ -46,6 +47,7 @@ public class ContextLoader {
     private final AgentInitiativeService agentInitiativeService;
     private final AgentLifeEventService agentLifeEventService;
     private final ConversationEventService conversationEventService;
+    private final CharacterPreferenceService characterPreferenceService;
 
     public ContextLoader(
             CharacterRepository characterRepository,
@@ -62,7 +64,8 @@ public class ContextLoader {
             AgentGoalService agentGoalService,
             AgentInitiativeService agentInitiativeService,
             AgentLifeEventService agentLifeEventService,
-            ConversationEventService conversationEventService
+            ConversationEventService conversationEventService,
+            CharacterPreferenceService characterPreferenceService
     ) {
         this.characterRepository = characterRepository;
         this.stateRepository = stateRepository;
@@ -79,6 +82,7 @@ public class ContextLoader {
         this.agentInitiativeService = agentInitiativeService;
         this.agentLifeEventService = agentLifeEventService;
         this.conversationEventService = conversationEventService;
+        this.characterPreferenceService = characterPreferenceService;
     }
 
     public Context load(Long characterId, String userMessage) {
@@ -137,6 +141,10 @@ public class ContextLoader {
                 agentLifeEvents,
 
                 conversationEventService.findRecentForPrompt(characterId),
+
+                characterPreferenceService.plan(characterId, userMessage),
+
+                characterPreferenceService.findForPrompt(characterId),
 
                 characterExampleService.findRelevantEntities(characterId, resolvedEventType, resolvedTemperature),
 

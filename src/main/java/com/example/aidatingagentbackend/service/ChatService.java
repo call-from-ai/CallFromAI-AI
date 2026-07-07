@@ -40,6 +40,7 @@ public class ChatService {
     private final AgentGoalService agentGoalService;
     private final ResponseStylePostProcessor responseStylePostProcessor;
     private final ConversationEventService conversationEventService;
+    private final CharacterPreferenceService characterPreferenceService;
 
     public ChatService(
             PromptBuilder promptBuilder,
@@ -52,7 +53,8 @@ public class ChatService {
             AgentWorldStateService agentWorldStateService,
             AgentGoalService agentGoalService,
             ResponseStylePostProcessor responseStylePostProcessor,
-            ConversationEventService conversationEventService) {
+            ConversationEventService conversationEventService,
+            CharacterPreferenceService characterPreferenceService) {
         this.promptBuilder = promptBuilder;
         this.geminiService = geminiService;
         this.contextLoader = contextLoader;
@@ -64,6 +66,7 @@ public class ChatService {
         this.agentGoalService = agentGoalService;
         this.responseStylePostProcessor = responseStylePostProcessor;
         this.conversationEventService = conversationEventService;
+        this.characterPreferenceService = characterPreferenceService;
     }
 
     public ChatResponse chat(ChatRequest request){
@@ -111,6 +114,10 @@ public class ChatService {
 
                         .conversationEvents(context.conversationEvents())
 
+                        .preferenceQuestionPlan(context.preferenceQuestionPlan())
+
+                        .characterPreferences(context.characterPreferences())
+
                         .characterExamples(context.characterExamples())
 
                         .memories(context.memories())
@@ -132,6 +139,12 @@ public class ChatService {
 
         save(request.getUserId(),"USER",request.getMessage());
         save(request.getUserId(),"ASSISTANT",reply);
+        characterPreferenceService.persistInventedPreferenceIfNeeded(
+                request.getUserId(),
+                request.getMessage(),
+                reply,
+                context.preferenceQuestionPlan()
+        );
 
         contextUpdater.updateMemoryAfterResponse(request.getMessage(),reply);
 
@@ -186,6 +199,12 @@ public class ChatService {
                 String reply = responseStylePostProcessor.process(streamedReply.toString(), relationshipTemperature);
                 save(request.getUserId(), "USER", request.getMessage());
                 save(request.getUserId(), "ASSISTANT", reply);
+                characterPreferenceService.persistInventedPreferenceIfNeeded(
+                        request.getUserId(),
+                        request.getMessage(),
+                        reply,
+                        context.preferenceQuestionPlan()
+                );
                 contextUpdater.updateMemoryAfterResponse(request.getMessage(), reply);
 
                 if (responseQualityEvaluatorService.shouldEvaluate(eventAnalysis, context)) {
@@ -281,6 +300,8 @@ public class ChatService {
                 .relationshipTemperature(context.relationshipTemperature())
                 .agentLifeEvents(context.agentLifeEvents())
                 .conversationEvents(context.conversationEvents())
+                .preferenceQuestionPlan(context.preferenceQuestionPlan())
+                .characterPreferences(context.characterPreferences())
                 .characterExamples(context.characterExamples())
                 .memories(context.memories())
                 .reflections(context.reflections())

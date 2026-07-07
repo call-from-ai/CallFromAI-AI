@@ -145,6 +145,8 @@ public class ProactiveChatService {
                 .relationshipTemperature(context.relationshipTemperature())
                 .agentLifeEvents(context.agentLifeEvents())
                 .conversationEvents(context.conversationEvents())
+                .preferenceQuestionPlan(context.preferenceQuestionPlan())
+                .characterPreferences(context.characterPreferences())
                 .characterExamples(context.characterExamples())
                 .memories(context.memories())
                 .reflections(context.reflections())
