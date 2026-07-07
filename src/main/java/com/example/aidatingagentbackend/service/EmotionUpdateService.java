@@ -1,9 +1,14 @@
 package com.example.aidatingagentbackend.service;
 
 import com.example.aidatingagentbackend.engine.AgentEventType;
+import com.example.aidatingagentbackend.engine.EventAnalysis;
+import com.example.aidatingagentbackend.engine.EventAnalyzer;
 import com.example.aidatingagentbackend.engine.EventDetector;
 import com.example.aidatingagentbackend.entity.AgentSelfState;
+import com.example.aidatingagentbackend.entity.AgentSelfStateLog;
+import com.example.aidatingagentbackend.repository.AgentSelfStateLogRepository;
 import com.example.aidatingagentbackend.repository.AgentSelfStateRepository;
+import com.example.aidatingagentbackend.repository.ChatMessageRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -18,14 +23,26 @@ public class EmotionUpdateService {
     private static final String BREAKUP_EVENT = "user_declared_breakup";
 
     private final AgentSelfStateRepository agentSelfStateRepository;
+    private final EventAnalyzer eventAnalyzer;
     private final EventDetector eventDetector;
+    private final ChatMessageRepository chatMessageRepository;
+    private final AgentSelfStateLogRepository agentSelfStateLogRepository;
+    private final ReflectionService reflectionService;
 
     public EmotionUpdateService(
             AgentSelfStateRepository agentSelfStateRepository,
-            EventDetector eventDetector
+            EventAnalyzer eventAnalyzer,
+            EventDetector eventDetector,
+            ChatMessageRepository chatMessageRepository,
+            AgentSelfStateLogRepository agentSelfStateLogRepository,
+            ReflectionService reflectionService
     ) {
         this.agentSelfStateRepository = agentSelfStateRepository;
+        this.eventAnalyzer = eventAnalyzer;
         this.eventDetector = eventDetector;
+        this.chatMessageRepository = chatMessageRepository;
+        this.agentSelfStateLogRepository = agentSelfStateLogRepository;
+        this.reflectionService = reflectionService;
     }
 
     @Transactional
@@ -33,11 +50,14 @@ public class EmotionUpdateService {
         AgentSelfState state = agentSelfStateRepository.findByCharacterId(characterId)
                 .orElseGet(() -> createDefaultState(characterId));
 
+        SelfStateSnapshot previousSnapshot = SelfStateSnapshot.from(state);
         LocalDateTime now = LocalDateTime.now();
         applyDecay(state, now);
-        AgentEventType eventType = eventDetector.detect(userMessage);
-        applyEvent(state, eventType);
+        EventAnalysis eventAnalysis = analyzeEvent(characterId, userMessage, state);
+        applyEvent(state, eventAnalysis.eventType());
         normalize(state);
+        AgentSelfStateLog stateLog = saveLog(characterId, userMessage, eventAnalysis, previousSnapshot, state);
+        createReflectionIfNeeded(characterId, userMessage, eventAnalysis, stateLog, state);
 
         return agentSelfStateRepository.save(state);
     }
@@ -46,6 +66,72 @@ public class EmotionUpdateService {
     public AgentSelfState findOrCreatePreview(Long characterId) {
         return agentSelfStateRepository.findByCharacterId(characterId)
                 .orElseGet(() -> createDefaultState(characterId));
+    }
+
+    private EventAnalysis analyzeEvent(Long characterId, String userMessage, AgentSelfState state) {
+        if (eventAnalyzer == null || chatMessageRepository == null) {
+            return EventAnalysis.fallback(eventDetector.detect(userMessage));
+        }
+
+        return eventAnalyzer.analyze(
+                userMessage,
+                chatMessageRepository.findTop20ByCharacterIdOrderByCreatedAtDesc(characterId),
+                state
+        );
+    }
+
+    private AgentSelfStateLog saveLog(
+            Long userId,
+            String userMessage,
+            EventAnalysis eventAnalysis,
+            SelfStateSnapshot previousSnapshot,
+            AgentSelfState nextState
+    ) {
+        if (agentSelfStateLogRepository == null) {
+            return null;
+        }
+
+        AgentSelfStateLog log = new AgentSelfStateLog();
+        log.setUserId(userId);
+        log.setPreviousHurt(previousSnapshot.hurt());
+        log.setNextHurt(value(nextState.getHurt()));
+        log.setPreviousTrust(previousSnapshot.trust());
+        log.setNextTrust(value(nextState.getTrust()));
+        log.setPreviousAnger(previousSnapshot.anger());
+        log.setNextAnger(value(nextState.getAnger()));
+        log.setPreviousInsecurity(previousSnapshot.insecurity());
+        log.setNextInsecurity(value(nextState.getInsecurity()));
+        log.setEventType(eventAnalysis.eventType().name());
+        log.setSeverity(eventAnalysis.severity());
+        log.setUserMessage(userMessage);
+        log.setDeltaReason(buildDeltaReason(eventAnalysis));
+        return agentSelfStateLogRepository.save(log);
+    }
+
+    private void createReflectionIfNeeded(
+            Long userId,
+            String userMessage,
+            EventAnalysis eventAnalysis,
+            AgentSelfStateLog stateLog,
+            AgentSelfState currentState
+    ) {
+        if (reflectionService == null) {
+            return;
+        }
+
+        reflectionService.createIfImportant(userId, userMessage, eventAnalysis, stateLog, currentState);
+    }
+
+    private String buildDeltaReason(EventAnalysis eventAnalysis) {
+        StringBuilder reason = new StringBuilder();
+        reason.append("eventType=").append(eventAnalysis.eventType());
+        reason.append(", severity=").append(eventAnalysis.severity());
+        reason.append(", sincerity=").append(eventAnalysis.sincerity());
+        reason.append(", isJoke=").append(eventAnalysis.isJoke());
+        reason.append(", isManipulative=").append(eventAnalysis.isManipulative());
+        reason.append(", primaryEmotion=").append(eventAnalysis.primaryEmotion());
+        reason.append(", summary=").append(eventAnalysis.summary());
+        return reason.toString();
     }
 
     public void applyDecay(AgentSelfState state, LocalDateTime now) {
@@ -198,5 +284,22 @@ public class EmotionUpdateService {
 
     private double clamp(Double value) {
         return Math.max(MIN_VALUE, Math.min(MAX_VALUE, value(value)));
+    }
+
+    private record SelfStateSnapshot(
+            Double hurt,
+            Double trust,
+            Double anger,
+            Double insecurity
+    ) {
+
+        private static SelfStateSnapshot from(AgentSelfState state) {
+            return new SelfStateSnapshot(
+                    state.getHurt(),
+                    state.getTrust(),
+                    state.getAnger(),
+                    state.getInsecurity()
+            );
+        }
     }
 }

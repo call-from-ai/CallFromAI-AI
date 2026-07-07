@@ -10,6 +10,7 @@ import com.example.aidatingagentbackend.repository.ChatMessageRepository;
 import com.example.aidatingagentbackend.repository.RelationshipRepository;
 import com.example.aidatingagentbackend.repository.StateRepository;
 import com.example.aidatingagentbackend.repository.TurningPointRepository;
+import com.example.aidatingagentbackend.service.ReflectionService;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -20,6 +21,7 @@ public class ContextLoader {
     private final RelationshipRepository relationshipRepository;
     private final AgentSelfStateRepository agentSelfStateRepository;
     private final MemoryRetrievalService memoryRetrievalService;
+    private final ReflectionService reflectionService;
     private final TurningPointRepository turningPointRepository;
     private final ChatMessageRepository chatRepository;
 
@@ -29,6 +31,7 @@ public class ContextLoader {
             RelationshipRepository relationshipRepository,
             AgentSelfStateRepository agentSelfStateRepository,
             MemoryRetrievalService memoryRetrievalService,
+            ReflectionService reflectionService,
             TurningPointRepository turningPointRepository,
             ChatMessageRepository chatRepository
     ) {
@@ -37,6 +40,7 @@ public class ContextLoader {
         this.relationshipRepository = relationshipRepository;
         this.agentSelfStateRepository = agentSelfStateRepository;
         this.memoryRetrievalService = memoryRetrievalService;
+        this.reflectionService = reflectionService;
         this.turningPointRepository = turningPointRepository;
         this.chatRepository = chatRepository;
     }
@@ -67,6 +71,8 @@ public class ContextLoader {
                         .orElse(null),
 
                 memoryRetrievalService.retrieve(userMessage, state),
+
+                reflectionService.findRelevantForPrompt(characterId),
 
                 turningPointRepository.findTop10ByOrderByCreatedAtDesc(),
 

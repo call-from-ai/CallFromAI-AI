@@ -4,6 +4,7 @@ import com.example.aidatingagentbackend.entity.Character;
 import com.example.aidatingagentbackend.entity.ChatMessage;
 import com.example.aidatingagentbackend.entity.AgentSelfState;
 import com.example.aidatingagentbackend.entity.Memory;
+import com.example.aidatingagentbackend.entity.Reflection;
 import com.example.aidatingagentbackend.entity.Relationship;
 import com.example.aidatingagentbackend.entity.State;
 import com.example.aidatingagentbackend.entity.TurningPoint;
@@ -21,6 +22,8 @@ public record Context(
         AgentSelfState agentSelfState,
 
         List<Memory> memories,
+
+        List<Reflection> reflections,
 
         List<TurningPoint> turningPoints,
 

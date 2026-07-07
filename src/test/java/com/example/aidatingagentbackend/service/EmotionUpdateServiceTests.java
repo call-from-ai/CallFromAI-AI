@@ -11,7 +11,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class EmotionUpdateServiceTests {
 
-    private final EmotionUpdateService emotionUpdateService = new EmotionUpdateService(null, new EventDetector());
+    private final EmotionUpdateService emotionUpdateService = new EmotionUpdateService(null, null, new EventDetector(), null, null, null);
 
     @Test
     void breakupDeclarationRaisesHurtAndInsecurityAndLowersTrust() {

@@ -20,6 +20,42 @@ public class PromptBuilder {
         return new Builder(selfStatePromptFormatter);
     }
 
+    public String buildRegenerationPrompt(
+            String originalPrompt,
+            String rejectedReply,
+            ResponseQualityEvaluation evaluation
+    ) {
+        StringBuilder prompt = new StringBuilder();
+        prompt.append(originalPrompt == null ? "" : originalPrompt);
+        prompt.append("\n\n[Rejected Assistant Reply]\n");
+        prompt.append(rejectedReply == null ? "" : rejectedReply).append("\n\n");
+        prompt.append("[Response Quality Feedback]\n");
+        if (evaluation != null) {
+            appendFeedbackLine(prompt, "Score", evaluation.getScore());
+            appendFeedbackLine(prompt, "Matches Self State", evaluation.getMatchesSelfState());
+            appendFeedbackLine(prompt, "Too Submissive", evaluation.getTooSubmissive());
+            appendFeedbackLine(prompt, "Too Aggressive", evaluation.getTooAggressive());
+            appendFeedbackLine(prompt, "Boundary Respected", evaluation.getBoundaryRespected());
+            appendFeedbackLine(prompt, "Character Consistent", evaluation.getCharacterConsistent());
+            appendFeedbackLine(prompt, "Safety Issue", evaluation.getSafetyIssue());
+            appendFeedbackLine(prompt, "Reason", evaluation.getReason());
+        }
+        prompt.append("\nRegenerate the assistant reply once.\n");
+        prompt.append("- Keep the same user message and context.\n");
+        prompt.append("- Fix the quality issues above.\n");
+        prompt.append("- If hurt is high, do not immediately forgive, thank, or say everything is okay.\n");
+        prompt.append("- Keep healthy emotional boundaries.\n");
+        prompt.append("- Do not become cruel, threatening, manipulative, or unsafe.\n");
+        prompt.append("- Return only the improved Korean reply.\n");
+        return prompt.toString().trim();
+    }
+
+    private void appendFeedbackLine(StringBuilder prompt, String label, Object value) {
+        if (value != null) {
+            prompt.append(label).append(": ").append(value).append("\n");
+        }
+    }
+
     public static class Builder {
 
         private final SelfStatePromptFormatter selfStatePromptFormatter;
@@ -28,6 +64,7 @@ public class PromptBuilder {
         private Relationship relationship;
         private AgentSelfState agentSelfState;
         private final List<Memory> memories = new ArrayList<>();
+        private final List<Reflection> reflections = new ArrayList<>();
         private final List<TurningPoint> turningPoints = new ArrayList<>();
         private final List<ChatMessage> chatHistory = new ArrayList<>();
         private String userMessage;
@@ -85,6 +122,15 @@ public class PromptBuilder {
             return this;
         }
 
+        public Builder reflections(List<Reflection> reflections) {
+            if (reflections != null) {
+                reflections.stream()
+                        .filter(reflection -> reflection != null)
+                        .forEach(this.reflections::add);
+            }
+            return this;
+        }
+
         public Builder turningPoints(List<TurningPoint> turningPoints) {
             if (turningPoints != null) {
                 turningPoints.stream()
@@ -119,6 +165,8 @@ public class PromptBuilder {
             appendAgentSelfState(prompt);
 
             appendMemories(prompt);
+
+            appendReflections(prompt);
 
             appendTurningPoints(prompt);
 
@@ -212,6 +260,25 @@ public class PromptBuilder {
                 appendInline(prompt, "Type", memory.getType());
                 appendInline(prompt, "Summary", memory.getSummary());
                 appendInline(prompt, "Importance", memory.getImportance());
+                prompt.append("\n");
+            }
+            prompt.append("\n");
+        }
+
+        private void appendReflections(StringBuilder prompt) {
+            if (reflections.isEmpty()) {
+                return;
+            }
+
+            prompt.append("[Reflections]\n");
+            prompt.append("Use these as higher-level relationship learnings, not as exact dialogue to repeat.\n");
+            for (Reflection reflection : reflections) {
+                prompt.append("- ");
+                appendInline(prompt, "Category", reflection.getCategory());
+                appendInline(prompt, "Summary", reflection.getSummary());
+                appendInline(prompt, "User Pattern", reflection.getUserPattern());
+                appendInline(prompt, "Agent Learning", reflection.getAgentLearning());
+                appendInline(prompt, "Importance", reflection.getImportance());
                 prompt.append("\n");
             }
             prompt.append("\n");
