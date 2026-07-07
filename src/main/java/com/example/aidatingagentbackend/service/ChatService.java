@@ -103,6 +103,8 @@ public class ChatService {
 
                         .relationshipTemperature(context.relationshipTemperature())
 
+                        .agentLifeEvents(context.agentLifeEvents())
+
                         .characterExamples(context.characterExamples())
 
                         .memories(context.memories())
@@ -270,6 +272,7 @@ public class ChatService {
                 .agentGoal(context.agentGoal())
                 .agentInitiative(context.agentInitiative())
                 .relationshipTemperature(context.relationshipTemperature())
+                .agentLifeEvents(context.agentLifeEvents())
                 .characterExamples(context.characterExamples())
                 .memories(context.memories())
                 .reflections(context.reflections())

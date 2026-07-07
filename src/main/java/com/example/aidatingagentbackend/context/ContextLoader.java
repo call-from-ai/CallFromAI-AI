@@ -4,6 +4,7 @@ import com.example.aidatingagentbackend.dto.Context;
 import com.example.aidatingagentbackend.engine.AgentEventType;
 import com.example.aidatingagentbackend.entity.Character;
 import com.example.aidatingagentbackend.entity.AgentGoal;
+import com.example.aidatingagentbackend.entity.AgentLifeEvent;
 import com.example.aidatingagentbackend.entity.AgentSelfState;
 import com.example.aidatingagentbackend.entity.AgentWorldState;
 import com.example.aidatingagentbackend.entity.RelationshipTemperature;
@@ -18,10 +19,13 @@ import com.example.aidatingagentbackend.repository.TurningPointRepository;
 import com.example.aidatingagentbackend.service.ReflectionService;
 import com.example.aidatingagentbackend.service.AgentGoalService;
 import com.example.aidatingagentbackend.service.AgentInitiativeService;
+import com.example.aidatingagentbackend.service.AgentLifeEventService;
 import com.example.aidatingagentbackend.service.AgentProfileService;
 import com.example.aidatingagentbackend.service.AgentWorldStateService;
 import com.example.aidatingagentbackend.service.CharacterExampleService;
 import org.springframework.stereotype.Service;
+
+import java.util.List;
 
 @Service
 public class ContextLoader {
@@ -39,6 +43,7 @@ public class ContextLoader {
     private final AgentWorldStateService agentWorldStateService;
     private final AgentGoalService agentGoalService;
     private final AgentInitiativeService agentInitiativeService;
+    private final AgentLifeEventService agentLifeEventService;
 
     public ContextLoader(
             CharacterRepository characterRepository,
@@ -53,7 +58,8 @@ public class ContextLoader {
             AgentProfileService agentProfileService,
             AgentWorldStateService agentWorldStateService,
             AgentGoalService agentGoalService,
-            AgentInitiativeService agentInitiativeService
+            AgentInitiativeService agentInitiativeService,
+            AgentLifeEventService agentLifeEventService
     ) {
         this.characterRepository = characterRepository;
         this.stateRepository = stateRepository;
@@ -68,6 +74,7 @@ public class ContextLoader {
         this.agentWorldStateService = agentWorldStateService;
         this.agentGoalService = agentGoalService;
         this.agentInitiativeService = agentInitiativeService;
+        this.agentLifeEventService = agentLifeEventService;
     }
 
     public Context load(Long characterId, String userMessage) {
@@ -101,6 +108,7 @@ public class ContextLoader {
                 .orElse(null);
         AgentWorldState agentWorldState = agentWorldStateService.findByUserId(characterId);
         AgentGoal agentGoal = agentGoalService.findCurrentGoal(characterId);
+        List<AgentLifeEvent> agentLifeEvents = agentLifeEventService.ensureAndFindForPrompt(characterId);
 
         return new Context(
 
@@ -118,9 +126,11 @@ public class ContextLoader {
 
                 agentGoal,
 
-                agentInitiativeService.plan(userMessage, resolvedTemperature, agentSelfState, agentWorldState, agentGoal, relationship),
+                agentInitiativeService.plan(userMessage, resolvedTemperature, agentSelfState, agentWorldState, agentGoal, relationship, agentLifeEvents),
 
                 resolvedTemperature,
+
+                agentLifeEvents,
 
                 characterExampleService.findRelevantEntities(characterId, resolvedEventType, resolvedTemperature),
 

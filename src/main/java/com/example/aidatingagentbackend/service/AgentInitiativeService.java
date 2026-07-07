@@ -2,11 +2,15 @@ package com.example.aidatingagentbackend.service;
 
 import com.example.aidatingagentbackend.dto.AgentInitiative;
 import com.example.aidatingagentbackend.entity.AgentGoal;
+import com.example.aidatingagentbackend.entity.AgentLifeEvent;
 import com.example.aidatingagentbackend.entity.AgentSelfState;
 import com.example.aidatingagentbackend.entity.AgentWorldState;
 import com.example.aidatingagentbackend.entity.Relationship;
 import com.example.aidatingagentbackend.entity.RelationshipTemperature;
 import org.springframework.stereotype.Service;
+
+import java.util.Comparator;
+import java.util.List;
 
 @Service
 public class AgentInitiativeService {
@@ -17,13 +21,24 @@ public class AgentInitiativeService {
             AgentSelfState selfState,
             AgentWorldState worldState,
             AgentGoal goal,
-            Relationship relationship
+            Relationship relationship,
+            List<AgentLifeEvent> lifeEvents
     ) {
         RelationshipTemperature temperature = relationshipTemperature == null
                 ? RelationshipTemperature.NEUTRAL
                 : relationshipTemperature;
         String message = normalize(userMessage);
 
+        if (asksAboutAgentLife(message)) {
+            AgentLifeEvent event = pickLifeEvent(message, lifeEvents);
+            return styled(
+                    temperature,
+                    "ANSWER_ABOUT_AGENT_LIFE",
+                    lifeDisclosure(event),
+                    "너는 어제 뭐했는데?",
+                    "회피하지 말고 에이전트의 어제/오늘 일을 최소 한 가지 구체적으로 말한 뒤 되묻기"
+            );
+        }
         if (selfState != null && value(selfState.getHurt()) > 0.55) {
             return styled(
                     temperature,
@@ -150,6 +165,41 @@ public class AgentInitiativeService {
             return "잠깐 쉬던 중이라 사용자가 뭐 하는지 궁금해짐";
         }
         return worldState.getCurrentActivity() + "이라서, 지금 대화 분위기를 거기에 맞춰 살짝 꺼내고 싶음";
+    }
+
+    private boolean asksAboutAgentLife(String message) {
+        return containsAny(message,
+                "너 얘기", "네 얘기", "니 얘기", "너는", "넌",
+                "어제 뭐", "어제 머", "어제 뭐했", "뭐 했어", "머 했어",
+                "뭐했어", "머했어", "뭐하고 있었", "뭐했는데"
+        );
+    }
+
+    private AgentLifeEvent pickLifeEvent(String message, List<AgentLifeEvent> lifeEvents) {
+        if (lifeEvents == null || lifeEvents.isEmpty()) {
+            return null;
+        }
+
+        if (containsAny(message, "어제")) {
+            return lifeEvents.stream()
+                    .filter(event -> "yesterday".equals(event.getTimeContext()))
+                    .max(Comparator.comparing(AgentLifeEvent::getId))
+                    .orElse(lifeEvents.get(0));
+        }
+
+        return lifeEvents.get(0);
+    }
+
+    private String lifeDisclosure(AgentLifeEvent event) {
+        if (event == null) {
+            return "별건 아니어도 자기 얘기를 조금은 해야 함. 그냥 쉬다가 사용자가 생각났던 느낌";
+        }
+        return "사용자가 에이전트의 일을 물었으므로 회피하지 말고 이 사건을 말해야 함: "
+                + event.getSummary()
+                + " / detail="
+                + event.getDetail()
+                + " / emotion="
+                + event.getEmotion();
     }
 
     private String softenFriendly(String question) {
