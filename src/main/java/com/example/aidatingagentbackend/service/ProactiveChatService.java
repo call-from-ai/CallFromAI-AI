@@ -137,6 +137,7 @@ public class ProactiveChatService {
                 .agentProfile(context.agentProfile())
                 .agentWorldState(context.agentWorldState())
                 .agentGoal(context.agentGoal())
+                .agentInitiative(context.agentInitiative())
                 .characterExamples(context.characterExamples())
                 .memories(context.memories())
                 .reflections(context.reflections())

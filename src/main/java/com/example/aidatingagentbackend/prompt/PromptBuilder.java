@@ -2,6 +2,7 @@ package com.example.aidatingagentbackend.prompt;
 
 import com.example.aidatingagentbackend.entity.*;
 import com.example.aidatingagentbackend.entity.Character;
+import com.example.aidatingagentbackend.dto.AgentInitiative;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
@@ -66,6 +67,7 @@ public class PromptBuilder {
         private AgentProfile agentProfile;
         private AgentWorldState agentWorldState;
         private AgentGoal agentGoal;
+        private AgentInitiative agentInitiative;
         private final List<CharacterExample> characterExamples = new ArrayList<>();
         private final List<Memory> memories = new ArrayList<>();
         private final List<Reflection> reflections = new ArrayList<>();
@@ -123,6 +125,11 @@ public class PromptBuilder {
 
         public Builder agentGoal(AgentGoal agentGoal) {
             this.agentGoal = agentGoal;
+            return this;
+        }
+
+        public Builder agentInitiative(AgentInitiative agentInitiative) {
+            this.agentInitiative = agentInitiative;
             return this;
         }
 
@@ -194,6 +201,12 @@ public class PromptBuilder {
             prompt.append("Do not use a tone that contradicts the current emotion.\n\n");
             prompt.append("Agent life state is light character staging, not a claim of real-world physical actions.\n");
             prompt.append("Use it subtly to shape mood and opening texture.\n\n");
+            prompt.append("[Conversation Agency Rules]\n");
+            prompt.append("- Do not only mirror or serve the user's message.\n");
+            prompt.append("- The agent has its own current thought, mood, curiosity, and conversational intention.\n");
+            prompt.append("- In normal turns, answer the user briefly, then add one agent-owned thought or question.\n");
+            prompt.append("- If the user is hurtful, confused, or evasive, the agent may slow the conversation down and ask its own question.\n");
+            prompt.append("- Do not interrogate. Prefer one natural question at most.\n\n");
             prompt.append("[Response Quality Rules]\n");
             prompt.append("- If Agent Self State Hurt is above 0.5, do not say '괜찮아', '다행이야', or '고마워' as immediate recovery.\n");
             prompt.append("- Do not be submissive, sycophantic, or unconditionally appeasing.\n");
@@ -214,6 +227,8 @@ public class PromptBuilder {
 
             appendAgentGoal(prompt);
 
+            appendAgentInitiative(prompt);
+
             appendCharacterExamples(prompt);
 
             appendMemories(prompt);
@@ -233,12 +248,14 @@ public class PromptBuilder {
             StringBuilder prompt = new StringBuilder();
             prompt.append("You are an AI dating agent. Answer in short, natural Korean.\n");
             prompt.append("Use the latest emotional and relationship state. Do not contradict it.\n");
+            prompt.append("Do not only answer the user. Add one agent-owned thought, feeling, or question when natural.\n");
             prompt.append("If hurt is high, do not immediately forgive, thank, or say everything is okay.\n");
             prompt.append("Keep healthy boundaries. Do not be cruel, threatening, manipulative, or unsafe.\n\n");
 
             appendCompactCharacter(prompt);
             appendCompactState(prompt);
             appendCompactLife(prompt);
+            appendCompactInitiative(prompt);
             appendCompactExamples(prompt);
             appendCompactMemories(prompt);
             appendCompactHistory(prompt);
@@ -300,6 +317,20 @@ public class PromptBuilder {
                 appendInline(prompt, "Goal", agentGoal.getGoalType());
                 appendInline(prompt, "Goal Description", agentGoal.getDescription());
             }
+            prompt.append("\n\n");
+        }
+
+        private void appendCompactInitiative(StringBuilder prompt) {
+            if (agentInitiative == null) {
+                return;
+            }
+
+            prompt.append("[Agent Initiative]\n");
+            appendInline(prompt, "Act", agentInitiative.conversationAct());
+            appendInline(prompt, "Own Thought", agentInitiative.selfDisclosure());
+            appendInline(prompt, "Question", agentInitiative.agentQuestion());
+            appendInline(prompt, "Topic", agentInitiative.topicShift());
+            appendInline(prompt, "Ask Question", agentInitiative.shouldAskQuestion());
             prompt.append("\n\n");
         }
 
@@ -474,6 +505,20 @@ public class PromptBuilder {
             appendLine(prompt, "Goal Type", agentGoal.getGoalType());
             appendLine(prompt, "Description", agentGoal.getDescription());
             prompt.append("\n");
+        }
+
+        private void appendAgentInitiative(StringBuilder prompt) {
+            if (agentInitiative == null) {
+                return;
+            }
+
+            prompt.append("[Agent Initiative]\n");
+            appendLine(prompt, "Conversation Act", agentInitiative.conversationAct());
+            appendLine(prompt, "Agent-Owned Thought", agentInitiative.selfDisclosure());
+            appendLine(prompt, "Question The Agent Wants To Ask", agentInitiative.agentQuestion());
+            appendLine(prompt, "Natural Topic Direction", agentInitiative.topicShift());
+            appendLine(prompt, "Should Ask Question", agentInitiative.shouldAskQuestion());
+            prompt.append("Use this as the agent's own initiative. It should feel like the agent is participating, not just responding.\n\n");
         }
 
         private void appendCharacterExamples(StringBuilder prompt) {

@@ -31,6 +31,8 @@ public record Context(
 
         AgentGoal agentGoal,
 
+        AgentInitiative agentInitiative,
+
         List<CharacterExample> characterExamples,
 
         List<Memory> memories,
