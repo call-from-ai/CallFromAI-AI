@@ -5,6 +5,7 @@ import com.example.aidatingagentbackend.context.ContextUpdater;
 import com.example.aidatingagentbackend.dto.ChatRequest;
 import com.example.aidatingagentbackend.dto.ChatResponse;
 import com.example.aidatingagentbackend.dto.Context;
+import com.example.aidatingagentbackend.engine.EventAnalysis;
 import com.example.aidatingagentbackend.entity.ChatMessage;
 import com.example.aidatingagentbackend.entity.ResponseQualityEvaluation;
 import com.example.aidatingagentbackend.prompt.PromptBuilder;
@@ -24,6 +25,8 @@ public class ChatService {
     private final ContextUpdater contextUpdater;
     private final EmotionUpdateService emotionUpdateService;
     private final ResponseQualityEvaluatorService responseQualityEvaluatorService;
+    private final AgentWorldStateService agentWorldStateService;
+    private final AgentGoalService agentGoalService;
 
     public ChatService(
             PromptBuilder promptBuilder,
@@ -32,7 +35,9 @@ public class ChatService {
             ChatMessageRepository chatMessageRepository,
             ContextUpdater contextUpdater,
             EmotionUpdateService emotionUpdateService,
-            ResponseQualityEvaluatorService responseQualityEvaluatorService) {
+            ResponseQualityEvaluatorService responseQualityEvaluatorService,
+            AgentWorldStateService agentWorldStateService,
+            AgentGoalService agentGoalService) {
         this.promptBuilder = promptBuilder;
         this.geminiService = geminiService;
         this.contextLoader = contextLoader;
@@ -40,12 +45,18 @@ public class ChatService {
         this.contextUpdater = contextUpdater;
         this.emotionUpdateService = emotionUpdateService;
         this.responseQualityEvaluatorService = responseQualityEvaluatorService;
+        this.agentWorldStateService = agentWorldStateService;
+        this.agentGoalService = agentGoalService;
     }
 
     public ChatResponse chat(ChatRequest request){
 
-        emotionUpdateService.updateBeforeResponse(request.getUserId(), request.getMessage());
+        EmotionUpdateService.EmotionUpdateResult emotionUpdateResult =
+                emotionUpdateService.updateBeforeResponse(request.getUserId(), request.getMessage());
+        EventAnalysis eventAnalysis = emotionUpdateResult.eventAnalysis();
         contextUpdater.updateBeforeResponse(request.getMessage());
+        agentWorldStateService.updateBeforeResponse(request.getUserId());
+        agentGoalService.selectCurrentGoal(request.getUserId());
 
         Context context =
                 contextLoader.load(request.getUserId(), request.getMessage());
@@ -62,6 +73,12 @@ public class ChatService {
 
                         .agentSelfState(context.agentSelfState())
 
+                        .agentProfile(context.agentProfile())
+
+                        .agentWorldState(context.agentWorldState())
+
+                        .agentGoal(context.agentGoal())
+
                         .memories(context.memories())
 
                         .reflections(context.reflections())
@@ -76,27 +93,7 @@ public class ChatService {
         String reply =
                 geminiService.generate(prompt);
 
-        ResponseQualityEvaluation evaluation =
-                responseQualityEvaluatorService.evaluateAndSave(
-                        request.getUserId(),
-                        request.getMessage(),
-                        reply,
-                        context,
-                        false
-                );
-
-        if (responseQualityEvaluatorService.shouldRegenerate(evaluation)) {
-            String regenerationPrompt =
-                    promptBuilder.buildRegenerationPrompt(prompt, reply, evaluation);
-            reply = geminiService.generate(regenerationPrompt);
-            responseQualityEvaluatorService.evaluateAndSave(
-                    request.getUserId(),
-                    request.getMessage(),
-                    reply,
-                    context,
-                    true
-            );
-        }
+        reply = evaluateAndRegenerateIfNeeded(request, context, prompt, reply, eventAnalysis);
 
         save(request.getUserId(),"USER",request.getMessage());
         save(request.getUserId(),"ASSISTANT",reply);
@@ -104,6 +101,45 @@ public class ChatService {
         contextUpdater.updateMemoryAfterResponse(request.getMessage(),reply);
 
         return new ChatResponse(reply);
+    }
+
+    private String evaluateAndRegenerateIfNeeded(
+            ChatRequest request,
+            Context context,
+            String prompt,
+            String reply,
+            EventAnalysis eventAnalysis
+    ) {
+        if (!responseQualityEvaluatorService.shouldEvaluate(eventAnalysis, context)) {
+            return reply;
+        }
+
+        ResponseQualityEvaluation evaluation =
+                responseQualityEvaluatorService.evaluateAndSave(
+                        request.getUserId(),
+                        request.getMessage(),
+                        reply,
+                        context,
+                        eventAnalysis,
+                        false
+                );
+
+        if (!responseQualityEvaluatorService.shouldRegenerate(evaluation)) {
+            return reply;
+        }
+
+        String regenerationPrompt =
+                promptBuilder.buildRegenerationPrompt(prompt, reply, evaluation);
+        String regeneratedReply = geminiService.generate(regenerationPrompt);
+        responseQualityEvaluatorService.evaluateAndSave(
+                request.getUserId(),
+                request.getMessage(),
+                regeneratedReply,
+                context,
+                eventAnalysis,
+                true
+        );
+        return regeneratedReply;
     }
 
     private void save(Long characterId,

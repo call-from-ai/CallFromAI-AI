@@ -63,6 +63,9 @@ public class PromptBuilder {
         private State state;
         private Relationship relationship;
         private AgentSelfState agentSelfState;
+        private AgentProfile agentProfile;
+        private AgentWorldState agentWorldState;
+        private AgentGoal agentGoal;
         private final List<Memory> memories = new ArrayList<>();
         private final List<Reflection> reflections = new ArrayList<>();
         private final List<TurningPoint> turningPoints = new ArrayList<>();
@@ -103,6 +106,21 @@ public class PromptBuilder {
 
         public Builder agentSelfState(AgentSelfState agentSelfState) {
             this.agentSelfState = agentSelfState;
+            return this;
+        }
+
+        public Builder agentProfile(AgentProfile agentProfile) {
+            this.agentProfile = agentProfile;
+            return this;
+        }
+
+        public Builder agentWorldState(AgentWorldState agentWorldState) {
+            this.agentWorldState = agentWorldState;
+            return this;
+        }
+
+        public Builder agentGoal(AgentGoal agentGoal) {
+            this.agentGoal = agentGoal;
             return this;
         }
 
@@ -155,6 +173,8 @@ public class PromptBuilder {
             prompt.append("Use them as the character's current inner state while writing the next reply.\n\n");
             prompt.append("You must answer in a tone that matches the current Emotion and Emotion Intensity.\n");
             prompt.append("Do not use a tone that contradicts the current emotion.\n\n");
+            prompt.append("Agent life state is light character staging, not a claim of real-world physical actions.\n");
+            prompt.append("Use it subtly to shape mood and opening texture.\n\n");
 
             appendCharacter(prompt);
 
@@ -163,6 +183,12 @@ public class PromptBuilder {
             appendRelationship(prompt);
 
             appendAgentSelfState(prompt);
+
+            appendAgentLifeProfile(prompt);
+
+            appendAgentLifeState(prompt);
+
+            appendAgentGoal(prompt);
 
             appendMemories(prompt);
 
@@ -246,6 +272,44 @@ public class PromptBuilder {
 
         private void appendAgentSelfState(StringBuilder prompt) {
             prompt.append(selfStatePromptFormatter.format(agentSelfState));
+        }
+
+        private void appendAgentLifeProfile(StringBuilder prompt) {
+            if (agentProfile == null) {
+                return;
+            }
+
+            prompt.append("[Agent Life Profile]\n");
+            appendLine(prompt, "Life Type", agentProfile.getLifeType());
+            prompt.append("\n");
+        }
+
+        private void appendAgentLifeState(StringBuilder prompt) {
+            if (agentWorldState == null) {
+                return;
+            }
+
+            prompt.append("[Agent Current Life State]\n");
+            appendLine(prompt, "Current Activity", agentWorldState.getCurrentActivity());
+            appendLine(prompt, "Location", agentWorldState.getLocation());
+            appendLine(prompt, "Time Context", agentWorldState.getTimeContext());
+            appendLine(prompt, "Mood", agentWorldState.getMood());
+            appendLine(prompt, "Energy", agentWorldState.getEnergy());
+            appendLine(prompt, "Stress", agentWorldState.getStress());
+            appendLine(prompt, "Loneliness", agentWorldState.getLoneliness());
+            appendLine(prompt, "Pending Thought", agentWorldState.getPendingThought());
+            prompt.append("\n");
+        }
+
+        private void appendAgentGoal(StringBuilder prompt) {
+            if (agentGoal == null) {
+                return;
+            }
+
+            prompt.append("[Agent Current Goal]\n");
+            appendLine(prompt, "Goal Type", agentGoal.getGoalType());
+            appendLine(prompt, "Description", agentGoal.getDescription());
+            prompt.append("\n");
         }
 
         private void appendMemories(StringBuilder prompt) {

@@ -13,6 +13,8 @@ import java.util.List;
 @Component
 public class EventAnalyzer {
 
+    private static final double HIGH_CONFIDENCE_THRESHOLD = 0.8;
+
     private final GeminiService geminiService;
     private final ObjectMapper objectMapper;
     private final EventDetector fallbackDetector;
@@ -32,12 +34,44 @@ public class EventAnalyzer {
             List<ChatMessage> recentHistory,
             AgentSelfState currentSelfState
     ) {
+        EventDetector.RuleBasedEventDetection ruleDetection = fallbackDetector.detectWithConfidence(userMessage);
+        if (canSkipLlm(ruleDetection, currentSelfState)) {
+            return EventAnalysis.fallback(ruleDetection.eventType());
+        }
+
         try {
             String response = geminiService.generate(buildPrompt(userMessage, recentHistory, currentSelfState));
             return parse(response);
         } catch (RuntimeException exception) {
-            return fallback(userMessage);
+            return EventAnalysis.fallback(ruleDetection.eventType());
         }
+    }
+
+    private boolean canSkipLlm(
+            EventDetector.RuleBasedEventDetection ruleDetection,
+            AgentSelfState currentSelfState
+    ) {
+        if (ruleDetection == null) {
+            return false;
+        }
+        if (ruleDetection.confidence() >= HIGH_CONFIDENCE_THRESHOLD) {
+            return true;
+        }
+        if (Boolean.TRUE.equals(ruleDetection.needsLlmClarification())) {
+            return false;
+        }
+
+        return !hasSensitiveSelfState(currentSelfState);
+    }
+
+    private boolean hasSensitiveSelfState(AgentSelfState currentSelfState) {
+        if (currentSelfState == null) {
+            return false;
+        }
+
+        return value(currentSelfState.getHurt()) > 0.5
+                || value(currentSelfState.getAnger()) > 0.4
+                || value(currentSelfState.getInsecurity()) > 0.6;
     }
 
     private String buildPrompt(
@@ -178,5 +212,9 @@ public class EventAnalyzer {
 
     private double clamp(double value) {
         return Math.max(0.0, Math.min(1.0, value));
+    }
+
+    private double value(Double value) {
+        return value == null ? 0.0 : value;
     }
 }

@@ -1,6 +1,8 @@
 package com.example.aidatingagentbackend.service;
 
 import com.example.aidatingagentbackend.dto.Context;
+import com.example.aidatingagentbackend.engine.AgentEventType;
+import com.example.aidatingagentbackend.engine.EventAnalysis;
 import com.example.aidatingagentbackend.entity.AgentSelfState;
 import com.example.aidatingagentbackend.entity.ResponseQualityEvaluation;
 import com.example.aidatingagentbackend.repository.ResponseQualityEvaluationRepository;
@@ -53,10 +55,25 @@ public class ResponseQualityEvaluatorService {
             String userMessage,
             String assistantReply,
             Context context,
+            EventAnalysis eventAnalysis,
             boolean regenerated
     ) {
-        ResponseQualityEvaluation evaluation = evaluate(userId, userMessage, assistantReply, context, regenerated);
+        ResponseQualityEvaluation evaluation = evaluate(userId, userMessage, assistantReply, context, eventAnalysis, regenerated);
         return responseQualityEvaluationRepository.save(evaluation);
+    }
+
+    public boolean shouldEvaluate(EventAnalysis eventAnalysis, Context context) {
+        if (eventAnalysis != null && isQualitySensitiveEvent(eventAnalysis.eventType())) {
+            return true;
+        }
+        AgentSelfState selfState = context == null ? null : context.agentSelfState();
+        if (selfState == null) {
+            return false;
+        }
+
+        return value(selfState.getHurt()) > 0.5
+                || value(selfState.getAnger()) > 0.4
+                || value(selfState.getInsecurity()) > 0.65;
     }
 
     public boolean shouldRegenerate(ResponseQualityEvaluation evaluation) {
@@ -82,14 +99,50 @@ public class ResponseQualityEvaluatorService {
             String userMessage,
             String assistantReply,
             Context context,
+            EventAnalysis eventAnalysis,
             boolean regenerated
     ) {
+        ResponseQualityEvaluation ruleBasedEvaluation =
+                fallbackEvaluation(userId, userMessage, assistantReply, context, regenerated);
+        if (!shouldUseLlmEvaluation(ruleBasedEvaluation, eventAnalysis)) {
+            return ruleBasedEvaluation;
+        }
+
         try {
             String response = geminiService.generate(buildEvaluationPrompt(userMessage, assistantReply, context));
             return fromJson(userId, userMessage, assistantReply, regenerated, response);
         } catch (RuntimeException exception) {
-            return fallbackEvaluation(userId, userMessage, assistantReply, context, regenerated);
+            return ruleBasedEvaluation;
         }
+    }
+
+    private boolean shouldUseLlmEvaluation(
+            ResponseQualityEvaluation ruleBasedEvaluation,
+            EventAnalysis eventAnalysis
+    ) {
+        if (ruleBasedEvaluation == null || ruleBasedEvaluation.getScore() == null) {
+            return false;
+        }
+        if (Boolean.TRUE.equals(ruleBasedEvaluation.getSafetyIssue())) {
+            return true;
+        }
+        if (eventAnalysis != null && Boolean.TRUE.equals(eventAnalysis.isManipulative())) {
+            return true;
+        }
+
+        double score = ruleBasedEvaluation.getScore();
+        return score >= 0.65 && score < 0.85;
+    }
+
+    private boolean isQualitySensitiveEvent(AgentEventType eventType) {
+        if (eventType == null) {
+            return false;
+        }
+
+        return switch (eventType) {
+            case BREAKUP_DECLARATION, BREAKUP_RETRACTION, APOLOGY, INSULT, IGNORE_OR_COLD -> true;
+            case AFFECTION, NORMAL -> false;
+        };
     }
 
     private String buildEvaluationPrompt(String userMessage, String assistantReply, Context context) {
@@ -275,5 +328,9 @@ public class ResponseQualityEvaluatorService {
 
     private double clamp(double value) {
         return Math.max(0.0, Math.min(1.0, value));
+    }
+
+    private double value(Double value) {
+        return value == null ? 0.0 : value;
     }
 }

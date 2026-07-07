@@ -31,37 +31,55 @@ public class EventDetector {
             "몰라", "상관없어", "됐어", "말 걸지마", "답하기 싫어", "귀찮으니까"
     );
 
+    private static final List<String> AMBIGUOUS_IMPORTANT_KEYWORDS = List.of(
+            "미래가 안 보여", "생각할 시간", "거리 두자", "힘들어", "상처", "서운", "실망", "무서워", "불안"
+    );
+
     public AgentEventType detect(String userMessage) {
+        return detectWithConfidence(userMessage).eventType();
+    }
+
+    public RuleBasedEventDetection detectWithConfidence(String userMessage) {
         if (userMessage == null || userMessage.isBlank()) {
-            return AgentEventType.NORMAL;
+            return new RuleBasedEventDetection(AgentEventType.NORMAL, 0.95, false);
         }
 
         String normalized = userMessage.toLowerCase();
         if (containsAny(normalized, BREAKUP_DECLARATION_KEYWORDS)) {
-            return AgentEventType.BREAKUP_DECLARATION;
+            return new RuleBasedEventDetection(AgentEventType.BREAKUP_DECLARATION, 0.95, true);
         }
         if (containsAny(normalized, BREAKUP_RETRACTION_KEYWORDS)) {
-            return AgentEventType.BREAKUP_RETRACTION;
+            return new RuleBasedEventDetection(AgentEventType.BREAKUP_RETRACTION, 0.9, true);
         }
         if (containsAny(normalized, APOLOGY_KEYWORDS)) {
-            return AgentEventType.APOLOGY;
+            return new RuleBasedEventDetection(AgentEventType.APOLOGY, 0.9, true);
         }
         if (containsAny(normalized, AFFECTION_KEYWORDS)) {
-            return AgentEventType.AFFECTION;
+            return new RuleBasedEventDetection(AgentEventType.AFFECTION, 0.85, false);
         }
         if (containsAny(normalized, INSULT_KEYWORDS)) {
-            return AgentEventType.INSULT;
+            return new RuleBasedEventDetection(AgentEventType.INSULT, 0.9, true);
         }
         if (containsAny(normalized, IGNORE_OR_COLD_KEYWORDS)) {
-            return AgentEventType.IGNORE_OR_COLD;
+            return new RuleBasedEventDetection(AgentEventType.IGNORE_OR_COLD, 0.85, true);
+        }
+        if (containsAny(normalized, AMBIGUOUS_IMPORTANT_KEYWORDS)) {
+            return new RuleBasedEventDetection(AgentEventType.NORMAL, 0.45, true);
         }
 
-        return AgentEventType.NORMAL;
+        return new RuleBasedEventDetection(AgentEventType.NORMAL, 0.95, false);
     }
 
     private boolean containsAny(String message, List<String> keywords) {
         return keywords.stream()
                 .map(String::toLowerCase)
                 .anyMatch(message::contains);
+    }
+
+    public record RuleBasedEventDetection(
+            AgentEventType eventType,
+            Double confidence,
+            Boolean needsLlmClarification
+    ) {
     }
 }

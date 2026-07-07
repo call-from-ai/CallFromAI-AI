@@ -11,6 +11,9 @@ import com.example.aidatingagentbackend.repository.RelationshipRepository;
 import com.example.aidatingagentbackend.repository.StateRepository;
 import com.example.aidatingagentbackend.repository.TurningPointRepository;
 import com.example.aidatingagentbackend.service.ReflectionService;
+import com.example.aidatingagentbackend.service.AgentGoalService;
+import com.example.aidatingagentbackend.service.AgentProfileService;
+import com.example.aidatingagentbackend.service.AgentWorldStateService;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -24,6 +27,9 @@ public class ContextLoader {
     private final ReflectionService reflectionService;
     private final TurningPointRepository turningPointRepository;
     private final ChatMessageRepository chatRepository;
+    private final AgentProfileService agentProfileService;
+    private final AgentWorldStateService agentWorldStateService;
+    private final AgentGoalService agentGoalService;
 
     public ContextLoader(
             CharacterRepository characterRepository,
@@ -33,7 +39,10 @@ public class ContextLoader {
             MemoryRetrievalService memoryRetrievalService,
             ReflectionService reflectionService,
             TurningPointRepository turningPointRepository,
-            ChatMessageRepository chatRepository
+            ChatMessageRepository chatRepository,
+            AgentProfileService agentProfileService,
+            AgentWorldStateService agentWorldStateService,
+            AgentGoalService agentGoalService
     ) {
         this.characterRepository = characterRepository;
         this.stateRepository = stateRepository;
@@ -43,6 +52,9 @@ public class ContextLoader {
         this.reflectionService = reflectionService;
         this.turningPointRepository = turningPointRepository;
         this.chatRepository = chatRepository;
+        this.agentProfileService = agentProfileService;
+        this.agentWorldStateService = agentWorldStateService;
+        this.agentGoalService = agentGoalService;
     }
 
     public Context load(Long characterId, String userMessage) {
@@ -69,6 +81,12 @@ public class ContextLoader {
 
                 agentSelfStateRepository.findByCharacterId(characterId)
                         .orElse(null),
+
+                agentProfileService.findOrDefault(characterId),
+
+                agentWorldStateService.findByUserId(characterId),
+
+                agentGoalService.findCurrentGoal(characterId),
 
                 memoryRetrievalService.retrieve(userMessage, state),
 

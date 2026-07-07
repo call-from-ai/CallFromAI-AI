@@ -27,7 +27,7 @@ public class EmotionUpdateService {
     private final EventDetector eventDetector;
     private final ChatMessageRepository chatMessageRepository;
     private final AgentSelfStateLogRepository agentSelfStateLogRepository;
-    private final ReflectionService reflectionService;
+    private final ReflectionCandidateService reflectionCandidateService;
 
     public EmotionUpdateService(
             AgentSelfStateRepository agentSelfStateRepository,
@@ -35,18 +35,18 @@ public class EmotionUpdateService {
             EventDetector eventDetector,
             ChatMessageRepository chatMessageRepository,
             AgentSelfStateLogRepository agentSelfStateLogRepository,
-            ReflectionService reflectionService
+            ReflectionCandidateService reflectionCandidateService
     ) {
         this.agentSelfStateRepository = agentSelfStateRepository;
         this.eventAnalyzer = eventAnalyzer;
         this.eventDetector = eventDetector;
         this.chatMessageRepository = chatMessageRepository;
         this.agentSelfStateLogRepository = agentSelfStateLogRepository;
-        this.reflectionService = reflectionService;
+        this.reflectionCandidateService = reflectionCandidateService;
     }
 
     @Transactional
-    public AgentSelfState updateBeforeResponse(Long characterId, String userMessage) {
+    public EmotionUpdateResult updateBeforeResponse(Long characterId, String userMessage) {
         AgentSelfState state = agentSelfStateRepository.findByCharacterId(characterId)
                 .orElseGet(() -> createDefaultState(characterId));
 
@@ -57,9 +57,9 @@ public class EmotionUpdateService {
         applyEvent(state, eventAnalysis.eventType());
         normalize(state);
         AgentSelfStateLog stateLog = saveLog(characterId, userMessage, eventAnalysis, previousSnapshot, state);
-        createReflectionIfNeeded(characterId, userMessage, eventAnalysis, stateLog, state);
+        createReflectionCandidateIfNeeded(characterId, userMessage, eventAnalysis, stateLog);
 
-        return agentSelfStateRepository.save(state);
+        return new EmotionUpdateResult(agentSelfStateRepository.save(state), eventAnalysis);
     }
 
     @Transactional(readOnly = true)
@@ -108,18 +108,17 @@ public class EmotionUpdateService {
         return agentSelfStateLogRepository.save(log);
     }
 
-    private void createReflectionIfNeeded(
+    private void createReflectionCandidateIfNeeded(
             Long userId,
             String userMessage,
             EventAnalysis eventAnalysis,
-            AgentSelfStateLog stateLog,
-            AgentSelfState currentState
+            AgentSelfStateLog stateLog
     ) {
-        if (reflectionService == null) {
+        if (reflectionCandidateService == null) {
             return;
         }
 
-        reflectionService.createIfImportant(userId, userMessage, eventAnalysis, stateLog, currentState);
+        reflectionCandidateService.createIfImportant(userId, userMessage, eventAnalysis, stateLog);
     }
 
     private String buildDeltaReason(EventAnalysis eventAnalysis) {
@@ -301,5 +300,11 @@ public class EmotionUpdateService {
                     state.getInsecurity()
             );
         }
+    }
+
+    public record EmotionUpdateResult(
+            AgentSelfState agentSelfState,
+            EventAnalysis eventAnalysis
+    ) {
     }
 }
