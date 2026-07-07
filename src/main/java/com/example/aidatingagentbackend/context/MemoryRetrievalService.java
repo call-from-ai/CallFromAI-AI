@@ -11,6 +11,8 @@ import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
+import java.time.Duration;
+import java.time.LocalDateTime;
 import java.util.stream.Collectors;
 
 @Service
@@ -35,11 +37,13 @@ public class MemoryRetrievalService {
         Set<String> queryTerms = tokenize(userMessage);
         double[] queryEmbedding = memoryEmbeddingService.embed(userMessage);
 
-        return memoryRepository.findAll()
+        List<Memory> retrieved = memoryRepository.findAll()
                 .stream()
                 .sorted(Comparator.comparingDouble(memory -> -score(memory, queryTerms, queryEmbedding, currentEmotion)))
                 .limit(MAX_RETRIEVED_MEMORIES)
                 .toList();
+        markRetrieved(retrieved);
+        return retrieved;
     }
 
     private double score(Memory memory, Set<String> queryTerms, double[] queryEmbedding, String currentEmotion) {
@@ -61,7 +65,29 @@ public class MemoryRetrievalService {
             }
         }
 
+        score -= recentUsePenalty(memory);
+
         return score;
+    }
+
+    private double recentUsePenalty(Memory memory) {
+        if (memory.getLastRetrievedAt() == null) {
+            return 0.0;
+        }
+
+        long minutes = Duration.between(memory.getLastRetrievedAt(), LocalDateTime.now()).toMinutes();
+        double recencyPenalty = minutes < 10 ? 18.0 : minutes < 30 ? 10.0 : minutes < 120 ? 4.0 : 0.0;
+        int retrievalCount = memory.getRetrievalCount() == null ? 0 : memory.getRetrievalCount();
+        return recencyPenalty + Math.min(8.0, retrievalCount * 0.8);
+    }
+
+    private void markRetrieved(List<Memory> memories) {
+        LocalDateTime now = LocalDateTime.now();
+        for (Memory memory : memories) {
+            memory.setLastRetrievedAt(now);
+            memory.setRetrievalCount((memory.getRetrievalCount() == null ? 0 : memory.getRetrievalCount()) + 1);
+        }
+        memoryRepository.saveAll(memories);
     }
 
     private double[] resolveEmbedding(Memory memory) {

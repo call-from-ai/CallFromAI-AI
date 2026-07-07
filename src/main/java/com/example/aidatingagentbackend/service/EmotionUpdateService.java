@@ -55,6 +55,7 @@ public class EmotionUpdateService {
         applyDecay(state, now);
         EventAnalysis eventAnalysis = analyzeEvent(characterId, userMessage, state);
         applyEvent(state, eventAnalysis.eventType());
+        applyConversationTransition(state, userMessage, eventAnalysis);
         normalize(state);
         AgentSelfStateLog stateLog = saveLog(characterId, userMessage, eventAnalysis, previousSnapshot, state);
         createReflectionCandidateIfNeeded(characterId, userMessage, eventAnalysis, stateLog);
@@ -160,6 +161,55 @@ public class EmotionUpdateService {
             case INSULT -> applyInsult(state);
             case IGNORE_OR_COLD -> applyColdEvent(state);
             case NORMAL -> updateLastEmotion(state);
+        }
+    }
+
+    private void applyConversationTransition(
+            AgentSelfState state,
+            String userMessage,
+            EventAnalysis eventAnalysis
+    ) {
+        String message = normalize(userMessage);
+
+        if (containsAny(message, "보고 싶", "보고싶", "너랑 얘기", "너랑 말", "얘기하려고", "말하려고", "왔다", "왔어")) {
+            state.setHurt(value(state.getHurt()) - 0.12);
+            state.setAnger(value(state.getAnger()) - 0.08);
+            state.setInsecurity(value(state.getInsecurity()) - 0.08);
+            state.setTrust(value(state.getTrust()) + 0.06);
+            state.setAffection(value(state.getAffection()) + 0.08);
+            state.setEmotionalDistance(value(state.getEmotionalDistance()) - 0.08);
+            state.setLastEmotion(value(state.getHurt()) > 0.45 ? "guarded_but_softening" : "softened");
+            state.setLastSignificantEvent("user_returned_to_talk");
+            return;
+        }
+
+        if (containsAny(message, "미안", "잘못", "사과")) {
+            state.setHurt(value(state.getHurt()) - 0.12);
+            state.setAnger(value(state.getAnger()) - 0.1);
+            state.setTrust(value(state.getTrust()) + 0.04);
+            state.setLastEmotion(value(state.getHurt()) > 0.45 ? "hurt_but_listening" : "softened");
+            return;
+        }
+
+        if (containsAny(message, "너 얘기", "네 얘기", "니 얘기", "어제 뭐", "뭐했어", "머했어", "너는")) {
+            state.setHurt(value(state.getHurt()) - 0.06);
+            state.setAnger(value(state.getAnger()) - 0.04);
+            state.setLastEmotion(value(state.getHurt()) > 0.5 ? "guarded_but_talking" : "curious");
+            return;
+        }
+
+        if (containsAny(message, "안 먹", "못 먹", "굶", "저녁 안", "밥 안")) {
+            state.setInsecurity(value(state.getInsecurity()) + 0.04);
+            state.setLastEmotion("concerned");
+            state.setLastSignificantEvent("user_skipped_meal");
+            return;
+        }
+
+        if (eventAnalysis != null
+                && eventAnalysis.eventType() == AgentEventType.NORMAL
+                && containsAny(message, "동아리", "개발", "과제", "프로젝트", "수업", "일")) {
+            state.setHurt(value(state.getHurt()) - 0.04);
+            state.setLastEmotion(value(state.getHurt()) > 0.5 ? "guarded_but_interested" : "interested");
         }
     }
 
@@ -279,6 +329,22 @@ public class EmotionUpdateService {
 
     private double value(Double value) {
         return value == null ? 0.0 : value;
+    }
+
+    private boolean containsAny(String message, String... patterns) {
+        if (message == null || message.isBlank()) {
+            return false;
+        }
+        for (String pattern : patterns) {
+            if (message.contains(pattern)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private String normalize(String message) {
+        return message == null ? "" : message.toLowerCase();
     }
 
     private double clamp(Double value) {

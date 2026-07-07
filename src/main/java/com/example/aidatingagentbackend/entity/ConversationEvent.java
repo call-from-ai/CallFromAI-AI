@@ -2,8 +2,6 @@ package com.example.aidatingagentbackend.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -16,30 +14,27 @@ import lombok.Setter;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "memories")
+@Table(name = "conversation_events")
 @Getter
 @Setter
 @NoArgsConstructor
-public class Memory {
+public class ConversationEvent {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Enumerated(EnumType.STRING)
-    private MemoryType type;
+    private Long userId;
+
+    private String eventType;
 
     @Column(columnDefinition = "TEXT")
     private String summary;
 
     @Column(columnDefinition = "TEXT")
-    private String embedding;
+    private String agentReaction;
 
-    private Integer importance;
-
-    private LocalDateTime lastRetrievedAt;
-
-    private Integer retrievalCount;
+    private Double importance;
 
     private LocalDateTime createdAt;
 

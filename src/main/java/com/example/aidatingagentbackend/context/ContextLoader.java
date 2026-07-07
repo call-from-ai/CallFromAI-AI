@@ -23,6 +23,7 @@ import com.example.aidatingagentbackend.service.AgentLifeEventService;
 import com.example.aidatingagentbackend.service.AgentProfileService;
 import com.example.aidatingagentbackend.service.AgentWorldStateService;
 import com.example.aidatingagentbackend.service.CharacterExampleService;
+import com.example.aidatingagentbackend.service.ConversationEventService;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -44,6 +45,7 @@ public class ContextLoader {
     private final AgentGoalService agentGoalService;
     private final AgentInitiativeService agentInitiativeService;
     private final AgentLifeEventService agentLifeEventService;
+    private final ConversationEventService conversationEventService;
 
     public ContextLoader(
             CharacterRepository characterRepository,
@@ -59,7 +61,8 @@ public class ContextLoader {
             AgentWorldStateService agentWorldStateService,
             AgentGoalService agentGoalService,
             AgentInitiativeService agentInitiativeService,
-            AgentLifeEventService agentLifeEventService
+            AgentLifeEventService agentLifeEventService,
+            ConversationEventService conversationEventService
     ) {
         this.characterRepository = characterRepository;
         this.stateRepository = stateRepository;
@@ -75,6 +78,7 @@ public class ContextLoader {
         this.agentGoalService = agentGoalService;
         this.agentInitiativeService = agentInitiativeService;
         this.agentLifeEventService = agentLifeEventService;
+        this.conversationEventService = conversationEventService;
     }
 
     public Context load(Long characterId, String userMessage) {
@@ -131,6 +135,8 @@ public class ContextLoader {
                 resolvedTemperature,
 
                 agentLifeEvents,
+
+                conversationEventService.findRecentForPrompt(characterId),
 
                 characterExampleService.findRelevantEntities(characterId, resolvedEventType, resolvedTemperature),
 

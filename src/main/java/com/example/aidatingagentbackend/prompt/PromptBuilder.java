@@ -70,6 +70,7 @@ public class PromptBuilder {
         private AgentInitiative agentInitiative;
         private RelationshipTemperature relationshipTemperature = RelationshipTemperature.NEUTRAL;
         private final List<AgentLifeEvent> agentLifeEvents = new ArrayList<>();
+        private final List<ConversationEvent> conversationEvents = new ArrayList<>();
         private final List<CharacterExample> characterExamples = new ArrayList<>();
         private final List<Memory> memories = new ArrayList<>();
         private final List<Reflection> reflections = new ArrayList<>();
@@ -147,6 +148,15 @@ public class PromptBuilder {
                 agentLifeEvents.stream()
                         .filter(event -> event != null)
                         .forEach(this.agentLifeEvents::add);
+            }
+            return this;
+        }
+
+        public Builder conversationEvents(List<ConversationEvent> conversationEvents) {
+            if (conversationEvents != null) {
+                conversationEvents.stream()
+                        .filter(event -> event != null)
+                        .forEach(this.conversationEvents::add);
             }
             return this;
         }
@@ -231,6 +241,9 @@ public class PromptBuilder {
             prompt.append("- Continue from the user's latest concrete detail: work, food, missing someone, current activity, mood, or conflict.\n");
             prompt.append("- If the user says they were busy, ask what made them busy instead of asking another generic wellbeing question.\n\n");
             prompt.append("[Conversation Progression Rules]\n");
+            prompt.append("- When the user asks a question, answer it first. Then ask at most one follow-up question.\n");
+            prompt.append("- Target ratio: 80% answer/self-disclosure, 20% question.\n");
+            prompt.append("- Avoid question-only replies unless the user message is impossible to answer.\n");
             prompt.append("- If the user asks about the agent's day, yesterday, current activity, or story, answer with at least one concrete agent life detail.\n");
             prompt.append("- Do not dodge with only '궁금하긴 해?', '딱히', '별거 있겠냐', or emotional deflection.\n");
             prompt.append("- Conflict should move: hurt -> complaint -> concrete explanation -> curiosity/playfulness -> possible softening.\n");
@@ -255,6 +268,8 @@ public class PromptBuilder {
             appendAgentLifeState(prompt);
 
             appendAgentLifeEvents(prompt);
+
+            appendConversationEvents(prompt);
 
             appendAgentGoal(prompt);
 
@@ -290,6 +305,7 @@ public class PromptBuilder {
             appendCompactState(prompt);
             appendCompactLife(prompt);
             appendCompactLifeEvents(prompt);
+            appendCompactConversationEvents(prompt);
             appendCompactInitiative(prompt);
             appendCompactLanguageStyle(prompt);
             appendCompactExamples(prompt);
@@ -372,6 +388,24 @@ public class PromptBuilder {
                             .append(event.getDetail())
                             .append("\n"));
             prompt.append("If the user asks what the agent did, use one of these details instead of dodging.\n\n");
+        }
+
+        private void appendCompactConversationEvents(StringBuilder prompt) {
+            if (conversationEvents.isEmpty()) {
+                return;
+            }
+
+            prompt.append("[Recent Shared Conversation Events]\n");
+            conversationEvents.stream()
+                    .limit(4)
+                    .forEach(event -> prompt.append("- ")
+                            .append(event.getEventType())
+                            .append(": ")
+                            .append(event.getSummary())
+                            .append(" / Agent reaction: ")
+                            .append(event.getAgentReaction())
+                            .append("\n"));
+            prompt.append("Use these to follow up on concrete user topics instead of repeating generic emotion.\n\n");
         }
 
         private void appendCompactInitiative(StringBuilder prompt) {
@@ -579,6 +613,25 @@ public class PromptBuilder {
                 prompt.append("\n");
             }
             prompt.append("If the user asks about yesterday/today/the agent's story, answer with a concrete detail from this section before asking back.\n\n");
+        }
+
+        private void appendConversationEvents(StringBuilder prompt) {
+            if (conversationEvents.isEmpty()) {
+                return;
+            }
+
+            prompt.append("[Recent Shared Conversation Events]\n");
+            prompt.append("These are concrete things the user told the agent. Use them as relationship continuity and follow-up hooks.\n");
+            for (ConversationEvent event : conversationEvents) {
+                prompt.append("- ");
+                appendInline(prompt, "Event", event.getEventType());
+                appendInline(prompt, "Summary", event.getSummary());
+                appendInline(prompt, "Agent Reaction", event.getAgentReaction());
+                appendInline(prompt, "Importance", event.getImportance());
+                prompt.append("\n");
+            }
+            prompt.append("If the latest user message adds a concrete fact, respond to that fact before returning to hurt/jealousy.\n");
+            prompt.append("Examples: skipped meal -> tell them to eat; development -> ask what they are building; club -> ask what club.\n\n");
         }
 
         private void appendAgentGoal(StringBuilder prompt) {

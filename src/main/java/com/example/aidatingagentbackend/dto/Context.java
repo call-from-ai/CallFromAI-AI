@@ -9,6 +9,7 @@ import com.example.aidatingagentbackend.entity.AgentProfile;
 import com.example.aidatingagentbackend.entity.AgentWorldState;
 import com.example.aidatingagentbackend.entity.Memory;
 import com.example.aidatingagentbackend.entity.CharacterExample;
+import com.example.aidatingagentbackend.entity.ConversationEvent;
 import com.example.aidatingagentbackend.entity.Reflection;
 import com.example.aidatingagentbackend.entity.Relationship;
 import com.example.aidatingagentbackend.entity.RelationshipTemperature;
@@ -38,6 +39,8 @@ public record Context(
         RelationshipTemperature relationshipTemperature,
 
         List<AgentLifeEvent> agentLifeEvents,
+
+        List<ConversationEvent> conversationEvents,
 
         List<CharacterExample> characterExamples,
 

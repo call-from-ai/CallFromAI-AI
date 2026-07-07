@@ -39,6 +39,7 @@ public class ChatService {
     private final AgentWorldStateService agentWorldStateService;
     private final AgentGoalService agentGoalService;
     private final ResponseStylePostProcessor responseStylePostProcessor;
+    private final ConversationEventService conversationEventService;
 
     public ChatService(
             PromptBuilder promptBuilder,
@@ -50,7 +51,8 @@ public class ChatService {
             ResponseQualityEvaluatorService responseQualityEvaluatorService,
             AgentWorldStateService agentWorldStateService,
             AgentGoalService agentGoalService,
-            ResponseStylePostProcessor responseStylePostProcessor) {
+            ResponseStylePostProcessor responseStylePostProcessor,
+            ConversationEventService conversationEventService) {
         this.promptBuilder = promptBuilder;
         this.geminiService = geminiService;
         this.contextLoader = contextLoader;
@@ -61,6 +63,7 @@ public class ChatService {
         this.agentWorldStateService = agentWorldStateService;
         this.agentGoalService = agentGoalService;
         this.responseStylePostProcessor = responseStylePostProcessor;
+        this.conversationEventService = conversationEventService;
     }
 
     public ChatResponse chat(ChatRequest request){
@@ -69,6 +72,7 @@ public class ChatService {
                 emotionUpdateService.updateBeforeResponse(request.getUserId(), request.getMessage());
         EventAnalysis eventAnalysis = emotionUpdateResult.eventAnalysis();
         RelationshipTemperature relationshipTemperature = resolveRelationshipTemperature(request);
+        conversationEventService.detectAndSave(request.getUserId(), request.getMessage(), eventAnalysis);
         contextUpdater.updateBeforeResponse(request.getMessage(), eventAnalysis);
         agentWorldStateService.updateBeforeResponse(request.getUserId());
         agentGoalService.selectCurrentGoal(request.getUserId());
@@ -104,6 +108,8 @@ public class ChatService {
                         .relationshipTemperature(context.relationshipTemperature())
 
                         .agentLifeEvents(context.agentLifeEvents())
+
+                        .conversationEvents(context.conversationEvents())
 
                         .characterExamples(context.characterExamples())
 
@@ -147,6 +153,7 @@ public class ChatService {
                         emotionUpdateService.updateBeforeResponse(request.getUserId(), request.getMessage());
                 EventAnalysis eventAnalysis = emotionUpdateResult.eventAnalysis();
                 RelationshipTemperature relationshipTemperature = resolveRelationshipTemperature(request);
+                conversationEventService.detectAndSave(request.getUserId(), request.getMessage(), eventAnalysis);
                 contextUpdater.updateBeforeResponse(request.getMessage(), eventAnalysis);
                 agentWorldStateService.updateBeforeResponse(request.getUserId());
                 agentGoalService.selectCurrentGoal(request.getUserId());
@@ -273,6 +280,7 @@ public class ChatService {
                 .agentInitiative(context.agentInitiative())
                 .relationshipTemperature(context.relationshipTemperature())
                 .agentLifeEvents(context.agentLifeEvents())
+                .conversationEvents(context.conversationEvents())
                 .characterExamples(context.characterExamples())
                 .memories(context.memories())
                 .reflections(context.reflections())
