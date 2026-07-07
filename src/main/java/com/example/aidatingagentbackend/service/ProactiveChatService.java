@@ -138,6 +138,7 @@ public class ProactiveChatService {
                 .agentWorldState(context.agentWorldState())
                 .agentGoal(context.agentGoal())
                 .agentInitiative(context.agentInitiative())
+                .relationshipTemperature(context.relationshipTemperature())
                 .characterExamples(context.characterExamples())
                 .memories(context.memories())
                 .reflections(context.reflections())

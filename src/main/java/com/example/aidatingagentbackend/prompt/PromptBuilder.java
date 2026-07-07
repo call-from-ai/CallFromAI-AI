@@ -68,6 +68,7 @@ public class PromptBuilder {
         private AgentWorldState agentWorldState;
         private AgentGoal agentGoal;
         private AgentInitiative agentInitiative;
+        private RelationshipTemperature relationshipTemperature = RelationshipTemperature.NEUTRAL;
         private final List<CharacterExample> characterExamples = new ArrayList<>();
         private final List<Memory> memories = new ArrayList<>();
         private final List<Reflection> reflections = new ArrayList<>();
@@ -130,6 +131,13 @@ public class PromptBuilder {
 
         public Builder agentInitiative(AgentInitiative agentInitiative) {
             this.agentInitiative = agentInitiative;
+            return this;
+        }
+
+        public Builder relationshipTemperature(RelationshipTemperature relationshipTemperature) {
+            this.relationshipTemperature = relationshipTemperature == null
+                    ? RelationshipTemperature.NEUTRAL
+                    : relationshipTemperature;
             return this;
         }
 
@@ -229,6 +237,8 @@ public class PromptBuilder {
 
             appendAgentInitiative(prompt);
 
+            appendLanguageStyle(prompt);
+
             appendCharacterExamples(prompt);
 
             appendMemories(prompt);
@@ -256,6 +266,7 @@ public class PromptBuilder {
             appendCompactState(prompt);
             appendCompactLife(prompt);
             appendCompactInitiative(prompt);
+            appendCompactLanguageStyle(prompt);
             appendCompactExamples(prompt);
             appendCompactMemories(prompt);
             appendCompactHistory(prompt);
@@ -334,15 +345,26 @@ public class PromptBuilder {
             prompt.append("\n\n");
         }
 
+        private void appendCompactLanguageStyle(StringBuilder prompt) {
+            prompt.append("[Language Style]\n");
+            appendLanguageStyleRules(prompt, relationshipTemperature, true);
+            prompt.append("\n");
+        }
+
         private void appendCompactExamples(StringBuilder prompt) {
             if (characterExamples.isEmpty()) {
                 return;
             }
 
             prompt.append("[Persona Examples]\n");
+            prompt.append("Use these only for speaking style, rhythm, slang density, typo habits, and emotional pacing. Do not copy content.\n");
             characterExamples.stream()
                     .limit(3)
                     .forEach(example -> {
+                        appendInline(prompt, "Tone", example.getToneTag());
+                        appendInline(prompt, "Event", example.getEventType());
+                        appendInline(prompt, "Temperature", example.getRelationshipTemperature());
+                        prompt.append("\n");
                         prompt.append("User: ").append(example.getUserExample()).append("\n");
                         prompt.append("Assistant: ").append(example.getAssistantExample()).append("\n");
                     });
@@ -521,15 +543,70 @@ public class PromptBuilder {
             prompt.append("Use this as the agent's own initiative. It should feel like the agent is participating, not just responding.\n\n");
         }
 
+        private void appendLanguageStyle(StringBuilder prompt) {
+            prompt.append("[Language Style]\n");
+            appendLine(prompt, "Relationship Temperature", relationshipTemperature);
+            prompt.append("Character examples are style references. Follow how they speak more than what they say.\n");
+            prompt.append("Use their rhythm, slang density, typo habits, sentence length, affection level, and emotional pacing.\n");
+            prompt.append("Do not copy example content verbatim.\n");
+            appendLanguageStyleRules(prompt, relationshipTemperature, false);
+            prompt.append("\n");
+        }
+
+        private void appendLanguageStyleRules(
+                StringBuilder prompt,
+                RelationshipTemperature temperature,
+                boolean compact
+        ) {
+            RelationshipTemperature resolvedTemperature = temperature == null
+                    ? RelationshipTemperature.NEUTRAL
+                    : temperature;
+
+            switch (resolvedTemperature) {
+                case FRIENDLY -> {
+                    prompt.append("- Use warm, caring, affectionate Korean chat style.\n");
+                    prompt.append("- Cute typos are allowed: 엏, 졋엉, 머야, 헤헤, 히히.\n");
+                    prompt.append("- Use ㅎㅎ, ㅋㅋ, ㅠㅠ naturally.\n");
+                    prompt.append("- Ask questions often and keep the conversation going.\n");
+                    prompt.append("- End sentences softly and avoid stiff written language.\n");
+                    prompt.append("- Words like 너무, 완전, 진짜 can appear often.\n");
+                    if (!compact) {
+                        prompt.append("- Multiple ? or ! are okay when emotionally natural.\n");
+                    }
+                }
+                case SPICY -> {
+                    prompt.append("- Use confident bad boy / bad girl Korean chat style.\n");
+                    prompt.append("- Use short sentences, banmal, slang, abbreviations, and intentional typos.\n");
+                    prompt.append("- Texture examples: ㅇㅇ, ㄴㄴ, ㅋㅋ, ㅎ, ㄹㅇ, 아ㅏ, 배구파, 머함, 머야, 잼썼냐, 늦엇네.\n");
+                    prompt.append("- Push-pull is allowed. Do not accept the user too easily.\n");
+                    prompt.append("- Use playful teasing and direct emotional expression.\n");
+                    prompt.append("- Keep confidence, but do not become abusive, coercive, or threatening.\n");
+                }
+                case CONFLICT_REPAIR -> {
+                    prompt.append("- Speak calmly, honestly, and a little guarded.\n");
+                    prompt.append("- Do not push the user away, but do not forgive too easily.\n");
+                    prompt.append("- Name the feeling, set a boundary, and leave room for repair.\n");
+                    prompt.append("- Avoid cute exaggeration unless the emotional state has softened.\n");
+                }
+                case NEUTRAL -> {
+                    prompt.append("- Use natural Korean chat style with balanced warmth.\n");
+                    prompt.append("- Keep it conversational, not formal or assistant-like.\n");
+                    prompt.append("- Add one agent-owned thought or question when natural.\n");
+                }
+            }
+        }
+
         private void appendCharacterExamples(StringBuilder prompt) {
             if (characterExamples.isEmpty()) {
                 return;
             }
 
             prompt.append("[Persona Dialogue Examples]\n");
-            prompt.append("Imitate the style, emotional pacing, and boundary tone of these examples. Do not copy them verbatim.\n");
+            prompt.append("Imitate style, rhythm, slang density, typo habits, emotional pacing, and boundary tone. Do not copy content verbatim.\n");
             for (CharacterExample example : characterExamples) {
                 appendInline(prompt, "Tone", example.getToneTag());
+                appendInline(prompt, "Event", example.getEventType());
+                appendInline(prompt, "Temperature", example.getRelationshipTemperature());
                 prompt.append("\nUser: ").append(example.getUserExample()).append("\n");
                 prompt.append("Assistant: ").append(example.getAssistantExample()).append("\n");
             }

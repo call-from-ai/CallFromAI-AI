@@ -7,6 +7,7 @@ import com.example.aidatingagentbackend.dto.ChatResponse;
 import com.example.aidatingagentbackend.dto.Context;
 import com.example.aidatingagentbackend.engine.EventAnalysis;
 import com.example.aidatingagentbackend.entity.ChatMessage;
+import com.example.aidatingagentbackend.entity.RelationshipTemperature;
 import com.example.aidatingagentbackend.entity.ResponseQualityEvaluation;
 import com.example.aidatingagentbackend.prompt.PromptBuilder;
 import com.example.aidatingagentbackend.repository.ChatMessageRepository;
@@ -64,12 +65,18 @@ public class ChatService {
         EmotionUpdateService.EmotionUpdateResult emotionUpdateResult =
                 emotionUpdateService.updateBeforeResponse(request.getUserId(), request.getMessage());
         EventAnalysis eventAnalysis = emotionUpdateResult.eventAnalysis();
+        RelationshipTemperature relationshipTemperature = resolveRelationshipTemperature(request);
         contextUpdater.updateBeforeResponse(request.getMessage(), eventAnalysis);
         agentWorldStateService.updateBeforeResponse(request.getUserId());
         agentGoalService.selectCurrentGoal(request.getUserId());
 
         Context context =
-                contextLoader.load(request.getUserId(), request.getMessage());
+                contextLoader.load(
+                        request.getUserId(),
+                        request.getMessage(),
+                        eventAnalysis.eventType(),
+                        relationshipTemperature
+                );
 
         String prompt =
 
@@ -90,6 +97,8 @@ public class ChatService {
                         .agentGoal(context.agentGoal())
 
                         .agentInitiative(context.agentInitiative())
+
+                        .relationshipTemperature(context.relationshipTemperature())
 
                         .characterExamples(context.characterExamples())
 
@@ -131,12 +140,18 @@ public class ChatService {
                 EmotionUpdateService.EmotionUpdateResult emotionUpdateResult =
                         emotionUpdateService.updateBeforeResponse(request.getUserId(), request.getMessage());
                 EventAnalysis eventAnalysis = emotionUpdateResult.eventAnalysis();
+                RelationshipTemperature relationshipTemperature = resolveRelationshipTemperature(request);
                 contextUpdater.updateBeforeResponse(request.getMessage(), eventAnalysis);
                 agentWorldStateService.updateBeforeResponse(request.getUserId());
                 agentGoalService.selectCurrentGoal(request.getUserId());
 
                 Context context =
-                        contextLoader.load(request.getUserId(), request.getMessage());
+                        contextLoader.load(
+                                request.getUserId(),
+                                request.getMessage(),
+                                eventAnalysis.eventType(),
+                                relationshipTemperature
+                        );
 
                 String prompt = buildPrompt(context, request.getMessage(), true);
 
@@ -249,6 +264,7 @@ public class ChatService {
                 .agentWorldState(context.agentWorldState())
                 .agentGoal(context.agentGoal())
                 .agentInitiative(context.agentInitiative())
+                .relationshipTemperature(context.relationshipTemperature())
                 .characterExamples(context.characterExamples())
                 .memories(context.memories())
                 .reflections(context.reflections())
@@ -267,6 +283,12 @@ public class ChatService {
         } catch (IOException exception) {
             throw new IllegalStateException("Failed to send stream event.", exception);
         }
+    }
+
+    private RelationshipTemperature resolveRelationshipTemperature(ChatRequest request) {
+        return request.getRelationshipTemperature() == null
+                ? RelationshipTemperature.NEUTRAL
+                : request.getRelationshipTemperature();
     }
 
     private void save(Long characterId,
