@@ -7,6 +7,7 @@ import com.example.aidatingagentbackend.entity.AgentGoal;
 import com.example.aidatingagentbackend.entity.AgentProfile;
 import com.example.aidatingagentbackend.entity.AgentWorldState;
 import com.example.aidatingagentbackend.entity.Memory;
+import com.example.aidatingagentbackend.entity.CharacterExample;
 import com.example.aidatingagentbackend.entity.Reflection;
 import com.example.aidatingagentbackend.entity.Relationship;
 import com.example.aidatingagentbackend.entity.State;
@@ -29,6 +30,8 @@ public record Context(
         AgentWorldState agentWorldState,
 
         AgentGoal agentGoal,
+
+        List<CharacterExample> characterExamples,
 
         List<Memory> memories,
 

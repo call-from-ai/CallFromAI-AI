@@ -1,5 +1,6 @@
 package com.example.aidatingagentbackend.service;
 
+import com.example.aidatingagentbackend.context.MemoryEmbeddingService;
 import com.example.aidatingagentbackend.dto.MemoryRequest;
 import com.example.aidatingagentbackend.dto.MemoryResponse;
 import com.example.aidatingagentbackend.entity.Memory;
@@ -15,9 +16,14 @@ import java.util.List;
 public class MemoryService {
 
     private final MemoryRepository memoryRepository;
+    private final MemoryEmbeddingService memoryEmbeddingService;
 
-    public MemoryService(MemoryRepository memoryRepository) {
+    public MemoryService(
+            MemoryRepository memoryRepository,
+            MemoryEmbeddingService memoryEmbeddingService
+    ) {
         this.memoryRepository = memoryRepository;
+        this.memoryEmbeddingService = memoryEmbeddingService;
     }
 
     @Transactional
@@ -61,6 +67,7 @@ public class MemoryService {
     private void applyRequest(Memory memory, MemoryRequest request) {
         memory.setType(request.getType());
         memory.setSummary(request.getSummary());
+        memory.setEmbedding(memoryEmbeddingService.serialize(memoryEmbeddingService.embed(request.getSummary())));
         memory.setImportance(request.getImportance());
     }
 }

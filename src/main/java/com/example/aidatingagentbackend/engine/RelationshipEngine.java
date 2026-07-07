@@ -23,6 +23,10 @@ public class RelationshipEngine {
     );
 
     public RelationshipResult analyze(Relationship currentRelationship, String event) {
+        return analyze(currentRelationship, event, null);
+    }
+
+    public RelationshipResult analyze(Relationship currentRelationship, String event, EventAnalysis eventAnalysis) {
         int currentTrust = resolveTrust(currentRelationship);
         int currentCloseness = resolveCloseness(currentRelationship);
         int currentConflictLevel = resolveConflictLevel(currentRelationship);
@@ -37,6 +41,18 @@ public class RelationshipEngine {
                     currentRepairProgress,
                     currentBreakupRisk
             );
+        }
+
+        RelationshipResult analysisResult = analyzeWithEventAnalysis(
+                currentTrust,
+                currentCloseness,
+                currentConflictLevel,
+                currentRepairProgress,
+                currentBreakupRisk,
+                eventAnalysis
+        );
+        if (analysisResult != null) {
+            return analysisResult;
         }
 
         String normalizedEvent = event.toLowerCase();
@@ -62,6 +78,88 @@ public class RelationshipEngine {
                 nextConflictLevel,
                 nextRepairProgress,
                 nextBreakupRisk
+        );
+    }
+
+    private RelationshipResult analyzeWithEventAnalysis(
+            int currentTrust,
+            int currentCloseness,
+            int currentConflictLevel,
+            int currentRepairProgress,
+            int currentBreakupRisk,
+            EventAnalysis eventAnalysis
+    ) {
+        if (eventAnalysis == null || eventAnalysis.eventType() == null || eventAnalysis.eventType() == AgentEventType.NORMAL) {
+            return null;
+        }
+
+        double severity = value(eventAnalysis.severity(), 0.5);
+        double sincerity = value(eventAnalysis.sincerity(), 0.5);
+        int scale = Math.max(1, (int) Math.round(severity * 10));
+        int trustDelta = 0;
+        int closenessDelta = 0;
+        int conflictDelta = 0;
+        int repairDelta = 0;
+        int breakupRiskDelta = 0;
+
+        switch (eventAnalysis.eventType()) {
+            case BREAKUP_DECLARATION -> {
+                trustDelta = -(int) Math.round(20 * severity * sincerity);
+                closenessDelta = -(int) Math.round(16 * severity);
+                conflictDelta = (int) Math.round(24 * severity);
+                repairDelta = -(int) Math.round(12 * severity);
+                breakupRiskDelta = (int) Math.round(32 * severity * Math.max(0.5, sincerity));
+            }
+            case BREAKUP_RETRACTION -> {
+                trustDelta = Boolean.TRUE.equals(eventAnalysis.isJoke()) ? -4 : 2;
+                closenessDelta = -2;
+                conflictDelta = -Math.max(2, scale / 2);
+                repairDelta = (int) Math.round(8 * sincerity);
+                breakupRiskDelta = -Math.max(2, scale / 2);
+            }
+            case APOLOGY -> {
+                trustDelta = (int) Math.round(8 * sincerity);
+                closenessDelta = (int) Math.round(4 * sincerity);
+                conflictDelta = -(int) Math.round(10 * sincerity);
+                repairDelta = (int) Math.round(18 * sincerity);
+                breakupRiskDelta = -(int) Math.round(8 * sincerity);
+            }
+            case AFFECTION -> {
+                trustDelta = (int) Math.round(4 * sincerity);
+                closenessDelta = (int) Math.round(10 * sincerity);
+                conflictDelta = -2;
+                repairDelta = 4;
+                breakupRiskDelta = -3;
+            }
+            case INSULT -> {
+                trustDelta = -(int) Math.round(20 * severity);
+                closenessDelta = -(int) Math.round(12 * severity);
+                conflictDelta = (int) Math.round(25 * severity);
+                repairDelta = -8;
+                breakupRiskDelta = (int) Math.round(16 * severity);
+            }
+            case IGNORE_OR_COLD -> {
+                trustDelta = -(int) Math.round(8 * severity);
+                closenessDelta = -(int) Math.round(8 * severity);
+                conflictDelta = (int) Math.round(10 * severity);
+                repairDelta = -4;
+                breakupRiskDelta = (int) Math.round(8 * severity);
+            }
+            case NORMAL -> {
+            }
+        }
+
+        if (Boolean.TRUE.equals(eventAnalysis.isManipulative())) {
+            trustDelta -= 10;
+            conflictDelta += 12;
+        }
+
+        return new RelationshipResult(
+                clamp(currentTrust + trustDelta),
+                clamp(currentCloseness + closenessDelta),
+                clamp(currentConflictLevel + conflictDelta),
+                clamp(currentRepairProgress + repairDelta),
+                clamp(currentBreakupRisk + breakupRiskDelta)
         );
     }
 
@@ -114,6 +212,10 @@ public class RelationshipEngine {
 
     private int clamp(int value) {
         return Math.max(MIN_SCORE, Math.min(MAX_SCORE, value));
+    }
+
+    private double value(Double value, double fallback) {
+        return value == null ? fallback : Math.max(0.0, Math.min(1.0, value));
     }
 
     public record RelationshipResult(

@@ -6,6 +6,7 @@ import com.example.aidatingagentbackend.entity.Relationship;
 import com.example.aidatingagentbackend.entity.State;
 import com.example.aidatingagentbackend.repository.AgentSelfStateRepository;
 import com.example.aidatingagentbackend.repository.CharacterRepository;
+import com.example.aidatingagentbackend.repository.CharacterExampleRepository;
 import com.example.aidatingagentbackend.repository.ChatMessageRepository;
 import com.example.aidatingagentbackend.repository.RelationshipRepository;
 import com.example.aidatingagentbackend.repository.StateRepository;
@@ -27,6 +28,7 @@ public class ContextLoader {
     private final ReflectionService reflectionService;
     private final TurningPointRepository turningPointRepository;
     private final ChatMessageRepository chatRepository;
+    private final CharacterExampleRepository characterExampleRepository;
     private final AgentProfileService agentProfileService;
     private final AgentWorldStateService agentWorldStateService;
     private final AgentGoalService agentGoalService;
@@ -40,6 +42,7 @@ public class ContextLoader {
             ReflectionService reflectionService,
             TurningPointRepository turningPointRepository,
             ChatMessageRepository chatRepository,
+            CharacterExampleRepository characterExampleRepository,
             AgentProfileService agentProfileService,
             AgentWorldStateService agentWorldStateService,
             AgentGoalService agentGoalService
@@ -52,6 +55,7 @@ public class ContextLoader {
         this.reflectionService = reflectionService;
         this.turningPointRepository = turningPointRepository;
         this.chatRepository = chatRepository;
+        this.characterExampleRepository = characterExampleRepository;
         this.agentProfileService = agentProfileService;
         this.agentWorldStateService = agentWorldStateService;
         this.agentGoalService = agentGoalService;
@@ -87,6 +91,8 @@ public class ContextLoader {
                 agentWorldStateService.findByUserId(characterId),
 
                 agentGoalService.findCurrentGoal(characterId),
+
+                characterExampleRepository.findTop5ByCharacterIdOrderByPriorityDescIdAsc(characterId),
 
                 memoryRetrievalService.retrieve(userMessage, state),
 

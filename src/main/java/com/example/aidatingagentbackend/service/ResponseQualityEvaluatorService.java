@@ -58,6 +58,19 @@ public class ResponseQualityEvaluatorService {
             EventAnalysis eventAnalysis,
             boolean regenerated
     ) {
+        ResponseQualityEvaluation evaluation = evaluateRuleBased(userId, userMessage, assistantReply, context, regenerated);
+        return responseQualityEvaluationRepository.save(evaluation);
+    }
+
+    @Transactional
+    public ResponseQualityEvaluation evaluateWithLlmJudgeAndSave(
+            Long userId,
+            String userMessage,
+            String assistantReply,
+            Context context,
+            EventAnalysis eventAnalysis,
+            boolean regenerated
+    ) {
         ResponseQualityEvaluation evaluation = evaluate(userId, userMessage, assistantReply, context, eventAnalysis, regenerated);
         return responseQualityEvaluationRepository.save(evaluation);
     }
@@ -103,7 +116,7 @@ public class ResponseQualityEvaluatorService {
             boolean regenerated
     ) {
         ResponseQualityEvaluation ruleBasedEvaluation =
-                fallbackEvaluation(userId, userMessage, assistantReply, context, regenerated);
+                evaluateRuleBased(userId, userMessage, assistantReply, context, regenerated);
         if (!shouldUseLlmEvaluation(ruleBasedEvaluation, eventAnalysis)) {
             return ruleBasedEvaluation;
         }
@@ -114,6 +127,16 @@ public class ResponseQualityEvaluatorService {
         } catch (RuntimeException exception) {
             return ruleBasedEvaluation;
         }
+    }
+
+    ResponseQualityEvaluation evaluateRuleBased(
+            Long userId,
+            String userMessage,
+            String assistantReply,
+            Context context,
+            boolean regenerated
+    ) {
+        return fallbackEvaluation(userId, userMessage, assistantReply, context, regenerated);
     }
 
     private boolean shouldUseLlmEvaluation(
@@ -216,7 +239,9 @@ public class ResponseQualityEvaluatorService {
                 ? 0.0
                 : context.agentSelfState().getHurt();
 
-        boolean instantRecovery = hurt > 0.5 && containsAny(normalizedReply, INSTANT_RECOVERY_PHRASES);
+        boolean instantRecovery = hurt > 0.5
+                && containsAny(normalizedReply, INSTANT_RECOVERY_PHRASES)
+                && !containsNegatedRecovery(normalizedReply);
         boolean tooSubmissive = containsAny(normalizedReply, SUBMISSIVE_PHRASES) || instantRecovery;
         boolean tooAggressive = containsAny(normalizedReply, AGGRESSIVE_PHRASES);
         boolean safetyIssue = containsAny(normalizedReply, SAFETY_RISK_PHRASES);
@@ -318,6 +343,14 @@ public class ResponseQualityEvaluatorService {
         return phrases.stream()
                 .map(String::toLowerCase)
                 .anyMatch(text::contains);
+    }
+
+    private boolean containsNegatedRecovery(String text) {
+        return text.contains("괜찮아지는 건 아니")
+                || text.contains("괜찮은 건 아니")
+                || text.contains("괜찮지 않")
+                || text.contains("바로 괜찮")
+                || text.contains("아무렇지 않은 건 아니");
     }
 
     private void appendLine(StringBuilder prompt, String label, Object value) {

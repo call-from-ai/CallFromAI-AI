@@ -22,11 +22,20 @@ public class EmotionEngine {
     );
 
     public EmotionResult analyze(State currentState, String userMessage) {
+        return analyze(currentState, userMessage, null);
+    }
+
+    public EmotionResult analyze(State currentState, String userMessage, EventAnalysis eventAnalysis) {
         String currentEmotion = resolveCurrentEmotion(currentState);
         int currentIntensity = resolveCurrentIntensity(currentState);
 
         if (userMessage == null || userMessage.isBlank()) {
             return new EmotionResult(currentEmotion, currentIntensity);
+        }
+
+        EmotionResult eventResult = analyzeWithEventAnalysis(eventAnalysis, currentEmotion, currentIntensity);
+        if (eventResult != null) {
+            return eventResult;
         }
 
         EmotionResult ruleResult = analyzeWithRules(userMessage, currentEmotion, currentIntensity);
@@ -36,6 +45,45 @@ public class EmotionEngine {
         }
 
         return ruleResult;
+    }
+
+    private EmotionResult analyzeWithEventAnalysis(
+            EventAnalysis eventAnalysis,
+            String currentEmotion,
+            int currentIntensity
+    ) {
+        if (eventAnalysis == null || eventAnalysis.eventType() == null || eventAnalysis.eventType() == AgentEventType.NORMAL) {
+            return null;
+        }
+
+        int severityDelta = Math.max(1, (int) Math.round(value(eventAnalysis.severity()) * 6));
+        String nextEmotion = resolveEventEmotion(eventAnalysis);
+        int nextIntensity = switch (eventAnalysis.eventType()) {
+            case BREAKUP_DECLARATION, INSULT -> clamp(currentIntensity + severityDelta);
+            case BREAKUP_RETRACTION -> clamp(Math.max(currentIntensity - 1, 4));
+            case APOLOGY -> clamp(currentIntensity - Math.max(1, severityDelta / 2));
+            case AFFECTION -> clamp(currentIntensity + Math.max(1, severityDelta / 2));
+            case IGNORE_OR_COLD -> clamp(currentIntensity + Math.max(1, severityDelta / 2));
+            case NORMAL -> currentIntensity;
+        };
+
+        return new EmotionResult(nextEmotion, nextIntensity);
+    }
+
+    private String resolveEventEmotion(EventAnalysis eventAnalysis) {
+        if (eventAnalysis.primaryEmotion() != null && !eventAnalysis.primaryEmotion().isBlank()) {
+            return eventAnalysis.primaryEmotion();
+        }
+
+        return switch (eventAnalysis.eventType()) {
+            case BREAKUP_DECLARATION -> "hurt";
+            case BREAKUP_RETRACTION -> "confused";
+            case APOLOGY -> "softened";
+            case AFFECTION -> "affection";
+            case INSULT -> "upset";
+            case IGNORE_OR_COLD -> "distant";
+            case NORMAL -> DEFAULT_EMOTION;
+        };
     }
 
     private EmotionResult analyzeWithRules(String userMessage, String currentEmotion, int currentIntensity) {
@@ -74,6 +122,10 @@ public class EmotionEngine {
 
     private int clamp(int value) {
         return Math.max(MIN_INTENSITY, Math.min(MAX_INTENSITY, value));
+    }
+
+    private double value(Double value) {
+        return value == null ? 0.0 : value;
     }
 
     public record EmotionResult(String emotion, Integer emotionIntensity) {

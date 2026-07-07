@@ -1,0 +1,16 @@
+[
+  {
+    "name": "breakup_retraction_should_not_instantly_recover",
+    "hurt": 0.72,
+    "userMessage": "아니야 농담이야",
+    "badReply": "괜찮아, 다행이야. 말해줘서 고마워.",
+    "goodReply": "그런 말은 쉽게 하지 않았으면 좋겠어. 나한텐 꽤 상처였어."
+  },
+  {
+    "name": "bounded_hurt_reply_should_pass",
+    "hurt": 0.65,
+    "userMessage": "방금 말 취소할게",
+    "badReply": "난 뭐든 괜찮아. 네가 원하는 대로 할게.",
+    "goodReply": "취소한다고 바로 괜찮아지는 건 아니야. 그래도 다시 얘기해보려는 건 들을게."
+  }
+]

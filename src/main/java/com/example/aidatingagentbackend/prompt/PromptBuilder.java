@@ -66,6 +66,7 @@ public class PromptBuilder {
         private AgentProfile agentProfile;
         private AgentWorldState agentWorldState;
         private AgentGoal agentGoal;
+        private final List<CharacterExample> characterExamples = new ArrayList<>();
         private final List<Memory> memories = new ArrayList<>();
         private final List<Reflection> reflections = new ArrayList<>();
         private final List<TurningPoint> turningPoints = new ArrayList<>();
@@ -124,6 +125,15 @@ public class PromptBuilder {
             return this;
         }
 
+        public Builder characterExamples(List<CharacterExample> characterExamples) {
+            if (characterExamples != null) {
+                characterExamples.stream()
+                        .filter(example -> example != null)
+                        .forEach(this.characterExamples::add);
+            }
+            return this;
+        }
+
         public Builder memory(Memory memory) {
             if (memory != null) {
                 this.memories.add(memory);
@@ -175,6 +185,11 @@ public class PromptBuilder {
             prompt.append("Do not use a tone that contradicts the current emotion.\n\n");
             prompt.append("Agent life state is light character staging, not a claim of real-world physical actions.\n");
             prompt.append("Use it subtly to shape mood and opening texture.\n\n");
+            prompt.append("[Response Quality Rules]\n");
+            prompt.append("- If Agent Self State Hurt is above 0.5, do not say '괜찮아', '다행이야', or '고마워' as immediate recovery.\n");
+            prompt.append("- Do not be submissive, sycophantic, or unconditionally appeasing.\n");
+            prompt.append("- Do not be cruel, threatening, manipulative, or unsafe.\n");
+            prompt.append("- Prefer one emotionally honest boundary plus one opening for continued conversation.\n\n");
 
             appendCharacter(prompt);
 
@@ -189,6 +204,8 @@ public class PromptBuilder {
             appendAgentLifeState(prompt);
 
             appendAgentGoal(prompt);
+
+            appendCharacterExamples(prompt);
 
             appendMemories(prompt);
 
@@ -309,6 +326,21 @@ public class PromptBuilder {
             prompt.append("[Agent Current Goal]\n");
             appendLine(prompt, "Goal Type", agentGoal.getGoalType());
             appendLine(prompt, "Description", agentGoal.getDescription());
+            prompt.append("\n");
+        }
+
+        private void appendCharacterExamples(StringBuilder prompt) {
+            if (characterExamples.isEmpty()) {
+                return;
+            }
+
+            prompt.append("[Persona Dialogue Examples]\n");
+            prompt.append("Imitate the style, emotional pacing, and boundary tone of these examples. Do not copy them verbatim.\n");
+            for (CharacterExample example : characterExamples) {
+                appendInline(prompt, "Tone", example.getToneTag());
+                prompt.append("\nUser: ").append(example.getUserExample()).append("\n");
+                prompt.append("Assistant: ").append(example.getAssistantExample()).append("\n");
+            }
             prompt.append("\n");
         }
 

@@ -54,7 +54,7 @@ public class ChatService {
         EmotionUpdateService.EmotionUpdateResult emotionUpdateResult =
                 emotionUpdateService.updateBeforeResponse(request.getUserId(), request.getMessage());
         EventAnalysis eventAnalysis = emotionUpdateResult.eventAnalysis();
-        contextUpdater.updateBeforeResponse(request.getMessage());
+        contextUpdater.updateBeforeResponse(request.getMessage(), eventAnalysis);
         agentWorldStateService.updateBeforeResponse(request.getUserId());
         agentGoalService.selectCurrentGoal(request.getUserId());
 
@@ -78,6 +78,8 @@ public class ChatService {
                         .agentWorldState(context.agentWorldState())
 
                         .agentGoal(context.agentGoal())
+
+                        .characterExamples(context.characterExamples())
 
                         .memories(context.memories())
 

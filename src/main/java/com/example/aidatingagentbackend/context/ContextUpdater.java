@@ -1,6 +1,7 @@
 package com.example.aidatingagentbackend.context;
 
 import com.example.aidatingagentbackend.engine.EmotionEngine;
+import com.example.aidatingagentbackend.engine.EventAnalysis;
 import com.example.aidatingagentbackend.engine.MemoryEngine;
 import com.example.aidatingagentbackend.engine.RelationshipEngine;
 import com.example.aidatingagentbackend.entity.Memory;
@@ -22,6 +23,7 @@ public class ContextUpdater {
     private final EmotionEngine emotionEngine;
     private final RelationshipEngine relationshipEngine;
     private final MemoryEngine memoryEngine;
+    private final MemoryEmbeddingService memoryEmbeddingService;
 
     private final StateRepository stateRepository;
     private final RelationshipRepository relationshipRepository;
@@ -42,6 +44,7 @@ public class ContextUpdater {
                 EmotionEngine emotionEngine,
                 RelationshipEngine relationshipEngine,
                 MemoryEngine memoryEngine,
+                MemoryEmbeddingService memoryEmbeddingService,
                 StateRepository stateRepository,
                 RelationshipRepository relationshipRepository,
                 MemoryRepository memoryRepository,
@@ -50,6 +53,7 @@ public class ContextUpdater {
             this.emotionEngine = emotionEngine;
             this.relationshipEngine = relationshipEngine;
             this.memoryEngine = memoryEngine;
+            this.memoryEmbeddingService = memoryEmbeddingService;
             this.stateRepository = stateRepository;
             this.relationshipRepository = relationshipRepository;
             this.memoryRepository = memoryRepository;
@@ -57,7 +61,7 @@ public class ContextUpdater {
         }
 
 
-    public void updateBeforeResponse(String userMessage){
+    public void updateBeforeResponse(String userMessage, EventAnalysis eventAnalysis){
 
         State state =
                 stateRepository.findTopByOrderByIdDesc()
@@ -68,10 +72,10 @@ public class ContextUpdater {
                         .orElseGet(Relationship::new);
 
         var emotion =
-                emotionEngine.analyze(state,userMessage);
+                emotionEngine.analyze(state,userMessage,eventAnalysis);
 
         var relation =
-                relationshipEngine.analyze(relationship,userMessage);
+                relationshipEngine.analyze(relationship,userMessage,eventAnalysis);
 
         state.setEmotion(emotion.emotion());
         state.setEmotionIntensity(emotion.emotionIntensity());
@@ -104,6 +108,7 @@ public class ContextUpdater {
 
             memory.setType(decision.memoryType());
             memory.setSummary(decision.episodeSummary());
+            memory.setEmbedding(memoryEmbeddingService.serialize(memoryEmbeddingService.embed(decision.episodeSummary())));
             memory.setImportance(decision.importance());
 
             memoryRepository.save(memory);
