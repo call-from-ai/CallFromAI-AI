@@ -32,6 +32,7 @@ public class ProactiveChatService {
     private final ChatMessageRepository chatMessageRepository;
     private final AgentWorldStateService agentWorldStateService;
     private final AgentGoalService agentGoalService;
+    private final ResponseStylePostProcessor responseStylePostProcessor;
 
     public ProactiveChatService(
             ContextLoader contextLoader,
@@ -39,7 +40,8 @@ public class ProactiveChatService {
             GeminiService geminiService,
             ChatMessageRepository chatMessageRepository,
             AgentWorldStateService agentWorldStateService,
-            AgentGoalService agentGoalService
+            AgentGoalService agentGoalService,
+            ResponseStylePostProcessor responseStylePostProcessor
     ) {
         this.contextLoader = contextLoader;
         this.promptBuilder = promptBuilder;
@@ -47,6 +49,7 @@ public class ProactiveChatService {
         this.chatMessageRepository = chatMessageRepository;
         this.agentWorldStateService = agentWorldStateService;
         this.agentGoalService = agentGoalService;
+        this.responseStylePostProcessor = responseStylePostProcessor;
     }
 
     public SseEmitter subscribe(Long userId) {
@@ -105,6 +108,7 @@ public class ProactiveChatService {
             Context context = contextLoader.load(userId, promptSeed);
             String prompt = buildPrompt(context, promptSeed);
             String reply = geminiService.generate(prompt);
+            reply = responseStylePostProcessor.process(reply, context.relationshipTemperature());
             saveAssistantMessage(userId, reply);
 
             long totalLatencyMs = System.currentTimeMillis() - startedAt;

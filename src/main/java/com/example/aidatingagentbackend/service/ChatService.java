@@ -38,6 +38,7 @@ public class ChatService {
     private final ResponseQualityEvaluatorService responseQualityEvaluatorService;
     private final AgentWorldStateService agentWorldStateService;
     private final AgentGoalService agentGoalService;
+    private final ResponseStylePostProcessor responseStylePostProcessor;
 
     public ChatService(
             PromptBuilder promptBuilder,
@@ -48,7 +49,8 @@ public class ChatService {
             EmotionUpdateService emotionUpdateService,
             ResponseQualityEvaluatorService responseQualityEvaluatorService,
             AgentWorldStateService agentWorldStateService,
-            AgentGoalService agentGoalService) {
+            AgentGoalService agentGoalService,
+            ResponseStylePostProcessor responseStylePostProcessor) {
         this.promptBuilder = promptBuilder;
         this.geminiService = geminiService;
         this.contextLoader = contextLoader;
@@ -58,6 +60,7 @@ public class ChatService {
         this.responseQualityEvaluatorService = responseQualityEvaluatorService;
         this.agentWorldStateService = agentWorldStateService;
         this.agentGoalService = agentGoalService;
+        this.responseStylePostProcessor = responseStylePostProcessor;
     }
 
     public ChatResponse chat(ChatRequest request){
@@ -115,6 +118,7 @@ public class ChatService {
                         .build();
         String reply =
                 geminiService.generate(prompt);
+        reply = responseStylePostProcessor.process(reply, relationshipTemperature);
 
         reply = evaluateAndRegenerateIfNeeded(request, context, prompt, reply, eventAnalysis);
 
@@ -170,7 +174,7 @@ public class ChatService {
                 });
                 firstTokenAt = firstTokenHolder[0];
 
-                String reply = streamedReply.toString();
+                String reply = responseStylePostProcessor.process(streamedReply.toString(), relationshipTemperature);
                 save(request.getUserId(), "USER", request.getMessage());
                 save(request.getUserId(), "ASSISTANT", reply);
                 contextUpdater.updateMemoryAfterResponse(request.getMessage(), reply);
@@ -243,6 +247,7 @@ public class ChatService {
         String regenerationPrompt =
                 promptBuilder.buildRegenerationPrompt(prompt, reply, evaluation);
         String regeneratedReply = geminiService.generate(regenerationPrompt);
+        regeneratedReply = responseStylePostProcessor.process(regeneratedReply, context.relationshipTemperature());
         responseQualityEvaluatorService.evaluateAndSave(
                 request.getUserId(),
                 request.getMessage(),

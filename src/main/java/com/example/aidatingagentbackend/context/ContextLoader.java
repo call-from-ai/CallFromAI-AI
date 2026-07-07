@@ -118,7 +118,7 @@ public class ContextLoader {
 
                 agentGoal,
 
-                agentInitiativeService.plan(agentSelfState, agentWorldState, agentGoal, relationship),
+                agentInitiativeService.plan(userMessage, resolvedTemperature, agentSelfState, agentWorldState, agentGoal, relationship),
 
                 resolvedTemperature,
 
