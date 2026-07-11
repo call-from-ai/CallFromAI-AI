@@ -9,6 +9,8 @@ import lombok.Setter;
 @NoArgsConstructor
 public class RelationshipRequest {
 
+    private Long characterId;
+
     private Integer trust;
 
     private Integer closeness;

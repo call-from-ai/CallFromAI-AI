@@ -12,6 +12,8 @@ public class RelationshipResponse {
 
     private Long id;
 
+    private Long characterId;
+
     private Integer trust;
 
     private Integer closeness;
@@ -29,6 +31,7 @@ public class RelationshipResponse {
     public static RelationshipResponse from(Relationship relationship) {
         RelationshipResponse response = new RelationshipResponse();
         response.setId(relationship.getId());
+        response.setCharacterId(relationship.getCharacterId());
         response.setTrust(relationship.getTrust());
         response.setCloseness(relationship.getCloseness());
         response.setConflictLevel(relationship.getConflictLevel());

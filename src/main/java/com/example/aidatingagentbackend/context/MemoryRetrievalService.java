@@ -32,12 +32,16 @@ public class MemoryRetrievalService {
     }
 
     @Transactional
-    public List<Memory> retrieve(String userMessage, State state) {
+    public List<Memory> retrieve(Long characterId, String userMessage, State state) {
         String currentEmotion = state == null ? null : state.getEmotion();
         Set<String> queryTerms = tokenize(userMessage);
         double[] queryEmbedding = memoryEmbeddingService.embed(userMessage);
 
-        List<Memory> retrieved = memoryRepository.findAll()
+        List<Memory> source = characterId == null
+                ? memoryRepository.findAll()
+                : memoryRepository.findByCharacterId(characterId);
+
+        List<Memory> retrieved = source
                 .stream()
                 .sorted(Comparator.comparingDouble(memory -> -score(memory, queryTerms, queryEmbedding, currentEmotion)))
                 .limit(MAX_RETRIEVED_MEMORIES)

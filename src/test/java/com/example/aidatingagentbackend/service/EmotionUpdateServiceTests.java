@@ -2,6 +2,7 @@ package com.example.aidatingagentbackend.service;
 
 import com.example.aidatingagentbackend.engine.AgentEventType;
 import com.example.aidatingagentbackend.engine.EventDetector;
+import com.example.aidatingagentbackend.engine.MessageSignalDetector;
 import com.example.aidatingagentbackend.entity.AgentSelfState;
 import org.junit.jupiter.api.Test;
 
@@ -11,7 +12,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class EmotionUpdateServiceTests {
 
-    private final EmotionUpdateService emotionUpdateService = new EmotionUpdateService(null, null, new EventDetector(), null, null, null);
+    private final MessageSignalDetector messageSignalDetector = new MessageSignalDetector();
+    private final EmotionUpdateService emotionUpdateService =
+            new EmotionUpdateService(null, null, new EventDetector(messageSignalDetector), null, null, null, messageSignalDetector);
 
     @Test
     void breakupDeclarationRaisesHurtAndInsecurityAndLowersTrust() {

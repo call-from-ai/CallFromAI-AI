@@ -14,6 +14,8 @@ public class StateResponse {
 
     private Long id;
 
+    private Long characterId;
+
     private String emotion;
 
     private Integer emotionIntensity;
@@ -31,6 +33,7 @@ public class StateResponse {
     public static StateResponse from(State state) {
         StateResponse response = new StateResponse();
         response.setId(state.getId());
+        response.setCharacterId(state.getCharacterId());
         response.setEmotion(state.getEmotion());
         response.setEmotionIntensity(state.getEmotionIntensity());
         response.setEnergy(state.getEnergy());

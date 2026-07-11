@@ -82,8 +82,6 @@ class GoldenConversationEvaluationTests {
                 List.of(),
                 List.of(),
                 List.of(),
-                List.of(),
-                List.of(),
                 List.of()
         );
     }

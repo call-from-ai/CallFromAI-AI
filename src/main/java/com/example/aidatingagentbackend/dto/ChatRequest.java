@@ -10,9 +10,15 @@ import lombok.Setter;
 @NoArgsConstructor
 public class ChatRequest {
 
+    private Long characterId;
+
     private Long userId;
 
     private String message;
 
     private RelationshipTemperature relationshipTemperature;
+
+    public Long resolveCharacterId() {
+        return characterId == null ? userId : characterId;
+    }
 }

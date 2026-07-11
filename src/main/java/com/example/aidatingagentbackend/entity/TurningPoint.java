@@ -23,6 +23,8 @@ public class TurningPoint {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    private Long characterId;
+
     private String eventType;
 
     @Column(columnDefinition = "TEXT")

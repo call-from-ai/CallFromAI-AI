@@ -16,8 +16,6 @@ import com.example.aidatingagentbackend.repository.CharacterRepository;
 import com.example.aidatingagentbackend.repository.ChatMessageRepository;
 import com.example.aidatingagentbackend.repository.RelationshipRepository;
 import com.example.aidatingagentbackend.repository.StateRepository;
-import com.example.aidatingagentbackend.repository.TurningPointRepository;
-import com.example.aidatingagentbackend.service.ReflectionService;
 import com.example.aidatingagentbackend.service.AgentGoalService;
 import com.example.aidatingagentbackend.service.AgentInitiativeService;
 import com.example.aidatingagentbackend.service.AgentLifeEventService;
@@ -39,8 +37,6 @@ public class ContextLoader {
     private final RelationshipRepository relationshipRepository;
     private final AgentSelfStateRepository agentSelfStateRepository;
     private final MemoryRetrievalService memoryRetrievalService;
-    private final ReflectionService reflectionService;
-    private final TurningPointRepository turningPointRepository;
     private final ChatMessageRepository chatRepository;
     private final CharacterExampleService characterExampleService;
     private final AgentProfileService agentProfileService;
@@ -58,8 +54,6 @@ public class ContextLoader {
             RelationshipRepository relationshipRepository,
             AgentSelfStateRepository agentSelfStateRepository,
             MemoryRetrievalService memoryRetrievalService,
-            ReflectionService reflectionService,
-            TurningPointRepository turningPointRepository,
             ChatMessageRepository chatRepository,
             CharacterExampleService characterExampleService,
             AgentProfileService agentProfileService,
@@ -76,8 +70,6 @@ public class ContextLoader {
         this.relationshipRepository = relationshipRepository;
         this.agentSelfStateRepository = agentSelfStateRepository;
         this.memoryRetrievalService = memoryRetrievalService;
-        this.reflectionService = reflectionService;
-        this.turningPointRepository = turningPointRepository;
         this.chatRepository = chatRepository;
         this.characterExampleService = characterExampleService;
         this.agentProfileService = agentProfileService;
@@ -110,12 +102,12 @@ public class ContextLoader {
                         .orElse(null);
 
         State state =
-                stateRepository.findTopByOrderByIdDesc()
-                        .orElse(new State());
+                stateRepository.findByCharacterId(characterId)
+                        .orElseGet(() -> createDefaultState(characterId));
 
         Relationship relationship =
-                relationshipRepository.findTopByOrderByIdDesc()
-                        .orElse(new Relationship());
+                relationshipRepository.findByCharacterId(characterId)
+                        .orElseGet(() -> createDefaultRelationship(characterId));
 
         AgentSelfState agentSelfState = agentSelfStateRepository.findByCharacterId(characterId)
                 .orElse(null);
@@ -156,17 +148,36 @@ public class ContextLoader {
 
                 characterExampleService.findRelevantEntities(characterId, resolvedEventType, resolvedTemperature),
 
-                preferenceQuestionPlan.active() ? List.of() : memoryRetrievalService.retrieve(userMessage, state),
-
-                reflectionService.findRelevantForPrompt(characterId),
-
-                turningPointRepository.findTop10ByOrderByCreatedAtDesc(),
+                preferenceQuestionPlan.active() ? List.of() : memoryRetrievalService.retrieve(characterId, userMessage, state),
 
                 chatRepository
                         .findTop20ByCharacterIdOrderByCreatedAtDesc(characterId)
 
         );
 
+    }
+
+    private State createDefaultState(Long characterId) {
+        State state = new State();
+        state.setCharacterId(characterId);
+        state.setEmotion("neutral");
+        state.setEmotionIntensity(0);
+        state.setEnergy(50);
+        state.setStress(20);
+        return stateRepository.save(state);
+    }
+
+    private Relationship createDefaultRelationship(Long characterId) {
+        Relationship relationship = new Relationship();
+        relationship.setCharacterId(characterId);
+        relationship.setTrust(50);
+        relationship.setCloseness(30);
+        relationship.setConflictLevel(0);
+        relationship.setRepairProgress(0);
+        relationship.setBreakupRisk(0);
+        relationship.setRelationshipStage("NEW");
+        relationship.setDaysTogether(0);
+        return relationshipRepository.save(relationship);
     }
 
 }

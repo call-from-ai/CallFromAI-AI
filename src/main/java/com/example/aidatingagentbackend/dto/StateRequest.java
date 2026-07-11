@@ -9,6 +9,8 @@ import lombok.Setter;
 @NoArgsConstructor
 public class StateRequest {
 
+    private Long characterId;
+
     private String emotion;
 
     private Integer emotionIntensity;

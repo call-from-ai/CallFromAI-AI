@@ -7,5 +7,5 @@ import java.util.Optional;
 
 public interface RelationshipRepository extends JpaRepository<Relationship, Long> {
 
-    Optional<Relationship> findTopByOrderByIdDesc();
+    Optional<Relationship> findByCharacterId(Long characterId);
 }

@@ -61,15 +61,15 @@ public class ContextUpdater {
         }
 
 
-    public void updateBeforeResponse(String userMessage, EventAnalysis eventAnalysis){
+    public void updateBeforeResponse(Long characterId, String userMessage, EventAnalysis eventAnalysis){
 
         State state =
-                stateRepository.findTopByOrderByIdDesc()
-                        .orElseGet(State::new);
+                stateRepository.findByCharacterId(characterId)
+                        .orElseGet(() -> createDefaultState(characterId));
 
         Relationship relationship =
-                relationshipRepository.findTopByOrderByIdDesc()
-                        .orElseGet(Relationship::new);
+                relationshipRepository.findByCharacterId(characterId)
+                        .orElseGet(() -> createDefaultRelationship(characterId));
 
         var emotion =
                 emotionEngine.analyze(state,userMessage,eventAnalysis);
@@ -90,11 +90,11 @@ public class ContextUpdater {
         relationshipRepository.save(relationship);
     }
 
-    public void updateMemoryAfterResponse(String userMessage,String reply){
+    public void updateMemoryAfterResponse(Long characterId, String userMessage,String reply){
 
         State state =
-                stateRepository.findTopByOrderByIdDesc()
-                        .orElseGet(State::new);
+                stateRepository.findByCharacterId(characterId)
+                        .orElseGet(() -> createDefaultState(characterId));
 
         var decision =
                 memoryEngine.analyze(
@@ -106,6 +106,7 @@ public class ContextUpdater {
 
             Memory memory=new Memory();
 
+            memory.setCharacterId(characterId);
             memory.setType(decision.memoryType());
             memory.setSummary(decision.episodeSummary());
             memory.setEmbedding(memoryEmbeddingService.serialize(memoryEmbeddingService.embed(decision.episodeSummary())));
@@ -114,11 +115,34 @@ public class ContextUpdater {
             memoryRepository.save(memory);
         }
 
-        saveTurningPointIfNeeded(userMessage, reply, state);
+        saveTurningPointIfNeeded(characterId, userMessage, reply, state);
 
     }
 
-    private void saveTurningPointIfNeeded(String userMessage, String reply, State state) {
+    private State createDefaultState(Long characterId) {
+        State state = new State();
+        state.setCharacterId(characterId);
+        state.setEmotion("neutral");
+        state.setEmotionIntensity(0);
+        state.setEnergy(50);
+        state.setStress(20);
+        return state;
+    }
+
+    private Relationship createDefaultRelationship(Long characterId) {
+        Relationship relationship = new Relationship();
+        relationship.setCharacterId(characterId);
+        relationship.setTrust(50);
+        relationship.setCloseness(30);
+        relationship.setConflictLevel(0);
+        relationship.setRepairProgress(0);
+        relationship.setBreakupRisk(0);
+        relationship.setRelationshipStage("NEW");
+        relationship.setDaysTogether(0);
+        return relationship;
+    }
+
+    private void saveTurningPointIfNeeded(Long characterId, String userMessage, String reply, State state) {
         String conversation = ((userMessage == null ? "" : userMessage) + "\n" + (reply == null ? "" : reply)).toLowerCase();
 
         TURNING_POINT_RULES.stream()
@@ -126,6 +150,7 @@ public class ContextUpdater {
                 .findFirst()
                 .ifPresent(rule -> {
                     TurningPoint turningPoint = new TurningPoint();
+                    turningPoint.setCharacterId(characterId);
                     turningPoint.setEventType(rule.eventType());
                     turningPoint.setSummary(buildTurningPointSummary(userMessage, reply));
                     turningPoint.setImpactEmotion(state.getEmotion());

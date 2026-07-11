@@ -1,6 +1,9 @@
 package com.example.aidatingagentbackend.service;
 
 import com.example.aidatingagentbackend.engine.EventAnalysis;
+import com.example.aidatingagentbackend.engine.MessageSignalDetector;
+import com.example.aidatingagentbackend.engine.MessageSignalType;
+import com.example.aidatingagentbackend.engine.MessageSignals;
 import com.example.aidatingagentbackend.entity.ConversationEvent;
 import com.example.aidatingagentbackend.repository.ConversationEventRepository;
 import org.springframework.stereotype.Service;
@@ -12,14 +15,19 @@ import java.util.List;
 public class ConversationEventService {
 
     private final ConversationEventRepository conversationEventRepository;
+    private final MessageSignalDetector messageSignalDetector;
 
-    public ConversationEventService(ConversationEventRepository conversationEventRepository) {
+    public ConversationEventService(
+            ConversationEventRepository conversationEventRepository,
+            MessageSignalDetector messageSignalDetector
+    ) {
         this.conversationEventRepository = conversationEventRepository;
+        this.messageSignalDetector = messageSignalDetector;
     }
 
     @Transactional
     public void detectAndSave(Long userId, String userMessage, EventAnalysis eventAnalysis) {
-        DetectedConversationEvent detected = detect(userMessage, eventAnalysis);
+        DetectedConversationEvent detected = detect(messageSignalDetector.detect(userMessage), eventAnalysis);
         if (detected == null) {
             return;
         }
@@ -38,13 +46,12 @@ public class ConversationEventService {
         return conversationEventRepository.findTop8ByUserIdOrderByCreatedAtDesc(userId);
     }
 
-    private DetectedConversationEvent detect(String userMessage, EventAnalysis eventAnalysis) {
-        String message = normalize(userMessage);
-        if (message.isBlank()) {
+    private DetectedConversationEvent detect(MessageSignals signals, EventAnalysis eventAnalysis) {
+        if (signals.normalizedMessage().isBlank()) {
             return null;
         }
 
-        if (containsAny(message, "동아리")) {
+        if (signals.has(MessageSignalType.CLUB)) {
             return new DetectedConversationEvent(
                     "USER_JOINED_CLUB",
                     "사용자가 동아리 이야기를 꺼냈다.",
@@ -52,7 +59,7 @@ public class ConversationEventService {
                     0.75
             );
         }
-        if (containsAny(message, "개발", "코딩", "앱", "백엔드", "프론트", "프로젝트")) {
+        if (signals.has(MessageSignalType.DEVELOPMENT)) {
             return new DetectedConversationEvent(
                     "USER_WORKING_ON_DEVELOPMENT",
                     "사용자가 개발/프로젝트를 해야 한다고 말했다.",
@@ -60,7 +67,7 @@ public class ConversationEventService {
                     0.78
             );
         }
-        if (containsAny(message, "과제", "시험", "수업")) {
+        if (signals.has(MessageSignalType.ASSIGNMENT_OR_CLASS)) {
             return new DetectedConversationEvent(
                     "USER_BUSY_ASSIGNMENT",
                     "사용자가 과제나 수업 때문에 바쁜 상태다.",
@@ -68,7 +75,7 @@ public class ConversationEventService {
                     0.7
             );
         }
-        if (containsAny(message, "안 먹", "못 먹", "굶", "저녁 안", "밥 안")) {
+        if (signals.has(MessageSignalType.USER_SKIPPED_MEAL)) {
             return new DetectedConversationEvent(
                     "USER_SKIPPED_MEAL",
                     "사용자가 식사를 하지 않았다고 말했다.",
@@ -76,7 +83,7 @@ public class ConversationEventService {
                     0.85
             );
         }
-        if (containsAny(message, "너랑 얘기", "너랑 말", "얘기하려고", "말하려고", "보려고 왔", "왔다", "왔어")) {
+        if (signals.has(MessageSignalType.USER_RETURNED_TO_TALK)) {
             return new DetectedConversationEvent(
                     "USER_CHOSE_AGENT_OVER_OTHER_TASK",
                     "사용자가 에이전트와 대화하려고 왔다.",
@@ -94,19 +101,6 @@ public class ConversationEventService {
         }
 
         return null;
-    }
-
-    private boolean containsAny(String message, String... patterns) {
-        for (String pattern : patterns) {
-            if (message.contains(pattern)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private String normalize(String message) {
-        return message == null ? "" : message.toLowerCase();
     }
 
     private record DetectedConversationEvent(

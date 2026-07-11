@@ -59,6 +59,7 @@ public class StateService {
     }
 
     private void applyRequest(State state, StateRequest request) {
+        state.setCharacterId(request.getCharacterId());
         state.setEmotion(request.getEmotion());
         state.setEmotionIntensity(request.getEmotionIntensity());
         state.setEnergy(request.getEnergy());

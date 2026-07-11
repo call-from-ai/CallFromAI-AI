@@ -20,6 +20,8 @@ public class Relationship {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    private Long characterId;
+
     private Integer trust;
 
     private Integer closeness;

@@ -70,19 +70,20 @@ public class ChatService {
     }
 
     public ChatResponse chat(ChatRequest request){
+        Long characterId = resolveCharacterId(request);
 
         EmotionUpdateService.EmotionUpdateResult emotionUpdateResult =
-                emotionUpdateService.updateBeforeResponse(request.getUserId(), request.getMessage());
+                emotionUpdateService.updateBeforeResponse(characterId, request.getMessage());
         EventAnalysis eventAnalysis = emotionUpdateResult.eventAnalysis();
         RelationshipTemperature relationshipTemperature = resolveRelationshipTemperature(request);
-        conversationEventService.detectAndSave(request.getUserId(), request.getMessage(), eventAnalysis);
-        contextUpdater.updateBeforeResponse(request.getMessage(), eventAnalysis);
-        agentWorldStateService.updateBeforeResponse(request.getUserId());
-        agentGoalService.selectCurrentGoal(request.getUserId());
+        conversationEventService.detectAndSave(characterId, request.getMessage(), eventAnalysis);
+        contextUpdater.updateBeforeResponse(characterId, request.getMessage(), eventAnalysis);
+        agentWorldStateService.updateBeforeResponse(characterId);
+        agentGoalService.selectCurrentGoal(characterId);
 
         Context context =
                 contextLoader.load(
-                        request.getUserId(),
+                        characterId,
                         request.getMessage(),
                         eventAnalysis.eventType(),
                         relationshipTemperature
@@ -124,10 +125,6 @@ public class ChatService {
 
                         .memories(context.memories())
 
-                        .reflections(context.reflections())
-
-                        .turningPoints(context.turningPoints())
-
                         .chatHistory(context.history())
 
                         .userMessage(request.getMessage())
@@ -139,16 +136,16 @@ public class ChatService {
 
         reply = evaluateAndRegenerateIfNeeded(request, context, prompt, reply, eventAnalysis);
 
-        save(request.getUserId(),"USER",request.getMessage());
-        save(request.getUserId(),"ASSISTANT",reply);
+        save(characterId,"USER",request.getMessage());
+        save(characterId,"ASSISTANT",reply);
         characterPreferenceService.persistInventedPreferenceIfNeeded(
-                request.getUserId(),
+                characterId,
                 request.getMessage(),
                 reply,
                 context.preferenceQuestionPlan()
         );
 
-        contextUpdater.updateMemoryAfterResponse(request.getMessage(),reply);
+        contextUpdater.updateMemoryAfterResponse(characterId, request.getMessage(),reply);
 
         return new ChatResponse(reply);
     }
@@ -164,18 +161,19 @@ public class ChatService {
 
             geminiService.resetCallCount();
             try {
+                Long characterId = resolveCharacterId(request);
                 EmotionUpdateService.EmotionUpdateResult emotionUpdateResult =
-                        emotionUpdateService.updateBeforeResponse(request.getUserId(), request.getMessage());
+                        emotionUpdateService.updateBeforeResponse(characterId, request.getMessage());
                 EventAnalysis eventAnalysis = emotionUpdateResult.eventAnalysis();
                 RelationshipTemperature relationshipTemperature = resolveRelationshipTemperature(request);
-                conversationEventService.detectAndSave(request.getUserId(), request.getMessage(), eventAnalysis);
-                contextUpdater.updateBeforeResponse(request.getMessage(), eventAnalysis);
-                agentWorldStateService.updateBeforeResponse(request.getUserId());
-                agentGoalService.selectCurrentGoal(request.getUserId());
+                conversationEventService.detectAndSave(characterId, request.getMessage(), eventAnalysis);
+                contextUpdater.updateBeforeResponse(characterId, request.getMessage(), eventAnalysis);
+                agentWorldStateService.updateBeforeResponse(characterId);
+                agentGoalService.selectCurrentGoal(characterId);
 
                 Context context =
                         contextLoader.load(
-                                request.getUserId(),
+                                characterId,
                                 request.getMessage(),
                                 eventAnalysis.eventType(),
                                 relationshipTemperature
@@ -199,19 +197,19 @@ public class ChatService {
                 firstTokenAt = firstTokenHolder[0];
 
                 String reply = responseStylePostProcessor.process(streamedReply.toString(), relationshipTemperature);
-                save(request.getUserId(), "USER", request.getMessage());
-                save(request.getUserId(), "ASSISTANT", reply);
+                save(characterId, "USER", request.getMessage());
+                save(characterId, "ASSISTANT", reply);
                 characterPreferenceService.persistInventedPreferenceIfNeeded(
-                        request.getUserId(),
+                        characterId,
                         request.getMessage(),
                         reply,
                         context.preferenceQuestionPlan()
                 );
-                contextUpdater.updateMemoryAfterResponse(request.getMessage(), reply);
+                contextUpdater.updateMemoryAfterResponse(characterId, request.getMessage(), reply);
 
                 if (responseQualityEvaluatorService.shouldEvaluate(eventAnalysis, context)) {
                     responseQualityEvaluatorService.evaluateAndSave(
-                            request.getUserId(),
+                            characterId,
                             request.getMessage(),
                             reply,
                             context,
@@ -225,8 +223,8 @@ public class ChatService {
                 long totalLatencyMs = completedAt - startedAt;
                 int llmCallCount = geminiService.currentCallCount();
                 log.info(
-                        "chat.stream latency userId={} firstTokenLatencyMs={} totalLatencyMs={} llmCallCount={}",
-                        request.getUserId(),
+                        "chat.stream latency characterId={} firstTokenLatencyMs={} totalLatencyMs={} llmCallCount={}",
+                        characterId,
                         firstTokenLatencyMs,
                         totalLatencyMs,
                         llmCallCount
@@ -238,7 +236,7 @@ public class ChatService {
                 ));
                 emitter.complete();
             } catch (Exception exception) {
-                log.warn("chat.stream failed userId={}", request.getUserId(), exception);
+                log.warn("chat.stream failed characterId={}", request.resolveCharacterId(), exception);
                 sendEvent(emitter, "error", Map.of("message", exception.getMessage() == null ? "stream failed" : exception.getMessage()));
                 emitter.completeWithError(exception);
             } finally {
@@ -262,7 +260,7 @@ public class ChatService {
 
         ResponseQualityEvaluation evaluation =
                 responseQualityEvaluatorService.evaluateAndSave(
-                        request.getUserId(),
+                        resolveCharacterId(request),
                         request.getMessage(),
                         reply,
                         context,
@@ -279,7 +277,7 @@ public class ChatService {
         String regeneratedReply = geminiService.generate(regenerationPrompt);
         regeneratedReply = responseStylePostProcessor.process(regeneratedReply, context.relationshipTemperature());
         responseQualityEvaluatorService.evaluateAndSave(
-                request.getUserId(),
+                resolveCharacterId(request),
                 request.getMessage(),
                 regeneratedReply,
                 context,
@@ -307,8 +305,6 @@ public class ChatService {
                 .characterPreferences(context.characterPreferences())
                 .characterExamples(context.characterExamples())
                 .memories(context.memories())
-                .reflections(context.reflections())
-                .turningPoints(context.turningPoints())
                 .chatHistory(context.history())
                 .userMessage(userMessage)
                 .compactMode(compactMode)
@@ -329,6 +325,14 @@ public class ChatService {
         return request.getRelationshipTemperature() == null
                 ? RelationshipTemperature.NEUTRAL
                 : request.getRelationshipTemperature();
+    }
+
+    private Long resolveCharacterId(ChatRequest request) {
+        Long characterId = request.resolveCharacterId();
+        if (characterId == null) {
+            throw new IllegalArgumentException("characterId is required. userId is still accepted as a legacy alias.");
+        }
+        return characterId;
     }
 
     private void save(Long characterId,

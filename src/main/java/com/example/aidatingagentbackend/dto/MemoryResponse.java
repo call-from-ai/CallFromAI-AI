@@ -15,6 +15,8 @@ public class MemoryResponse {
 
     private Long id;
 
+    private Long characterId;
+
     private MemoryType type;
 
     private String summary;
@@ -26,6 +28,7 @@ public class MemoryResponse {
     public static MemoryResponse from(Memory memory) {
         MemoryResponse response = new MemoryResponse();
         response.setId(memory.getId());
+        response.setCharacterId(memory.getCharacterId());
         response.setType(memory.getType());
         response.setSummary(memory.getSummary());
         response.setImportance(memory.getImportance());

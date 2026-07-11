@@ -65,6 +65,7 @@ public class MemoryService {
     }
 
     private void applyRequest(Memory memory, MemoryRequest request) {
+        memory.setCharacterId(request.getCharacterId());
         memory.setType(request.getType());
         memory.setSummary(request.getSummary());
         memory.setEmbedding(memoryEmbeddingService.serialize(memoryEmbeddingService.embed(request.getSummary())));

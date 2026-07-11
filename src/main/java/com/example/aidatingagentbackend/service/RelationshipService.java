@@ -59,6 +59,7 @@ public class RelationshipService {
     }
 
     private void applyRequest(Relationship relationship, RelationshipRequest request) {
+        relationship.setCharacterId(request.getCharacterId());
         relationship.setTrust(request.getTrust());
         relationship.setCloseness(request.getCloseness());
         relationship.setConflictLevel(request.getConflictLevel());

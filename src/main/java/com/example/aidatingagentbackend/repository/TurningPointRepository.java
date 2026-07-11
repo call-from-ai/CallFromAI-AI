@@ -7,5 +7,5 @@ import java.util.List;
 
 public interface TurningPointRepository extends JpaRepository<TurningPoint, Long> {
 
-    List<TurningPoint> findTop10ByOrderByCreatedAtDesc();
+    List<TurningPoint> findTop10ByCharacterIdOrderByCreatedAtDesc(Long characterId);
 }

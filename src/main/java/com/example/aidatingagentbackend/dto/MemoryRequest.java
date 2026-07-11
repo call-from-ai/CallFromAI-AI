@@ -10,6 +10,8 @@ import lombok.Setter;
 @NoArgsConstructor
 public class MemoryRequest {
 
+    private Long characterId;
+
     private MemoryType type;
 
     private String summary;

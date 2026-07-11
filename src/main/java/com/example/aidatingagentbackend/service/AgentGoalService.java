@@ -36,7 +36,7 @@ public class AgentGoalService {
     @Transactional
     public AgentGoal selectCurrentGoal(Long userId) {
         AgentSelfState selfState = agentSelfStateRepository.findByCharacterId(userId).orElse(null);
-        Relationship relationship = relationshipRepository.findTopByOrderByIdDesc().orElse(null);
+        Relationship relationship = relationshipRepository.findByCharacterId(userId).orElse(null);
         List<Reflection> reflections = reflectionService.findRelevantForPrompt(userId);
         GoalDecision decision = decide(selfState, relationship, reflections);
 

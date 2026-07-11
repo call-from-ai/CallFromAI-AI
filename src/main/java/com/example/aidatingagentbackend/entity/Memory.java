@@ -26,6 +26,8 @@ public class Memory {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    private Long characterId;
+
     @Enumerated(EnumType.STRING)
     private MemoryType type;
 

@@ -6,7 +6,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class EventDetectorTests {
 
-    private final EventDetector eventDetector = new EventDetector();
+    private final EventDetector eventDetector = new EventDetector(new MessageSignalDetector());
 
     @Test
     void detectsBreakupDeclaration() {

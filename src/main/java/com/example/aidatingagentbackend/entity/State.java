@@ -25,6 +25,8 @@ public class State {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    private Long characterId;
+
     private String emotion;
 
     private Integer emotionIntensity;

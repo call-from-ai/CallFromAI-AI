@@ -1,0 +1,18 @@
+package com.example.aidatingagentbackend.engine;
+
+public enum MessageSignalType {
+    BREAKUP_DECLARATION,
+    BREAKUP_RETRACTION,
+    APOLOGY,
+    AFFECTION,
+    INSULT,
+    IGNORE_OR_COLD,
+    AMBIGUOUS_IMPORTANT,
+    USER_RETURNED_TO_TALK,
+    ASK_AGENT_SELF_DISCLOSURE,
+    USER_SKIPPED_MEAL,
+    CLUB,
+    DEVELOPMENT,
+    ASSIGNMENT_OR_CLASS,
+    WORK_OR_BUSY
+}

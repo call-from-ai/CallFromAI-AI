@@ -48,9 +48,9 @@ public class AgentWorldStateService {
     public AgentWorldState updateBeforeResponse(Long userId) {
         AgentProfile profile = agentProfileService.findOrDefault(userId);
         AgentSelfState selfState = agentSelfStateRepository.findByCharacterId(userId).orElse(null);
-        Relationship relationship = relationshipRepository.findTopByOrderByIdDesc().orElse(null);
+        Relationship relationship = relationshipRepository.findByCharacterId(userId).orElse(null);
         List<Reflection> reflections = reflectionService.findRelevantForPrompt(userId);
-        List<TurningPoint> turningPoints = turningPointRepository.findTop10ByOrderByCreatedAtDesc();
+        List<TurningPoint> turningPoints = turningPointRepository.findTop10ByCharacterIdOrderByCreatedAtDesc(userId);
 
         AgentWorldState state = agentWorldStateRepository.findByUserId(userId)
                 .orElseGet(() -> createDefaultState(userId));

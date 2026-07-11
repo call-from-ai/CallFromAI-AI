@@ -150,8 +150,6 @@ public class ProactiveChatService {
                 .characterPreferences(context.characterPreferences())
                 .characterExamples(context.characterExamples())
                 .memories(context.memories())
-                .reflections(context.reflections())
-                .turningPoints(context.turningPoints())
                 .chatHistory(context.history())
                 .userMessage(promptSeed)
                 .compactMode(true)
