@@ -1,6 +1,6 @@
 package com.example.aidatingagentbackend.engine;
 
-import com.example.aidatingagentbackend.entity.Relationship;
+import com.example.aidatingagentbackend.dto.RelationshipSnapshot;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -22,11 +22,11 @@ public class RelationshipEngine {
             new RelationshipRule(10, 6, -6, 8, -8, List.of("약속 지켰", "믿어", "솔직", "진심"))
     );
 
-    public RelationshipResult analyze(Relationship currentRelationship, String event) {
+    public RelationshipResult analyze(RelationshipSnapshot currentRelationship, String event) {
         return analyze(currentRelationship, event, null);
     }
 
-    public RelationshipResult analyze(Relationship currentRelationship, String event, EventAnalysis eventAnalysis) {
+    public RelationshipResult analyze(RelationshipSnapshot currentRelationship, String event, EventAnalysis eventAnalysis) {
         int currentTrust = resolveTrust(currentRelationship);
         int currentCloseness = resolveCloseness(currentRelationship);
         int currentConflictLevel = resolveConflictLevel(currentRelationship);
@@ -170,7 +170,7 @@ public class RelationshipEngine {
                 .orElse(null);
     }
 
-    private int resolveTrust(Relationship relationship) {
+    private int resolveTrust(RelationshipSnapshot relationship) {
         if (relationship == null || relationship.getTrust() == null) {
             return MIN_SCORE;
         }
@@ -178,7 +178,7 @@ public class RelationshipEngine {
         return clamp(relationship.getTrust());
     }
 
-    private int resolveCloseness(Relationship relationship) {
+    private int resolveCloseness(RelationshipSnapshot relationship) {
         if (relationship == null || relationship.getCloseness() == null) {
             return MIN_SCORE;
         }
@@ -186,7 +186,7 @@ public class RelationshipEngine {
         return clamp(relationship.getCloseness());
     }
 
-    private int resolveConflictLevel(Relationship relationship) {
+    private int resolveConflictLevel(RelationshipSnapshot relationship) {
         if (relationship == null || relationship.getConflictLevel() == null) {
             return MIN_SCORE;
         }
@@ -194,7 +194,7 @@ public class RelationshipEngine {
         return clamp(relationship.getConflictLevel());
     }
 
-    private int resolveRepairProgress(Relationship relationship) {
+    private int resolveRepairProgress(RelationshipSnapshot relationship) {
         if (relationship == null || relationship.getRepairProgress() == null) {
             return MIN_SCORE;
         }
@@ -202,7 +202,7 @@ public class RelationshipEngine {
         return clamp(relationship.getRepairProgress());
     }
 
-    private int resolveBreakupRisk(Relationship relationship) {
+    private int resolveBreakupRisk(RelationshipSnapshot relationship) {
         if (relationship == null || relationship.getBreakupRisk() == null) {
             return MIN_SCORE;
         }
@@ -243,3 +243,4 @@ public class RelationshipEngine {
         }
     }
 }
+

@@ -10,19 +10,20 @@ import com.example.aidatingagentbackend.engine.MessageSignalType;
 import com.example.aidatingagentbackend.engine.MessageSignals;
 import com.example.aidatingagentbackend.entity.AgentSelfState;
 import com.example.aidatingagentbackend.entity.AgentSelfStateLog;
-import com.example.aidatingagentbackend.entity.CharacterTraitProfile;
-import com.example.aidatingagentbackend.entity.Relationship;
+import com.example.aidatingagentbackend.dto.AgentSelfStateSnapshot;
+import com.example.aidatingagentbackend.dto.ChatHistoryItem;
+import com.example.aidatingagentbackend.dto.CharacterTraitSnapshot;
+import com.example.aidatingagentbackend.dto.RelationshipSnapshot;
 import com.example.aidatingagentbackend.entity.RelationshipStage;
 import com.example.aidatingagentbackend.repository.AgentSelfStateLogRepository;
 import com.example.aidatingagentbackend.repository.AgentSelfStateRepository;
-import com.example.aidatingagentbackend.repository.ChatMessageRepository;
-import com.example.aidatingagentbackend.repository.RelationshipRepository;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Service
 public class EmotionUpdateService {
@@ -35,13 +36,8 @@ public class EmotionUpdateService {
     private final AgentSelfStateRepository agentSelfStateRepository;
     private final EventAnalyzer eventAnalyzer;
     private final EventDetector eventDetector;
-    private final ChatMessageRepository chatMessageRepository;
     private final AgentSelfStateLogRepository agentSelfStateLogRepository;
-    private final ReflectionCandidateService reflectionCandidateService;
     private final MessageSignalDetector messageSignalDetector;
-    private final CharacterTraitProfileService characterTraitProfileService;
-    private final RelationshipRepository relationshipRepository;
-    private final RelationshipStageResolver relationshipStageResolver;
     private final EmotionTraitModifier emotionTraitModifier;
     private final RelationshipStageEmotionPolicy relationshipStageEmotionPolicy;
 
@@ -49,26 +45,16 @@ public class EmotionUpdateService {
             AgentSelfStateRepository agentSelfStateRepository,
             EventAnalyzer eventAnalyzer,
             EventDetector eventDetector,
-            ChatMessageRepository chatMessageRepository,
             AgentSelfStateLogRepository agentSelfStateLogRepository,
-            ReflectionCandidateService reflectionCandidateService,
             MessageSignalDetector messageSignalDetector,
-            CharacterTraitProfileService characterTraitProfileService,
-            RelationshipRepository relationshipRepository,
-            RelationshipStageResolver relationshipStageResolver,
             EmotionTraitModifier emotionTraitModifier,
             RelationshipStageEmotionPolicy relationshipStageEmotionPolicy
     ) {
         this.agentSelfStateRepository = agentSelfStateRepository;
         this.eventAnalyzer = eventAnalyzer;
         this.eventDetector = eventDetector;
-        this.chatMessageRepository = chatMessageRepository;
         this.agentSelfStateLogRepository = agentSelfStateLogRepository;
-        this.reflectionCandidateService = reflectionCandidateService;
         this.messageSignalDetector = messageSignalDetector;
-        this.characterTraitProfileService = characterTraitProfileService;
-        this.relationshipRepository = relationshipRepository;
-        this.relationshipStageResolver = relationshipStageResolver;
         this.emotionTraitModifier = emotionTraitModifier;
         this.relationshipStageEmotionPolicy = relationshipStageEmotionPolicy;
     }
@@ -77,32 +63,26 @@ public class EmotionUpdateService {
             AgentSelfStateRepository agentSelfStateRepository,
             EventAnalyzer eventAnalyzer,
             EventDetector eventDetector,
-            ChatMessageRepository chatMessageRepository,
             AgentSelfStateLogRepository agentSelfStateLogRepository,
-            ReflectionCandidateService reflectionCandidateService,
             MessageSignalDetector messageSignalDetector
     ) {
         this(
                 agentSelfStateRepository,
                 eventAnalyzer,
                 eventDetector,
-                chatMessageRepository,
                 agentSelfStateLogRepository,
-                reflectionCandidateService,
                 messageSignalDetector,
-                null,
-                null,
-                new RelationshipStageResolver(new SettingsDefaultPolicy()),
                 new EmotionTraitModifier(),
                 new RelationshipStageEmotionPolicy()
         );
     }
 
-    public EmotionUpdateResult updateBeforeResponse(Long characterId, String userMessage) {
+    public EmotionUpdateResult updateBeforeResponse(Long characterId, String userMessage, List<ChatHistoryItem> history,
+                                                     CharacterTraitSnapshot traitProfile, RelationshipSnapshot relationship) {
         OptimisticLockingFailureException lastException = null;
         for (int attempt = 0; attempt <= MAX_OPTIMISTIC_RETRIES; attempt++) {
             try {
-                return updateBeforeResponseOnce(characterId, userMessage);
+                return updateBeforeResponseOnce(characterId, userMessage, history, traitProfile, relationship);
             } catch (OptimisticLockingFailureException exception) {
                 lastException = exception;
             }
@@ -111,24 +91,25 @@ public class EmotionUpdateService {
     }
 
     @Transactional
-    public EmotionUpdateResult updateBeforeResponseOnce(Long characterId, String userMessage) {
+    public EmotionUpdateResult updateBeforeResponseOnce(Long characterId, String userMessage, List<ChatHistoryItem> history,
+                                                         CharacterTraitSnapshot traitProfile, RelationshipSnapshot relationship) {
         AgentSelfState state = agentSelfStateRepository.findByCharacterId(characterId)
                 .orElseGet(() -> createDefaultState(characterId));
-        CharacterTraitProfile traitProfile = loadTraitProfile(characterId);
-        RelationshipStage relationshipStage = loadRelationshipStage(characterId);
+        RelationshipStage relationshipStage = relationship.relationshipStage();
+        AgentSelfStateSnapshot previousState = AgentSelfStateSnapshot.from(state);
 
         SelfStateSnapshot previousSnapshot = SelfStateSnapshot.from(state);
         LocalDateTime now = LocalDateTime.now();
         applyDecay(state, now, traitProfile);
-        EventAnalysis eventAnalysis = analyzeEvent(characterId, userMessage, state);
+        EventAnalysis eventAnalysis = analyzeEvent(userMessage, history, state);
         MessageSignals signals = messageSignalDetector.detect(userMessage);
         applyEvent(state, eventAnalysis, signals, traitProfile, relationshipStage);
         applyConversationTransition(state, signals, eventAnalysis, traitProfile, relationshipStage);
         normalize(state);
-        AgentSelfStateLog stateLog = saveLog(characterId, eventAnalysis, previousSnapshot, state, traitProfile, relationshipStage);
-        createReflectionCandidateIfNeeded(characterId, userMessage, eventAnalysis, stateLog);
+        saveLog(characterId, eventAnalysis, previousSnapshot, state, traitProfile, relationshipStage);
 
-        return new EmotionUpdateResult(agentSelfStateRepository.saveAndFlush(state), eventAnalysis);
+        AgentSelfState saved = agentSelfStateRepository.saveAndFlush(state);
+        return new EmotionUpdateResult(previousState, AgentSelfStateSnapshot.from(saved), eventAnalysis);
     }
 
     @Transactional(readOnly = true)
@@ -137,14 +118,14 @@ public class EmotionUpdateService {
                 .orElseGet(() -> createDefaultState(characterId));
     }
 
-    private EventAnalysis analyzeEvent(Long characterId, String userMessage, AgentSelfState state) {
-        if (eventAnalyzer == null || chatMessageRepository == null) {
+    private EventAnalysis analyzeEvent(String userMessage, List<ChatHistoryItem> history, AgentSelfState state) {
+        if (eventAnalyzer == null) {
             return EventAnalysis.fallback(eventDetector.detect(userMessage));
         }
 
         return eventAnalyzer.analyze(
                 userMessage,
-                chatMessageRepository.findTop20ByCharacterIdOrderByCreatedAtDesc(characterId),
+                history == null ? List.of() : history,
                 state
         );
     }
@@ -154,7 +135,7 @@ public class EmotionUpdateService {
             EventAnalysis eventAnalysis,
             SelfStateSnapshot previousSnapshot,
             AgentSelfState nextState,
-            CharacterTraitProfile traitProfile,
+            CharacterTraitSnapshot traitProfile,
             RelationshipStage relationshipStage
     ) {
         if (agentSelfStateLogRepository == null) {
@@ -178,24 +159,11 @@ public class EmotionUpdateService {
         return agentSelfStateLogRepository.save(log);
     }
 
-    private void createReflectionCandidateIfNeeded(
-            Long userId,
-            String userMessage,
-            EventAnalysis eventAnalysis,
-            AgentSelfStateLog stateLog
-    ) {
-        if (reflectionCandidateService == null) {
-            return;
-        }
-
-        reflectionCandidateService.createIfImportant(userId, userMessage, eventAnalysis, stateLog);
-    }
-
     private String buildDeltaReason(
             EventAnalysis eventAnalysis,
             SelfStateSnapshot previousSnapshot,
             AgentSelfState nextState,
-            CharacterTraitProfile traitProfile,
+            CharacterTraitSnapshot traitProfile,
             RelationshipStage relationshipStage
     ) {
         EmotionDelta baseDelta = baseEventDelta(nextState, eventAnalysis);
@@ -228,7 +196,7 @@ public class EmotionUpdateService {
         applyDecay(state, now, null);
     }
 
-    public void applyDecay(AgentSelfState state, LocalDateTime now, CharacterTraitProfile traitProfile) {
+    public void applyDecay(AgentSelfState state, LocalDateTime now, CharacterTraitSnapshot traitProfile) {
         if (state.getUpdatedAt() == null || now == null || !now.isAfter(state.getUpdatedAt())) {
             return;
         }
@@ -255,7 +223,7 @@ public class EmotionUpdateService {
             AgentSelfState state,
             EventAnalysis eventAnalysis,
             MessageSignals signals,
-            CharacterTraitProfile traitProfile,
+            CharacterTraitSnapshot traitProfile,
             RelationshipStage relationshipStage
     ) {
         EmotionDelta baseDelta = baseEventDelta(state, eventAnalysis);
@@ -277,7 +245,7 @@ public class EmotionUpdateService {
             AgentSelfState state,
             MessageSignals signals,
             EventAnalysis eventAnalysis,
-            CharacterTraitProfile traitProfile,
+            CharacterTraitSnapshot traitProfile,
             RelationshipStage relationshipStage
     ) {
         if (signals.hasAny(MessageSignalType.AFFECTION, MessageSignalType.USER_RETURNED_TO_TALK)) {
@@ -359,7 +327,7 @@ public class EmotionUpdateService {
             EmotionDelta baseDelta,
             EventAnalysis eventAnalysis,
             MessageSignals signals,
-            CharacterTraitProfile traitProfile,
+            CharacterTraitSnapshot traitProfile,
             RelationshipStage relationshipStage
     ) {
         EmotionDelta traitDelta = emotionTraitModifier.apply(baseDelta, traitProfile, eventAnalysis, signals);
@@ -489,20 +457,6 @@ public class EmotionUpdateService {
         return value == null ? 5 : value;
     }
 
-    private CharacterTraitProfile loadTraitProfile(Long characterId) {
-        return characterTraitProfileService == null ? null : characterTraitProfileService.findEntityOrDefault(characterId);
-    }
-
-    private RelationshipStage loadRelationshipStage(Long characterId) {
-        if (relationshipRepository == null || relationshipStageResolver == null) {
-            return RelationshipStage.CRUSH;
-        }
-        return relationshipRepository.findByCharacterId(characterId)
-                .map(Relationship::getRelationshipStage)
-                .map(relationshipStageResolver::resolve)
-                .orElse(RelationshipStage.CRUSH);
-    }
-
     private EmotionTraitModifier emotionTraitModifierOrDefault() {
         return emotionTraitModifier == null ? new EmotionTraitModifier() : emotionTraitModifier;
     }
@@ -525,8 +479,10 @@ public class EmotionUpdateService {
     }
 
     public record EmotionUpdateResult(
-            AgentSelfState agentSelfState,
+            AgentSelfStateSnapshot previousState,
+            AgentSelfStateSnapshot nextState,
             EventAnalysis eventAnalysis
     ) {
     }
 }
+

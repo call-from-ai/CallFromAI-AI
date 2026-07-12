@@ -4,15 +4,14 @@ import com.example.aidatingagentbackend.engine.EmotionEngine;
 import com.example.aidatingagentbackend.engine.EventAnalysis;
 import com.example.aidatingagentbackend.engine.MemoryEngine;
 import com.example.aidatingagentbackend.engine.RelationshipEngine;
+import com.example.aidatingagentbackend.dto.RelationshipDelta;
+import com.example.aidatingagentbackend.dto.RelationshipSnapshot;
 import com.example.aidatingagentbackend.entity.Memory;
-import com.example.aidatingagentbackend.entity.Relationship;
 import com.example.aidatingagentbackend.entity.State;
 import com.example.aidatingagentbackend.entity.TurningPoint;
 import com.example.aidatingagentbackend.repository.MemoryRepository;
-import com.example.aidatingagentbackend.repository.RelationshipRepository;
 import com.example.aidatingagentbackend.repository.StateRepository;
 import com.example.aidatingagentbackend.repository.TurningPointRepository;
-import com.example.aidatingagentbackend.service.SettingsDefaultPolicy;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -27,10 +26,8 @@ public class ContextUpdater {
     private final MemoryEmbeddingService memoryEmbeddingService;
 
     private final StateRepository stateRepository;
-    private final RelationshipRepository relationshipRepository;
     private final MemoryRepository memoryRepository;
     private final TurningPointRepository turningPointRepository;
-    private final SettingsDefaultPolicy settingsDefaultPolicy;
 
     private static final List<TurningPointRule> TURNING_POINT_RULES = List.of(
             new TurningPointRule("CONFESSION", 8, List.of("고백", "좋아해", "사랑해")),
@@ -48,32 +45,24 @@ public class ContextUpdater {
                 MemoryEngine memoryEngine,
                 MemoryEmbeddingService memoryEmbeddingService,
                 StateRepository stateRepository,
-                RelationshipRepository relationshipRepository,
                 MemoryRepository memoryRepository,
-                TurningPointRepository turningPointRepository,
-                SettingsDefaultPolicy settingsDefaultPolicy
+                TurningPointRepository turningPointRepository
         ) {
             this.emotionEngine = emotionEngine;
             this.relationshipEngine = relationshipEngine;
             this.memoryEngine = memoryEngine;
             this.memoryEmbeddingService = memoryEmbeddingService;
             this.stateRepository = stateRepository;
-            this.relationshipRepository = relationshipRepository;
             this.memoryRepository = memoryRepository;
             this.turningPointRepository = turningPointRepository;
-            this.settingsDefaultPolicy = settingsDefaultPolicy;
         }
 
 
-    public void updateBeforeResponse(Long characterId, String userMessage, EventAnalysis eventAnalysis){
+    public RelationshipUpdate updateBeforeResponse(Long characterId, RelationshipSnapshot relationship, String userMessage, EventAnalysis eventAnalysis){
 
         State state =
                 stateRepository.findByCharacterId(characterId)
                         .orElseGet(() -> createDefaultState(characterId));
-
-        Relationship relationship =
-                relationshipRepository.findByCharacterId(characterId)
-                        .orElseGet(() -> createDefaultRelationship(characterId));
 
         var emotion =
                 emotionEngine.analyze(state,userMessage,eventAnalysis);
@@ -84,14 +73,16 @@ public class ContextUpdater {
         state.setEmotion(emotion.emotion());
         state.setEmotionIntensity(emotion.emotionIntensity());
 
-        relationship.setTrust(relation.trust());
-        relationship.setCloseness(relation.closeness());
-        relationship.setConflictLevel(relation.conflictLevel());
-        relationship.setRepairProgress(relation.repairProgress());
-        relationship.setBreakupRisk(relation.breakupRisk());
-
         stateRepository.save(state);
-        relationshipRepository.save(relationship);
+        RelationshipSnapshot next = new RelationshipSnapshot(
+                relationship.relationshipId(), relationship.relationshipStage(), relationship.relationshipTemperatureScore(),
+                relation.trust(), relation.closeness(), relation.conflictLevel(), relation.repairProgress(), relation.breakupRisk(),
+                relationship.daysTogether(), relationship.strategy());
+        RelationshipDelta delta = new RelationshipDelta(
+                relation.trust() - relationship.trust(), relation.closeness() - relationship.closeness(),
+                relation.conflictLevel() - relationship.conflictLevel(), relation.repairProgress() - relationship.repairProgress(),
+                relation.breakupRisk() - relationship.breakupRisk());
+        return new RelationshipUpdate(delta, next);
     }
 
     public void updateMemoryAfterResponse(Long characterId, String userMessage,String reply){
@@ -133,20 +124,6 @@ public class ContextUpdater {
         return state;
     }
 
-    private Relationship createDefaultRelationship(Long characterId) {
-        Relationship relationship = new Relationship();
-        relationship.setCharacterId(characterId);
-        relationship.setTrust(50);
-        relationship.setCloseness(30);
-        relationship.setConflictLevel(0);
-        relationship.setRepairProgress(0);
-        relationship.setBreakupRisk(0);
-        relationship.setRelationshipStage(settingsDefaultPolicy.defaultRelationshipStageValue());
-        relationship.setRelationshipTemperatureScore(settingsDefaultPolicy.defaultRelationshipTemperatureScore());
-        relationship.setDaysTogether(0);
-        return relationship;
-    }
-
     private void saveTurningPointIfNeeded(Long characterId, String userMessage, String reply, State state) {
         String conversation = ((userMessage == null ? "" : userMessage) + "\n" + (reply == null ? "" : reply)).toLowerCase();
 
@@ -186,4 +163,6 @@ public class ContextUpdater {
                     .anyMatch(conversation::contains);
         }
     }
+
+    public record RelationshipUpdate(RelationshipDelta delta, RelationshipSnapshot nextRelationship) {}
 }

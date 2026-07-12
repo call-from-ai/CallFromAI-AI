@@ -5,7 +5,7 @@ import com.example.aidatingagentbackend.engine.AgentEventType;
 import com.example.aidatingagentbackend.engine.EventAnalysis;
 import com.example.aidatingagentbackend.engine.MessageSignalType;
 import com.example.aidatingagentbackend.engine.MessageSignals;
-import com.example.aidatingagentbackend.entity.CharacterTraitProfile;
+import com.example.aidatingagentbackend.dto.CharacterTraitSnapshot;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -13,14 +13,14 @@ public class EmotionTraitModifier {
 
     public EmotionDelta apply(
             EmotionDelta baseDelta,
-            CharacterTraitProfile traitProfile,
+            CharacterTraitSnapshot traitProfile,
             EventAnalysis eventAnalysis,
             MessageSignals signals
     ) {
         if (baseDelta == null) {
             return EmotionDelta.none();
         }
-        CharacterTraitProfile traits = traitProfile == null ? defaultTraits() : traitProfile;
+        CharacterTraitSnapshot traits = traitProfile == null ? defaultTraits() : traitProfile;
         boolean negativeEvent = isNegative(eventAnalysis, signals);
         boolean positiveEvent = isPositive(eventAnalysis, signals);
         boolean attachmentRelevant = isAttachmentRelevant(eventAnalysis, signals);
@@ -71,7 +71,7 @@ public class EmotionTraitModifier {
         );
     }
 
-    public double decayModifier(CharacterTraitProfile traitProfile) {
+    public double decayModifier(CharacterTraitSnapshot traitProfile) {
         return positiveModifier(value((traitProfile == null ? defaultTraits() : traitProfile).getEmotionalStability()));
     }
 
@@ -141,18 +141,8 @@ public class EmotionTraitModifier {
         return value == null ? 5 : Math.max(0, Math.min(10, value));
     }
 
-    private CharacterTraitProfile defaultTraits() {
-        CharacterTraitProfile profile = new CharacterTraitProfile();
-        profile.setHumor(5);
-        profile.setPlayfulness(5);
-        profile.setAffection(5);
-        profile.setEmpathy(5);
-        profile.setAttachment(5);
-        profile.setJealousy(5);
-        profile.setDominance(5);
-        profile.setConfidence(5);
-        profile.setExpressiveness(5);
-        profile.setEmotionalStability(5);
-        return profile;
+    private CharacterTraitSnapshot defaultTraits() {
+        return new CharacterTraitSnapshot(5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 0);
     }
 }
+

@@ -43,15 +43,6 @@ public class RelationshipTemperatureScoreResolver {
         return RelationshipTemperatureBand.SPICY_LEADING;
     }
 
-    public RelationshipTemperature legacyTemperature(Integer score) {
-        RelationshipTemperatureBand band = resolveBand(score);
-        return switch (band) {
-            case CALM, FRIENDLY_AFFECTION -> RelationshipTemperature.FRIENDLY;
-            case PLAYFUL_FLIRTING -> RelationshipTemperature.NEUTRAL;
-            case ACTIVE_AFFECTION_JEALOUSY, SPICY_LEADING -> RelationshipTemperature.SPICY;
-        };
-    }
-
     public Integer defaultScoreForLegacy(RelationshipTemperature temperature) {
         if (temperature == null) {
             return settingsDefaultPolicy.defaultRelationshipTemperatureScore();

@@ -1,7 +1,7 @@
 package com.example.aidatingagentbackend.prompt;
 
 import com.example.aidatingagentbackend.entity.AgentSelfState;
-import com.example.aidatingagentbackend.entity.CharacterTraitProfile;
+import com.example.aidatingagentbackend.dto.CharacterTraitSnapshot;
 import com.example.aidatingagentbackend.entity.RelationshipStage;
 import org.springframework.stereotype.Component;
 
@@ -12,12 +12,12 @@ import java.util.List;
 public class TraitInstructionResolver {
 
     public List<String> resolve(
-            CharacterTraitProfile traits,
+            CharacterTraitSnapshot traits,
             RelationshipStage relationshipStage,
             AgentSelfState selfState,
             String userMessage
     ) {
-        CharacterTraitProfile resolved = traits == null ? defaultTraits() : traits;
+        CharacterTraitSnapshot resolved = traits == null ? defaultTraits() : traits;
         RelationshipStage stage = relationshipStage == null ? RelationshipStage.CRUSH : relationshipStage;
         List<String> instructions = new ArrayList<>();
 
@@ -32,7 +32,7 @@ public class TraitInstructionResolver {
                 .toList();
     }
 
-    private void addHighTraitInstructions(List<String> instructions, CharacterTraitProfile traits) {
+    private void addHighTraitInstructions(List<String> instructions, CharacterTraitSnapshot traits) {
         if (high(traits.getHumor())) {
             instructions.add("가벼운 상황에서는 자연스럽게 농담할 수 있다.");
         }
@@ -65,7 +65,7 @@ public class TraitInstructionResolver {
         }
     }
 
-    private void addLowTraitInstructions(List<String> instructions, CharacterTraitProfile traits) {
+    private void addLowTraitInstructions(List<String> instructions, CharacterTraitSnapshot traits) {
         if (low(traits.getExpressiveness())) {
             instructions.add("감정은 바로 쏟아내기보다 돌려 말하거나 짧게 암시한다.");
         }
@@ -76,7 +76,7 @@ public class TraitInstructionResolver {
 
     private void addConflictResolutions(
             List<String> instructions,
-            CharacterTraitProfile traits,
+            CharacterTraitSnapshot traits,
             RelationshipStage relationshipStage,
             String userMessage
     ) {
@@ -96,7 +96,7 @@ public class TraitInstructionResolver {
 
     private void addEmotionExpressionStrategy(
             List<String> instructions,
-            CharacterTraitProfile traits,
+            CharacterTraitSnapshot traits,
             AgentSelfState selfState
     ) {
         double hurt = value(selfState == null ? null : selfState.getHurt());
@@ -145,18 +145,8 @@ public class TraitInstructionResolver {
                 || text.contains("슬퍼");
     }
 
-    private CharacterTraitProfile defaultTraits() {
-        CharacterTraitProfile profile = new CharacterTraitProfile();
-        profile.setHumor(5);
-        profile.setPlayfulness(5);
-        profile.setAffection(5);
-        profile.setEmpathy(5);
-        profile.setAttachment(5);
-        profile.setJealousy(5);
-        profile.setDominance(5);
-        profile.setConfidence(5);
-        profile.setExpressiveness(5);
-        profile.setEmotionalStability(5);
-        return profile;
+    private CharacterTraitSnapshot defaultTraits() {
+        return new CharacterTraitSnapshot(5, 5, 5, 5, 5, 5, 5, 5, 5, 5, null);
     }
 }
+

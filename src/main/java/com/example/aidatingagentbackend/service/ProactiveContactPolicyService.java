@@ -3,7 +3,7 @@ package com.example.aidatingagentbackend.service;
 import com.example.aidatingagentbackend.dto.Context;
 import com.example.aidatingagentbackend.entity.AgentGoal;
 import com.example.aidatingagentbackend.entity.AgentSelfState;
-import com.example.aidatingagentbackend.entity.CharacterTraitProfile;
+import com.example.aidatingagentbackend.dto.CharacterTraitSnapshot;
 import com.example.aidatingagentbackend.entity.RelationshipStage;
 import org.springframework.stereotype.Service;
 
@@ -16,7 +16,7 @@ public class ProactiveContactPolicyService {
         }
 
         AgentSelfState selfState = context.agentSelfState();
-        CharacterTraitProfile traits = context.characterTraitProfile();
+        CharacterTraitSnapshot traits = context.characterTraitProfile();
         AgentGoal goal = context.agentGoal();
         int temperatureScore = context.relationshipTemperatureScore() == null
                 ? 50
@@ -74,3 +74,4 @@ public class ProactiveContactPolicyService {
         return value == null ? 0.0 : Math.max(0.0, Math.min(1.0, value));
     }
 }
+

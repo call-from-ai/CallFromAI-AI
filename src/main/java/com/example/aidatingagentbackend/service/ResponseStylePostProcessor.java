@@ -1,13 +1,21 @@
 package com.example.aidatingagentbackend.service;
 
 import com.example.aidatingagentbackend.entity.AgentSelfState;
-import com.example.aidatingagentbackend.entity.CharacterTraitProfile;
+import com.example.aidatingagentbackend.dto.CharacterTraitSnapshot;
+import com.example.aidatingagentbackend.dto.RelationshipStrategy;
 import com.example.aidatingagentbackend.entity.RelationshipStage;
 import com.example.aidatingagentbackend.entity.RelationshipTemperature;
 import org.springframework.stereotype.Service;
 
 @Service
 public class ResponseStylePostProcessor {
+
+    public String process(String reply, RelationshipStrategy strategy, Integer relationshipTemperatureScore,
+            Integer romanceStyleScore, CharacterTraitSnapshot traits, RelationshipStage stage, AgentSelfState selfState) {
+        RelationshipTemperature legacy = strategy == RelationshipStrategy.CONFLICT_REPAIR
+                ? RelationshipTemperature.CONFLICT_REPAIR : RelationshipTemperature.NEUTRAL;
+        return process(reply, legacy, relationshipTemperatureScore, romanceStyleScore, traits, stage, selfState);
+    }
 
     public String process(String reply, RelationshipTemperature relationshipTemperature) {
         return process(reply, relationshipTemperature, null, null, null, null, null);
@@ -18,7 +26,7 @@ public class ResponseStylePostProcessor {
             RelationshipTemperature relationshipTemperature,
             Integer relationshipTemperatureScore,
             Integer romanceStyleScore,
-            CharacterTraitProfile characterTraitProfile,
+            CharacterTraitSnapshot characterTraitProfile,
             RelationshipStage relationshipStage,
             AgentSelfState agentSelfState
     ) {
@@ -48,7 +56,7 @@ public class ResponseStylePostProcessor {
     @Deprecated
     public String process(
             String reply, RelationshipTemperature relationshipTemperature,
-            Integer relationshipTemperatureScore, CharacterTraitProfile characterTraitProfile,
+            Integer relationshipTemperatureScore, CharacterTraitSnapshot characterTraitProfile,
             RelationshipStage relationshipStage, AgentSelfState agentSelfState
     ) {
         return process(reply, relationshipTemperature, relationshipTemperatureScore,
@@ -89,7 +97,7 @@ public class ResponseStylePostProcessor {
             String reply,
             int temperatureScore,
             Integer romanceStyleScore,
-            CharacterTraitProfile traits,
+            CharacterTraitSnapshot traits,
             RelationshipStage stage,
             AgentSelfState selfState
     ) {
@@ -189,3 +197,4 @@ public class ResponseStylePostProcessor {
         return value == null || value < 0.3;
     }
 }
+

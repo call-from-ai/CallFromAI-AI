@@ -1,7 +1,7 @@
 package com.example.aidatingagentbackend.engine;
 
 import com.example.aidatingagentbackend.entity.AgentSelfState;
-import com.example.aidatingagentbackend.entity.ChatMessage;
+import com.example.aidatingagentbackend.dto.ChatHistoryItem;
 import com.example.aidatingagentbackend.service.GeminiService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -31,7 +31,7 @@ public class EventAnalyzer {
 
     public EventAnalysis analyze(
             String userMessage,
-            List<ChatMessage> recentHistory,
+            List<ChatHistoryItem> recentHistory,
             AgentSelfState currentSelfState
     ) {
         EventDetector.RuleBasedEventDetection ruleDetection = fallbackDetector.detectWithConfidence(userMessage);
@@ -76,7 +76,7 @@ public class EventAnalyzer {
 
     private String buildPrompt(
             String userMessage,
-            List<ChatMessage> recentHistory,
+            List<ChatHistoryItem> recentHistory,
             AgentSelfState currentSelfState
     ) {
         StringBuilder prompt = new StringBuilder();
@@ -128,7 +128,7 @@ public class EventAnalyzer {
         prompt.append("\n");
     }
 
-    private void appendRecentHistory(StringBuilder prompt, List<ChatMessage> recentHistory) {
+    private void appendRecentHistory(StringBuilder prompt, List<ChatHistoryItem> recentHistory) {
         prompt.append("[Recent History]\n");
         if (recentHistory == null || recentHistory.isEmpty()) {
             prompt.append("none\n\n");
@@ -218,3 +218,4 @@ public class EventAnalyzer {
         return value == null ? 0.0 : value;
     }
 }
+

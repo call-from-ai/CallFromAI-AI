@@ -12,8 +12,6 @@ import java.util.List;
 
 public interface CharacterExampleRepository extends JpaRepository<CharacterExample, Long> {
 
-    List<CharacterExample> findTop5ByCharacterIdOrderByPriorityDescIdAsc(Long characterId);
-
     @Query("""
             select example
             from CharacterExample example

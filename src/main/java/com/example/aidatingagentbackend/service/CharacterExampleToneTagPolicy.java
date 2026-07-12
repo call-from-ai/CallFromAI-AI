@@ -1,6 +1,6 @@
 package com.example.aidatingagentbackend.service;
 
-import com.example.aidatingagentbackend.entity.CharacterTraitProfile;
+import com.example.aidatingagentbackend.dto.CharacterTraitSnapshot;
 import com.example.aidatingagentbackend.entity.RelationshipTemperatureBand;
 import org.springframework.stereotype.Service;
 
@@ -11,7 +11,7 @@ public class CharacterExampleToneTagPolicy {
 
     public double score(
             String toneTag,
-            CharacterTraitProfile traits,
+            CharacterTraitSnapshot traits,
             RelationshipTemperatureBand temperatureBand,
             boolean jealousyContext,
             Set<CharacterExampleRelevantTraitPolicy.RelevantTrait> relevantTraits
@@ -62,10 +62,10 @@ public class CharacterExampleToneTagPolicy {
 
     private double traitScore(
             String tag,
-            CharacterTraitProfile traits,
+            CharacterTraitSnapshot traits,
             Set<CharacterExampleRelevantTraitPolicy.RelevantTrait> relevantTraits
     ) {
-        CharacterTraitProfile resolved = traits == null ? defaultTraits() : traits;
+        CharacterTraitSnapshot resolved = traits == null ? defaultTraits() : traits;
         double score = 0.0;
         if (tag.contains("playful") || tag.contains("teasing") || tag.contains("flirty") || tag.contains("pushpull")) {
             score += relevantBonus(relevantTraits, CharacterExampleRelevantTraitPolicy.RelevantTrait.PLAYFULNESS, resolved.getPlayfulness());
@@ -146,18 +146,8 @@ public class CharacterExampleToneTagPolicy {
         return value == null ? "" : value.toLowerCase();
     }
 
-    private CharacterTraitProfile defaultTraits() {
-        CharacterTraitProfile profile = new CharacterTraitProfile();
-        profile.setHumor(5);
-        profile.setPlayfulness(5);
-        profile.setAffection(5);
-        profile.setEmpathy(5);
-        profile.setAttachment(5);
-        profile.setJealousy(5);
-        profile.setDominance(5);
-        profile.setConfidence(5);
-        profile.setExpressiveness(5);
-        profile.setEmotionalStability(5);
-        return profile;
+    private CharacterTraitSnapshot defaultTraits() {
+        return new CharacterTraitSnapshot(5, 5, 5, 5, 5, 5, 5, 5, 5, 5, null);
     }
 }
+

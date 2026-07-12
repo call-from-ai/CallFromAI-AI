@@ -2,6 +2,7 @@ package com.example.aidatingagentbackend.service;
 
 import com.example.aidatingagentbackend.dto.ChatRequest;
 import com.example.aidatingagentbackend.dto.ChatResponse;
+import com.example.aidatingagentbackend.dto.AgentSelfStateSnapshot;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -31,7 +32,15 @@ public class ChatService {
 
     public ChatResponse chat(ChatRequest request) {
         AIProcessingService.CompletedAIProcessing completed = aiProcessingService.process(request);
-        return new ChatResponse(completed.reply());
+        AIProcessingService.PreparedAIProcessing prepared = completed.prepared();
+        ChatResponse response = new ChatResponse(completed.reply());
+        response.setRequestId(request.getRequestId());
+        response.setRelationshipDelta(prepared.relationshipUpdate().delta());
+        response.setNextRelationship(prepared.relationshipUpdate().nextRelationship());
+        response.setPreviousAgentSelfState(prepared.emotionUpdateResult().previousState());
+        response.setNextAgentSelfState(prepared.emotionUpdateResult().nextState());
+        response.setEventAnalysis(prepared.eventAnalysis());
+        return response;
     }
 
     public SseEmitter sendMessageStream(ChatRequest request) {

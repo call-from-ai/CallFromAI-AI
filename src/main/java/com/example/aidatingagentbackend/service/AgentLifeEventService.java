@@ -2,7 +2,7 @@ package com.example.aidatingagentbackend.service;
 
 import com.example.aidatingagentbackend.entity.AgentLifeEvent;
 import com.example.aidatingagentbackend.entity.AgentLifeType;
-import com.example.aidatingagentbackend.entity.AgentProfile;
+import com.example.aidatingagentbackend.dto.CharacterSnapshot;
 import com.example.aidatingagentbackend.repository.AgentLifeEventRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -15,20 +15,19 @@ import java.util.List;
 public class AgentLifeEventService {
 
     private final AgentLifeEventRepository agentLifeEventRepository;
-    private final AgentProfileService agentProfileService;
+    private final AgentLifeTypeResolver lifeTypeResolver;
 
     public AgentLifeEventService(
             AgentLifeEventRepository agentLifeEventRepository,
-            AgentProfileService agentProfileService
+            AgentLifeTypeResolver lifeTypeResolver
     ) {
         this.agentLifeEventRepository = agentLifeEventRepository;
-        this.agentProfileService = agentProfileService;
+        this.lifeTypeResolver = lifeTypeResolver;
     }
 
     @Transactional
-    public List<AgentLifeEvent> ensureAndFindForPrompt(Long userId) {
-        AgentProfile profile = agentProfileService.findOrDefault(userId);
-        AgentLifeType lifeType = profile.getLifeType() == null ? AgentLifeType.WORKER : profile.getLifeType();
+    public List<AgentLifeEvent> ensureAndFindForPrompt(Long userId, CharacterSnapshot character) {
+        AgentLifeType lifeType = lifeTypeResolver.resolve(character.job(), character.lifeType());
         createIfMissing(userId, lifeType, LocalDate.now().minusDays(1), "yesterday");
         createIfMissing(userId, lifeType, LocalDate.now(), resolveTimeContext());
         return agentLifeEventRepository.findTop8ByUserIdOrderByEventDateDescIdDesc(userId);

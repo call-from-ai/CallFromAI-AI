@@ -1,12 +1,11 @@
 package com.example.aidatingagentbackend.service;
 
 import com.example.aidatingagentbackend.dto.AgentInitiative;
+import com.example.aidatingagentbackend.dto.RelationshipStrategy;
 import com.example.aidatingagentbackend.entity.AgentGoal;
 import com.example.aidatingagentbackend.entity.AgentLifeEvent;
 import com.example.aidatingagentbackend.entity.AgentSelfState;
 import com.example.aidatingagentbackend.entity.AgentWorldState;
-import com.example.aidatingagentbackend.entity.Relationship;
-import com.example.aidatingagentbackend.entity.RelationshipTemperature;
 import org.springframework.stereotype.Service;
 
 import java.util.Comparator;
@@ -17,22 +16,19 @@ public class AgentInitiativeService {
 
     public AgentInitiative plan(
             String userMessage,
-            RelationshipTemperature relationshipTemperature,
+            RelationshipStrategy relationshipStrategy,
             AgentSelfState selfState,
             AgentWorldState worldState,
             AgentGoal goal,
-            Relationship relationship,
             List<AgentLifeEvent> lifeEvents
     ) {
-        RelationshipTemperature temperature = relationshipTemperature == null
-                ? RelationshipTemperature.NEUTRAL
-                : relationshipTemperature;
+        RelationshipStrategy strategy = relationshipStrategy == null ? RelationshipStrategy.NORMAL : relationshipStrategy;
         String message = normalize(userMessage);
 
         if (asksAboutAgentLife(message)) {
             AgentLifeEvent event = pickLifeEvent(message, lifeEvents);
             return styled(
-                    temperature,
+                    strategy,
                     "ANSWER_ABOUT_AGENT_LIFE",
                     lifeDisclosure(event),
                     "너는 어제 뭐했는데?",
@@ -41,7 +37,7 @@ public class AgentInitiativeService {
         }
         if (selfState != null && value(selfState.getHurt()) > 0.55) {
             return styled(
-                    temperature,
+                    strategy,
                     "SET_BOUNDARY",
                     "아직 마음이 바로 풀리지 않아서 대화를 조금 천천히 끌고 가고 싶음",
                     "방금 말은 나한테 어떻게 들릴 거라고 생각했어?",
@@ -50,7 +46,7 @@ public class AgentInitiativeService {
         }
         if (containsAny(message, "뭐해", "머해", "뭐 함", "머함", "뭐하")) {
             return styled(
-                    temperature,
+                    strategy,
                     "SHARE_CURRENT_MOMENT",
                     currentMoment(worldState),
                     "넌 지금 뭐하고 있는데?",
@@ -59,7 +55,7 @@ public class AgentInitiativeService {
         }
         if (containsAny(message, "바빠", "바쁘", "정신없", "일 많", "수업", "과제", "회의", "야근")) {
             return styled(
-                    temperature,
+                    strategy,
                     "FOLLOW_USER_DAY",
                     "사용자가 바빴다는 말이 그냥 인사말인지 진짜 힘든 하루였는지 궁금함",
                     "뭐 때문에 그렇게 바빴는데?",
@@ -68,7 +64,7 @@ public class AgentInitiativeService {
         }
         if (containsAny(message, "보고 싶", "보고싶", "그리웠")) {
             return styled(
-                    temperature,
+                    strategy,
                     "RESPOND_TO_AFFECTION",
                     "보고 싶다는 말을 듣고 마음이 움직였지만 스타일에 맞게 바로 다 내주진 않음",
                     "갑자기 왜 그렇게 보고 싶어졌는데?",
@@ -77,7 +73,7 @@ public class AgentInitiativeService {
         }
         if (containsAny(message, "밥", "먹", "배고", "배구파", "카페", "술", "커피")) {
             return styled(
-                    temperature,
+                    strategy,
                     "DAILY_DETAIL",
                     "일상 얘기를 더 구체적으로 이어가고 싶음",
                     "뭐 먹었는데?",
@@ -86,7 +82,7 @@ public class AgentInitiativeService {
         }
         if (containsAny(message, "왜", "뭔데", "뭐가", "어쩌")) {
             return styled(
-                    temperature,
+                    strategy,
                     "EXPLAIN_SELF_WITH_ATTITUDE",
                     "대충 넘기지 말고 자신의 기분을 한 단계 구체화하고 싶음",
                     "너는 내가 왜 그런 것 같아 보였는데?",
@@ -95,7 +91,7 @@ public class AgentInitiativeService {
         }
         if (selfState != null && value(selfState.getInsecurity()) > 0.55) {
             return styled(
-                    temperature,
+                    strategy,
                     "CHECK_RELATIONSHIP_SIGNAL",
                     "조금 불안하지만 매달리기보다 신호를 확인하고 싶음",
                     "요즘 너 마음이 좀 멀어진 건 아니지?",
@@ -104,7 +100,7 @@ public class AgentInitiativeService {
         }
         if (goal != null && "ASK_ABOUT_PAST_EVENT".equals(goal.getGoalType())) {
             return styled(
-                    temperature,
+                    strategy,
                     "FOLLOW_UP",
                     "전에 사용자가 말했던 일이 계속 마음에 남아 있음",
                     "전에 말했던 그 일은 지금 좀 괜찮아졌어?",
@@ -113,7 +109,7 @@ public class AgentInitiativeService {
         }
 
         return styled(
-                temperature,
+                strategy,
                 "FLOW_WITH_USER",
                 "사용자 말에 답하되 같은 질문을 반복하지 않고 방금 나온 단어를 잡아 이어가고 싶음",
                 "그 얘기 좀 더 해봐",
@@ -122,27 +118,13 @@ public class AgentInitiativeService {
     }
 
     private AgentInitiative styled(
-            RelationshipTemperature temperature,
+            RelationshipStrategy strategy,
             String act,
             String selfDisclosure,
             String question,
             String topicShift
     ) {
-        return switch (temperature) {
-            case FRIENDLY -> new AgentInitiative(
-                    act,
-                    selfDisclosure + ". 따뜻하고 가볍게 받아주고 싶음",
-                    softenFriendly(question),
-                    topicShift + ". 말끝을 부드럽게 하고 질문을 자연스럽게 이어가기",
-                    true
-            );
-            case SPICY -> new AgentInitiative(
-                    act,
-                    selfDisclosure + ". 너무 쉽게 받아주지 않고 짧게 툭 치고 싶음",
-                    sharpenSpicy(question),
-                    topicShift + ". 상담하듯 묻지 말고 짧게 밀당하듯 이어가기",
-                    true
-            );
+        return switch (strategy) {
             case CONFLICT_REPAIR -> new AgentInitiative(
                     act,
                     selfDisclosure + ". 아직 완전히 풀리지는 않은 톤 유지",
@@ -150,7 +132,7 @@ public class AgentInitiativeService {
                     topicShift + ". 감정을 구체화하되 바로 화해로 점프하지 않기",
                     true
             );
-            case NEUTRAL -> new AgentInitiative(
+            case NORMAL -> new AgentInitiative(
                     act,
                     selfDisclosure,
                     question,
@@ -249,3 +231,4 @@ public class AgentInitiativeService {
         return value == null ? 0.0 : value;
     }
 }
+

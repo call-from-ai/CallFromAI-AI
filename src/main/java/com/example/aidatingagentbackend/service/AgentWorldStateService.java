@@ -1,16 +1,13 @@
 package com.example.aidatingagentbackend.service;
 
-import com.example.aidatingagentbackend.dto.AgentWorldStateResponse;
 import com.example.aidatingagentbackend.entity.AgentLifeType;
-import com.example.aidatingagentbackend.entity.AgentProfile;
+import com.example.aidatingagentbackend.dto.CharacterSnapshot;
+import com.example.aidatingagentbackend.dto.RelationshipSnapshot;
 import com.example.aidatingagentbackend.entity.AgentSelfState;
 import com.example.aidatingagentbackend.entity.AgentWorldState;
-import com.example.aidatingagentbackend.entity.Reflection;
-import com.example.aidatingagentbackend.entity.Relationship;
 import com.example.aidatingagentbackend.entity.TurningPoint;
 import com.example.aidatingagentbackend.repository.AgentSelfStateRepository;
 import com.example.aidatingagentbackend.repository.AgentWorldStateRepository;
-import com.example.aidatingagentbackend.repository.RelationshipRepository;
 import com.example.aidatingagentbackend.repository.TurningPointRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,39 +19,30 @@ import java.util.List;
 public class AgentWorldStateService {
 
     private final AgentWorldStateRepository agentWorldStateRepository;
-    private final AgentProfileService agentProfileService;
+    private final AgentLifeTypeResolver lifeTypeResolver;
     private final AgentSelfStateRepository agentSelfStateRepository;
-    private final RelationshipRepository relationshipRepository;
-    private final ReflectionService reflectionService;
     private final TurningPointRepository turningPointRepository;
 
     public AgentWorldStateService(
             AgentWorldStateRepository agentWorldStateRepository,
-            AgentProfileService agentProfileService,
+            AgentLifeTypeResolver lifeTypeResolver,
             AgentSelfStateRepository agentSelfStateRepository,
-            RelationshipRepository relationshipRepository,
-            ReflectionService reflectionService,
             TurningPointRepository turningPointRepository
     ) {
         this.agentWorldStateRepository = agentWorldStateRepository;
-        this.agentProfileService = agentProfileService;
+        this.lifeTypeResolver = lifeTypeResolver;
         this.agentSelfStateRepository = agentSelfStateRepository;
-        this.relationshipRepository = relationshipRepository;
-        this.reflectionService = reflectionService;
         this.turningPointRepository = turningPointRepository;
     }
 
     @Transactional
-    public AgentWorldState updateBeforeResponse(Long userId) {
-        AgentProfile profile = agentProfileService.findOrDefault(userId);
+    public AgentWorldState updateBeforeResponse(Long userId, CharacterSnapshot character, RelationshipSnapshot relationship) {
         AgentSelfState selfState = agentSelfStateRepository.findByCharacterId(userId).orElse(null);
-        Relationship relationship = relationshipRepository.findByCharacterId(userId).orElse(null);
-        List<Reflection> reflections = reflectionService.findRelevantForPrompt(userId);
         List<TurningPoint> turningPoints = turningPointRepository.findTop10ByCharacterIdOrderByCreatedAtDesc(userId);
 
         AgentWorldState state = agentWorldStateRepository.findByUserId(userId)
                 .orElseGet(() -> createDefaultState(userId));
-        LifeTemplate template = LifeTemplate.resolve(profile.getLifeType(), resolveTimeContext());
+        LifeTemplate template = LifeTemplate.resolve(lifeTypeResolver.resolve(character.job(), character.lifeType()), resolveTimeContext());
 
         state.setCurrentActivity(template.currentActivity());
         state.setLocation(template.location());
@@ -63,7 +51,7 @@ public class AgentWorldStateService {
         state.setStress(clamp(template.stress() + relationshipStressDelta(relationship) + selfStressDelta(selfState)));
         state.setLoneliness(clamp(baseLoneliness(selfState, relationship)));
         state.setMood(resolveMood(selfState, state));
-        state.setPendingThought(resolvePendingThought(reflections, turningPoints, selfState, relationship));
+        state.setPendingThought(resolvePendingThought(turningPoints, selfState, relationship));
 
         return agentWorldStateRepository.save(state);
     }
@@ -72,11 +60,6 @@ public class AgentWorldStateService {
     public AgentWorldState findByUserId(Long userId) {
         return agentWorldStateRepository.findByUserId(userId)
                 .orElseGet(() -> createDefaultState(userId));
-    }
-
-    @Transactional(readOnly = true)
-    public AgentWorldStateResponse findResponseByUserId(Long userId) {
-        return AgentWorldStateResponse.from(findByUserId(userId));
     }
 
     private AgentWorldState createDefaultState(Long userId) {
@@ -107,7 +90,7 @@ public class AgentWorldStateService {
         return "night";
     }
 
-    private int relationshipStressDelta(Relationship relationship) {
+    private int relationshipStressDelta(RelationshipSnapshot relationship) {
         if (relationship == null) {
             return 0;
         }
@@ -123,7 +106,7 @@ public class AgentWorldStateService {
         return (int) Math.round(value(selfState.getHurt()) * 20 + value(selfState.getAnger()) * 12);
     }
 
-    private int baseLoneliness(AgentSelfState selfState, Relationship relationship) {
+    private int baseLoneliness(AgentSelfState selfState, RelationshipSnapshot relationship) {
         int loneliness = 28;
         if (selfState != null) {
             loneliness += (int) Math.round(value(selfState.getInsecurity()) * 28);
@@ -159,19 +142,15 @@ public class AgentWorldStateService {
     }
 
     private String resolvePendingThought(
-            List<Reflection> reflections,
             List<TurningPoint> turningPoints,
             AgentSelfState selfState,
-            Relationship relationship
+            RelationshipSnapshot relationship
     ) {
         if (selfState != null && value(selfState.getHurt()) > 0.6) {
             return "아직 상처가 남아 있어서 너무 빨리 아무렇지 않은 척하고 싶지는 않음";
         }
         if (relationship != null && value(relationship.getBreakupRisk()) > 50) {
             return "관계가 흔들린 이유를 조심스럽게 확인하고 싶음";
-        }
-        if (reflections != null && !reflections.isEmpty()) {
-            return "최근 반복된 관계 패턴을 떠올리며 조금 더 신중하게 말하고 싶음";
         }
         if (turningPoints != null && !turningPoints.isEmpty()) {
             return "최근 있었던 중요한 일을 가볍게 떠올리고 있음";

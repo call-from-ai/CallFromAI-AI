@@ -5,14 +5,9 @@ import com.example.aidatingagentbackend.context.ContextUpdater;
 import com.example.aidatingagentbackend.dto.ChatRequest;
 import com.example.aidatingagentbackend.dto.Context;
 import com.example.aidatingagentbackend.engine.EventAnalysis;
-import com.example.aidatingagentbackend.entity.ChatMessage;
-import com.example.aidatingagentbackend.entity.RelationshipTemperature;
 import com.example.aidatingagentbackend.entity.ResponseQualityEvaluation;
 import com.example.aidatingagentbackend.prompt.PromptBuilder;
-import com.example.aidatingagentbackend.repository.ChatMessageRepository;
 import org.springframework.stereotype.Service;
-
-import java.time.LocalDateTime;
 
 @Service
 public class AIProcessingService {
@@ -20,7 +15,6 @@ public class AIProcessingService {
     private final PromptBuilder promptBuilder;
     private final GeminiService geminiService;
     private final ContextLoader contextLoader;
-    private final ChatMessageRepository chatMessageRepository;
     private final ContextUpdater contextUpdater;
     private final EmotionUpdateService emotionUpdateService;
     private final ResponseQualityEvaluatorService responseQualityEvaluatorService;
@@ -34,7 +28,6 @@ public class AIProcessingService {
             PromptBuilder promptBuilder,
             GeminiService geminiService,
             ContextLoader contextLoader,
-            ChatMessageRepository chatMessageRepository,
             ContextUpdater contextUpdater,
             EmotionUpdateService emotionUpdateService,
             ResponseQualityEvaluatorService responseQualityEvaluatorService,
@@ -47,7 +40,6 @@ public class AIProcessingService {
         this.promptBuilder = promptBuilder;
         this.geminiService = geminiService;
         this.contextLoader = contextLoader;
-        this.chatMessageRepository = chatMessageRepository;
         this.contextUpdater = contextUpdater;
         this.emotionUpdateService = emotionUpdateService;
         this.responseQualityEvaluatorService = responseQualityEvaluatorService;
@@ -60,30 +52,29 @@ public class AIProcessingService {
 
     public PreparedAIProcessing prepare(ChatRequest request, boolean compactPrompt) {
         Long characterId = resolveCharacterId(request);
+        validateSnapshots(request);
         String userMessage = request.getMessage();
 
         EmotionUpdateService.EmotionUpdateResult emotionUpdateResult =
-                emotionUpdateService.updateBeforeResponse(characterId, userMessage);
+                emotionUpdateService.updateBeforeResponse(characterId, userMessage, request.getHistory(),
+                        request.getCharacter().traits(), request.getRelationship());
         EventAnalysis eventAnalysis = emotionUpdateResult.eventAnalysis();
-        RelationshipTemperature relationshipTemperature = resolveRelationshipTemperature(request);
 
         conversationEventService.detectAndSave(characterId, userMessage, eventAnalysis);
-        contextUpdater.updateBeforeResponse(characterId, userMessage, eventAnalysis);
-        agentWorldStateService.updateBeforeResponse(characterId);
-        agentGoalService.selectCurrentGoal(characterId);
+        ContextUpdater.RelationshipUpdate relationshipUpdate = contextUpdater.updateBeforeResponse(
+                characterId, request.getRelationship(), userMessage, eventAnalysis);
+        agentWorldStateService.updateBeforeResponse(characterId, request.getCharacter(), relationshipUpdate.nextRelationship());
+        agentGoalService.selectCurrentGoal(characterId, relationshipUpdate.nextRelationship());
 
-        Context context = contextLoader.load(
-                characterId,
-                userMessage,
-                eventAnalysis,
-                relationshipTemperature
-        );
+        Context context = contextLoader.load(request, eventAnalysis, relationshipUpdate);
         String prompt = buildPrompt(context, userMessage, compactPrompt);
 
         return new PreparedAIProcessing(
                 characterId,
                 userMessage,
                 eventAnalysis,
+                emotionUpdateResult,
+                relationshipUpdate,
                 context,
                 prompt
         );
@@ -121,11 +112,9 @@ public class AIProcessingService {
                 .relationshipTemperatureScore(context.relationshipTemperatureScore())
                 .romanceStyleScore(context.romanceStyleScore())
                 .agentSelfState(context.agentSelfState())
-                .agentProfile(context.agentProfile())
                 .agentWorldState(context.agentWorldState())
                 .agentGoal(context.agentGoal())
                 .agentInitiative(context.agentInitiative())
-                .relationshipTemperature(context.relationshipTemperature())
                 .agentLifeEvents(context.agentLifeEvents())
                 .conversationEvents(context.conversationEvents())
                 .preferenceQuestionPlan(context.preferenceQuestionPlan())
@@ -195,7 +184,7 @@ public class AIProcessingService {
     private String postProcess(Context context, String reply) {
         return responseStylePostProcessor.process(
                 reply,
-                context.relationshipTemperature(),
+                context.relationshipStrategy(),
                 context.relationshipTemperatureScore(),
                 context.romanceStyleScore(),
                 context.characterTraitProfile(),
@@ -205,8 +194,6 @@ public class AIProcessingService {
     }
 
     private void persistAfterResponse(PreparedAIProcessing prepared, String reply) {
-        save(prepared.characterId(), "USER", prepared.userMessage());
-        save(prepared.characterId(), "ASSISTANT", reply);
         characterPreferenceService.persistInventedPreferenceIfNeeded(
                 prepared.characterId(),
                 prepared.userMessage(),
@@ -216,33 +203,26 @@ public class AIProcessingService {
         contextUpdater.updateMemoryAfterResponse(prepared.characterId(), prepared.userMessage(), reply);
     }
 
-    private void save(Long characterId, String role, String content) {
-        ChatMessage message = new ChatMessage();
-        message.setCharacterId(characterId);
-        message.setRole(role);
-        message.setContent(content);
-        message.setCreatedAt(LocalDateTime.now());
-        chatMessageRepository.save(message);
-    }
-
-    private RelationshipTemperature resolveRelationshipTemperature(ChatRequest request) {
-        return request.getRelationshipTemperature() == null
-                ? RelationshipTemperature.NEUTRAL
-                : request.getRelationshipTemperature();
-    }
-
     public Long resolveCharacterId(ChatRequest request) {
         Long characterId = request.resolveCharacterId();
         if (characterId == null) {
-            throw new IllegalArgumentException("characterId is required. userId is still accepted as a legacy alias.");
+            throw new IllegalArgumentException("character.characterId is required.");
         }
         return characterId;
+    }
+
+    private void validateSnapshots(ChatRequest request) {
+        if (request == null || request.getCharacter() == null) throw new IllegalArgumentException("character snapshot is required");
+        if (request.getRelationship() == null) throw new IllegalArgumentException("relationship snapshot is required");
+        if (request.getCharacter().traits() == null) throw new IllegalArgumentException("character.traits is required");
     }
 
     public record PreparedAIProcessing(
             Long characterId,
             String userMessage,
             EventAnalysis eventAnalysis,
+            EmotionUpdateService.EmotionUpdateResult emotionUpdateResult,
+            ContextUpdater.RelationshipUpdate relationshipUpdate,
             Context context,
             String prompt
     ) {

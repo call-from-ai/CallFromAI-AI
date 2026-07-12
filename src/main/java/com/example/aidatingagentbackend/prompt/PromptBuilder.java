@@ -5,19 +5,17 @@ import com.example.aidatingagentbackend.dto.ConversationTopicPlan;
 import com.example.aidatingagentbackend.dto.PreferenceQuestionPlan;
 import com.example.aidatingagentbackend.entity.AgentGoal;
 import com.example.aidatingagentbackend.entity.AgentLifeEvent;
-import com.example.aidatingagentbackend.entity.AgentProfile;
 import com.example.aidatingagentbackend.entity.AgentSelfState;
 import com.example.aidatingagentbackend.entity.AgentWorldState;
-import com.example.aidatingagentbackend.entity.Character;
+import com.example.aidatingagentbackend.dto.CharacterSnapshot;
 import com.example.aidatingagentbackend.entity.CharacterExample;
 import com.example.aidatingagentbackend.entity.CharacterPreference;
-import com.example.aidatingagentbackend.entity.CharacterTraitProfile;
-import com.example.aidatingagentbackend.entity.ChatMessage;
+import com.example.aidatingagentbackend.dto.CharacterTraitSnapshot;
+import com.example.aidatingagentbackend.dto.ChatHistoryItem;
 import com.example.aidatingagentbackend.entity.ConversationEvent;
 import com.example.aidatingagentbackend.entity.Memory;
-import com.example.aidatingagentbackend.entity.Relationship;
+import com.example.aidatingagentbackend.dto.RelationshipSnapshot;
 import com.example.aidatingagentbackend.entity.RelationshipStage;
-import com.example.aidatingagentbackend.entity.RelationshipTemperature;
 import com.example.aidatingagentbackend.entity.ResponseQualityEvaluation;
 import com.example.aidatingagentbackend.entity.State;
 import org.springframework.stereotype.Component;
@@ -73,19 +71,17 @@ public class PromptBuilder {
     public static class Builder {
 
         private final TraitInstructionResolver traitInstructionResolver;
-        private Character character;
+        private CharacterSnapshot character;
         private State state;
-        private Relationship relationship;
-        private CharacterTraitProfile characterTraitProfile;
+        private RelationshipSnapshot relationship;
+        private CharacterTraitSnapshot characterTraitProfile;
         private RelationshipStage relationshipStage = RelationshipStage.CRUSH;
         private Integer relationshipTemperatureScore = 50;
         private Integer romanceStyleScore = 50;
         private AgentSelfState agentSelfState;
-        private AgentProfile agentProfile;
         private AgentWorldState agentWorldState;
         private AgentGoal agentGoal;
         private AgentInitiative agentInitiative;
-        private RelationshipTemperature relationshipTemperature = RelationshipTemperature.NEUTRAL;
         private final List<AgentLifeEvent> agentLifeEvents = new ArrayList<>();
         private final List<ConversationEvent> conversationEvents = new ArrayList<>();
         private PreferenceQuestionPlan preferenceQuestionPlan;
@@ -93,7 +89,7 @@ public class PromptBuilder {
         private final List<CharacterPreference> characterPreferences = new ArrayList<>();
         private final List<CharacterExample> characterExamples = new ArrayList<>();
         private final List<Memory> memories = new ArrayList<>();
-        private final List<ChatMessage> chatHistory = new ArrayList<>();
+        private final List<ChatHistoryItem> chatHistory = new ArrayList<>();
         private String userMessage;
         private boolean compactMode;
 
@@ -101,7 +97,7 @@ public class PromptBuilder {
             this.traitInstructionResolver = traitInstructionResolver;
         }
 
-        public Builder character(Character character) {
+        public Builder character(CharacterSnapshot character) {
             this.character = character;
             return this;
         }
@@ -111,12 +107,12 @@ public class PromptBuilder {
             return this;
         }
 
-        public Builder relationship(Relationship relationship) {
+        public Builder relationship(RelationshipSnapshot relationship) {
             this.relationship = relationship;
             return this;
         }
 
-        public Builder characterTraitProfile(CharacterTraitProfile characterTraitProfile) {
+        public Builder characterTraitProfile(CharacterTraitSnapshot characterTraitProfile) {
             this.characterTraitProfile = characterTraitProfile;
             return this;
         }
@@ -143,11 +139,6 @@ public class PromptBuilder {
             return this;
         }
 
-        public Builder agentProfile(AgentProfile agentProfile) {
-            this.agentProfile = agentProfile;
-            return this;
-        }
-
         public Builder agentWorldState(AgentWorldState agentWorldState) {
             this.agentWorldState = agentWorldState;
             return this;
@@ -160,13 +151,6 @@ public class PromptBuilder {
 
         public Builder agentInitiative(AgentInitiative agentInitiative) {
             this.agentInitiative = agentInitiative;
-            return this;
-        }
-
-        public Builder relationshipTemperature(RelationshipTemperature relationshipTemperature) {
-            this.relationshipTemperature = relationshipTemperature == null
-                    ? RelationshipTemperature.NEUTRAL
-                    : relationshipTemperature;
             return this;
         }
 
@@ -205,7 +189,7 @@ public class PromptBuilder {
             return this;
         }
 
-        public Builder chatHistory(List<ChatMessage> history) {
+        public Builder chatHistory(List<ChatHistoryItem> history) {
             addAll(this.chatHistory, history);
             return this;
         }
@@ -399,7 +383,7 @@ public class PromptBuilder {
         private void appendLifeIfRelevant(StringBuilder prompt) {
             if (agentWorldState != null && shouldIncludeLifeState()) {
                 prompt.append("[Life State]\n");
-                appendInline(prompt, "LifeType", agentProfile == null ? null : agentProfile.getLifeType());
+                appendInline(prompt, "LifeType", character == null ? null : character.getLifeType());
                 appendInline(prompt, "Activity", agentWorldState.getCurrentActivity());
                 appendInline(prompt, "Mood", agentWorldState.getMood());
                 appendInline(prompt, "Energy", agentWorldState.getEnergy());
@@ -574,3 +558,4 @@ public class PromptBuilder {
         }
     }
 }
+

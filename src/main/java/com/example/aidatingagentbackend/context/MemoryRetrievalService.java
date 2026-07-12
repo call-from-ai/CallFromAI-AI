@@ -2,7 +2,7 @@ package com.example.aidatingagentbackend.context;
 
 import com.example.aidatingagentbackend.engine.AgentEventType;
 import com.example.aidatingagentbackend.engine.EventAnalysis;
-import com.example.aidatingagentbackend.entity.CharacterTraitProfile;
+import com.example.aidatingagentbackend.dto.CharacterTraitSnapshot;
 import com.example.aidatingagentbackend.entity.Memory;
 import com.example.aidatingagentbackend.entity.RelationshipStage;
 import com.example.aidatingagentbackend.entity.State;
@@ -47,7 +47,7 @@ public class MemoryRetrievalService {
             Long characterId,
             String userMessage,
             State state,
-            CharacterTraitProfile characterTraitProfile,
+            CharacterTraitSnapshot characterTraitProfile,
             RelationshipStage relationshipStage,
             Integer relationshipTemperatureScore,
             EventAnalysis eventAnalysis
@@ -82,7 +82,7 @@ public class MemoryRetrievalService {
             Set<String> queryTerms,
             double[] queryEmbedding,
             String currentEmotion,
-            CharacterTraitProfile characterTraitProfile,
+            CharacterTraitSnapshot characterTraitProfile,
             RelationshipStage relationshipStage,
             EventAnalysis eventAnalysis
     ) {
@@ -115,7 +115,7 @@ public class MemoryRetrievalService {
             Memory memory,
             String summary,
             Set<String> queryTerms,
-            CharacterTraitProfile traits,
+            CharacterTraitSnapshot traits,
             EventAnalysis eventAnalysis
     ) {
         if (!StringUtils.hasText(summary) || traits == null) {
@@ -238,3 +238,4 @@ public class MemoryRetrievalService {
                 .collect(Collectors.toSet());
     }
 }
+

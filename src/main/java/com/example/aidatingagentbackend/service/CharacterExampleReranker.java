@@ -3,7 +3,7 @@ package com.example.aidatingagentbackend.service;
 import com.example.aidatingagentbackend.engine.AgentEventType;
 import com.example.aidatingagentbackend.engine.EventAnalysis;
 import com.example.aidatingagentbackend.entity.CharacterExample;
-import com.example.aidatingagentbackend.entity.CharacterTraitProfile;
+import com.example.aidatingagentbackend.dto.CharacterTraitSnapshot;
 import com.example.aidatingagentbackend.entity.RelationshipStage;
 import com.example.aidatingagentbackend.entity.RelationshipTemperatureBand;
 import com.example.aidatingagentbackend.entity.RomanceStyleBand;
@@ -39,7 +39,7 @@ public class CharacterExampleReranker {
             EventAnalysis eventAnalysis,
             RelationshipStage stage,
             Integer temperatureScore,
-            CharacterTraitProfile traits
+            CharacterTraitSnapshot traits
     ) {
         return rerank(candidates, eventAnalysis, stage, temperatureScore, 50, traits);
     }
@@ -50,7 +50,7 @@ public class CharacterExampleReranker {
             RelationshipStage stage,
             Integer relationshipTemperatureScore,
             Integer romanceStyleScore,
-            CharacterTraitProfile traits
+            CharacterTraitSnapshot traits
     ) {
         if (candidates == null || candidates.isEmpty()) {
             return List.of();
@@ -83,7 +83,7 @@ public class CharacterExampleReranker {
             RelationshipStage stage,
             RelationshipTemperatureBand band,
             RomanceStyleBand romanceStyleBand,
-            CharacterTraitProfile traits,
+            CharacterTraitSnapshot traits,
             boolean jealousyContext,
             Set<CharacterExampleRelevantTraitPolicy.RelevantTrait> relevantTraits
     ) {
@@ -223,3 +223,4 @@ public class CharacterExampleReranker {
     private record ScoredExample(CharacterExample example, double score) {
     }
 }
+

@@ -1,24 +1,25 @@
 package com.example.aidatingagentbackend.dto;
 
-import com.example.aidatingagentbackend.entity.RelationshipTemperature;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+
+import java.util.List;
 
 @Getter
 @Setter
 @NoArgsConstructor
 public class ChatRequest {
 
-    private Long characterId;
-
-    private Long userId;
+    private String requestId;
+    private Long memberId;
+    private CharacterSnapshot character;
+    private RelationshipSnapshot relationship;
+    private List<ChatHistoryItem> history = List.of();
 
     private String message;
 
-    private RelationshipTemperature relationshipTemperature;
-
     public Long resolveCharacterId() {
-        return characterId == null ? userId : characterId;
+        return character == null ? null : character.characterId();
     }
 }
