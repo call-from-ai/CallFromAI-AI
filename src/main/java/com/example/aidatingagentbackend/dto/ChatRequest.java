@@ -12,7 +12,6 @@ import java.util.List;
 public class ChatRequest {
 
     private String requestId;
-    private Long memberId;
     private CharacterSnapshot character;
     private RelationshipSnapshot relationship;
     private List<ChatHistoryItem> history = List.of();

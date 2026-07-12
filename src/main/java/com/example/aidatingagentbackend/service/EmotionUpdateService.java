@@ -19,7 +19,7 @@ import com.example.aidatingagentbackend.repository.AgentSelfStateLogRepository;
 import com.example.aidatingagentbackend.repository.AgentSelfStateRepository;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
@@ -40,6 +40,7 @@ public class EmotionUpdateService {
     private final MessageSignalDetector messageSignalDetector;
     private final EmotionTraitModifier emotionTraitModifier;
     private final RelationshipStageEmotionPolicy relationshipStageEmotionPolicy;
+    private final TransactionTemplate transactionTemplate;
 
     public EmotionUpdateService(
             AgentSelfStateRepository agentSelfStateRepository,
@@ -48,7 +49,8 @@ public class EmotionUpdateService {
             AgentSelfStateLogRepository agentSelfStateLogRepository,
             MessageSignalDetector messageSignalDetector,
             EmotionTraitModifier emotionTraitModifier,
-            RelationshipStageEmotionPolicy relationshipStageEmotionPolicy
+            RelationshipStageEmotionPolicy relationshipStageEmotionPolicy,
+            TransactionTemplate transactionTemplate
     ) {
         this.agentSelfStateRepository = agentSelfStateRepository;
         this.eventAnalyzer = eventAnalyzer;
@@ -57,24 +59,7 @@ public class EmotionUpdateService {
         this.messageSignalDetector = messageSignalDetector;
         this.emotionTraitModifier = emotionTraitModifier;
         this.relationshipStageEmotionPolicy = relationshipStageEmotionPolicy;
-    }
-
-    public EmotionUpdateService(
-            AgentSelfStateRepository agentSelfStateRepository,
-            EventAnalyzer eventAnalyzer,
-            EventDetector eventDetector,
-            AgentSelfStateLogRepository agentSelfStateLogRepository,
-            MessageSignalDetector messageSignalDetector
-    ) {
-        this(
-                agentSelfStateRepository,
-                eventAnalyzer,
-                eventDetector,
-                agentSelfStateLogRepository,
-                messageSignalDetector,
-                new EmotionTraitModifier(),
-                new RelationshipStageEmotionPolicy()
-        );
+        this.transactionTemplate = transactionTemplate;
     }
 
     public EmotionUpdateResult updateBeforeResponse(Long characterId, String userMessage, List<ChatHistoryItem> history,
@@ -82,7 +67,8 @@ public class EmotionUpdateService {
         OptimisticLockingFailureException lastException = null;
         for (int attempt = 0; attempt <= MAX_OPTIMISTIC_RETRIES; attempt++) {
             try {
-                return updateBeforeResponseOnce(characterId, userMessage, history, traitProfile, relationship);
+                return transactionTemplate.execute(status ->
+                        updateBeforeResponseOnce(characterId, userMessage, history, traitProfile, relationship));
             } catch (OptimisticLockingFailureException exception) {
                 lastException = exception;
             }
@@ -90,9 +76,10 @@ public class EmotionUpdateService {
         throw lastException;
     }
 
-    @Transactional
-    public EmotionUpdateResult updateBeforeResponseOnce(Long characterId, String userMessage, List<ChatHistoryItem> history,
-                                                         CharacterTraitSnapshot traitProfile, RelationshipSnapshot relationship) {
+    private EmotionUpdateResult updateBeforeResponseOnce(Long characterId, String userMessage,
+                                                          List<ChatHistoryItem> history,
+                                                          CharacterTraitSnapshot traitProfile,
+                                                          RelationshipSnapshot relationship) {
         AgentSelfState state = agentSelfStateRepository.findByCharacterId(characterId)
                 .orElseGet(() -> createDefaultState(characterId));
         RelationshipStage relationshipStage = relationship.relationshipStage();
@@ -110,12 +97,6 @@ public class EmotionUpdateService {
 
         AgentSelfState saved = agentSelfStateRepository.saveAndFlush(state);
         return new EmotionUpdateResult(previousState, AgentSelfStateSnapshot.from(saved), eventAnalysis);
-    }
-
-    @Transactional(readOnly = true)
-    public AgentSelfState findOrCreatePreview(Long characterId) {
-        return agentSelfStateRepository.findByCharacterId(characterId)
-                .orElseGet(() -> createDefaultState(characterId));
     }
 
     private EventAnalysis analyzeEvent(String userMessage, List<ChatHistoryItem> history, AgentSelfState state) {
@@ -154,7 +135,6 @@ public class EmotionUpdateService {
         log.setNextInsecurity(value(nextState.getInsecurity()));
         log.setEventType(eventAnalysis.eventType().name());
         log.setSeverity(eventAnalysis.severity());
-        log.setUserMessage(null);
         log.setDeltaReason(buildDeltaReason(eventAnalysis, previousSnapshot, nextState, traitProfile, relationshipStage));
         return agentSelfStateLogRepository.save(log);
     }
@@ -192,10 +172,6 @@ public class EmotionUpdateService {
         return reason.toString();
     }
 
-    public void applyDecay(AgentSelfState state, LocalDateTime now) {
-        applyDecay(state, now, null);
-    }
-
     public void applyDecay(AgentSelfState state, LocalDateTime now, CharacterTraitSnapshot traitProfile) {
         if (state.getUpdatedAt() == null || now == null || !now.isAfter(state.getUpdatedAt())) {
             return;
@@ -212,11 +188,6 @@ public class EmotionUpdateService {
         state.setInsecurity(value(state.getInsecurity()) - decay * 0.8);
         state.setDisappointment(value(state.getDisappointment()) - decay * 0.7);
         state.setEmotionalDistance(value(state.getEmotionalDistance()) - decay * 0.4);
-    }
-
-    public void applyEvent(AgentSelfState state, AgentEventType eventType) {
-        applyDelta(state, baseEventDelta(state, EventAnalysis.fallback(eventType)));
-        applyEventSideEffects(state, eventType);
     }
 
     private void applyEvent(

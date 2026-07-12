@@ -28,9 +28,9 @@ class SnapshotBoundaryTests {
 
     @Test
     void proactiveRequestRequiresBothSnapshots() {
-        assertThatThrownBy(() -> new ProactiveSendRequest("r", 1L, null, relationship(), List.of()))
+        assertThatThrownBy(() -> new ProactiveSendRequest("r", null, relationship(), List.of()))
                 .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> new ProactiveSendRequest("r", 1L, character(), null, List.of()))
+        assertThatThrownBy(() -> new ProactiveSendRequest("r", character(), null, List.of()))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
@@ -76,8 +76,8 @@ class SnapshotBoundaryTests {
     }
 
     private CharacterSnapshot character() {
-        return new CharacterSnapshot(10L, "하나", "따뜻함", "짧게", "개발자", null, null, 90,
-                new CharacterTraitSnapshot(5, 5, 6, 7, 5, 2, 4, 6, 7, 8, 1), 1);
+        return new CharacterSnapshot(10L, "하나", "따뜻함", "짧게", "개발자", null, 90,
+                new CharacterTraitSnapshot(5, 5, 6, 7, 5, 2, 4, 6, 7, 8, 1));
     }
 
     private RelationshipSnapshot relationship() {

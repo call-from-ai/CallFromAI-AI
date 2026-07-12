@@ -17,7 +17,6 @@ import com.example.aidatingagentbackend.entity.Memory;
 import com.example.aidatingagentbackend.dto.RelationshipSnapshot;
 import com.example.aidatingagentbackend.entity.RelationshipStage;
 import com.example.aidatingagentbackend.entity.ResponseQualityEvaluation;
-import com.example.aidatingagentbackend.entity.State;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
@@ -72,7 +71,6 @@ public class PromptBuilder {
 
         private final TraitInstructionResolver traitInstructionResolver;
         private CharacterSnapshot character;
-        private State state;
         private RelationshipSnapshot relationship;
         private CharacterTraitSnapshot characterTraitProfile;
         private RelationshipStage relationshipStage = RelationshipStage.CRUSH;
@@ -99,11 +97,6 @@ public class PromptBuilder {
 
         public Builder character(CharacterSnapshot character) {
             this.character = character;
-            return this;
-        }
-
-        public Builder state(State state) {
-            this.state = state;
             return this;
         }
 
@@ -242,8 +235,9 @@ public class PromptBuilder {
 
         private void appendRelationshipContext(StringBuilder prompt) {
             prompt.append("[Relationship Context]\n");
-            if (state != null) {
-                appendInline(prompt, "CurrentMood", state.getEmotion());
+            if (agentSelfState != null) {
+                appendInline(prompt, "CurrentMood", agentSelfState.representativeEmotion());
+                appendInline(prompt, "EmotionIntensity", agentSelfState.emotionIntensity());
             }
             if (relationship != null) {
                 appendInline(prompt, "Stage", relationshipStage);

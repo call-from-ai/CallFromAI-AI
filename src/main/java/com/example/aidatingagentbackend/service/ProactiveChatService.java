@@ -29,7 +29,6 @@ public class ProactiveChatService {
     public ChatResponse sendNow(ProactiveSendRequest request) {
         ChatRequest chatRequest = new ChatRequest();
         chatRequest.setRequestId(request.requestId());
-        chatRequest.setMemberId(request.memberId());
         chatRequest.setCharacter(request.character());
         chatRequest.setRelationship(request.relationship());
         chatRequest.setHistory(request.history());

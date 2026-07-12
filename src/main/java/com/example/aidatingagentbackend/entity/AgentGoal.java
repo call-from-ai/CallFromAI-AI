@@ -24,7 +24,7 @@ public class AgentGoal {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private Long userId;
+    private Long characterId;
 
     private String goalType;
 
@@ -36,8 +36,6 @@ public class AgentGoal {
     private String status;
 
     private LocalDateTime createdAt;
-
-    private LocalDateTime completedAt;
 
     @PrePersist
     public void setCreatedAt() {

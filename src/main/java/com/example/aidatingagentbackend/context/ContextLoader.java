@@ -5,7 +5,6 @@ import com.example.aidatingagentbackend.engine.AgentEventType;
 import com.example.aidatingagentbackend.engine.EventAnalysis;
 import com.example.aidatingagentbackend.entity.*;
 import com.example.aidatingagentbackend.repository.AgentSelfStateRepository;
-import com.example.aidatingagentbackend.repository.StateRepository;
 import com.example.aidatingagentbackend.service.*;
 import org.springframework.stereotype.Service;
 
@@ -13,7 +12,6 @@ import java.util.List;
 
 @Service
 public class ContextLoader {
-    private final StateRepository stateRepository;
     private final AgentSelfStateRepository agentSelfStateRepository;
     private final MemoryRetrievalService memoryRetrievalService;
     private final CharacterExampleService characterExampleService;
@@ -25,13 +23,12 @@ public class ContextLoader {
     private final CharacterPreferenceService characterPreferenceService;
     private final ConversationTopicService conversationTopicService;
 
-    public ContextLoader(StateRepository stateRepository, AgentSelfStateRepository agentSelfStateRepository,
+    public ContextLoader(AgentSelfStateRepository agentSelfStateRepository,
             MemoryRetrievalService memoryRetrievalService, CharacterExampleService characterExampleService,
             AgentWorldStateService agentWorldStateService, AgentGoalService agentGoalService,
             AgentInitiativeService agentInitiativeService, AgentLifeEventService agentLifeEventService,
             ConversationEventService conversationEventService, CharacterPreferenceService characterPreferenceService,
             ConversationTopicService conversationTopicService) {
-        this.stateRepository = stateRepository;
         this.agentSelfStateRepository = agentSelfStateRepository;
         this.memoryRetrievalService = memoryRetrievalService;
         this.characterExampleService = characterExampleService;
@@ -48,16 +45,15 @@ public class ContextLoader {
         CharacterSnapshot character = requireCharacter(request);
         RelationshipSnapshot relationship = relationshipUpdate.nextRelationship();
         Long characterId = character.characterId();
-        State state = stateRepository.findByCharacterId(characterId).orElseGet(() -> defaultState(characterId));
         AgentSelfState selfState = agentSelfStateRepository.findByCharacterId(characterId).orElse(null);
-        AgentWorldState worldState = agentWorldStateService.findByUserId(characterId);
+        AgentWorldState worldState = agentWorldStateService.findByCharacterId(characterId);
         AgentGoal goal = agentGoalService.findCurrentGoal(characterId);
         List<AgentLifeEvent> lifeEvents = agentLifeEventService.ensureAndFindForPrompt(characterId, character);
         PreferenceQuestionPlan preferencePlan = characterPreferenceService.plan(characterId, request.getMessage());
         EventAnalysis resolved = analysis == null ? EventAnalysis.fallback(AgentEventType.NORMAL) : analysis;
         CharacterTraitSnapshot traits = character.traits();
 
-        return new Context(character, state, relationship, relationshipUpdate.delta(), traits,
+        return new Context(character, relationship, traits,
                 relationship.relationshipStage(), relationship.relationshipTemperatureScore(), character.romanceStyleScore(),
                 selfState, worldState, goal,
                 agentInitiativeService.plan(request.getMessage(), relationship.strategy(), selfState, worldState, goal, lifeEvents),
@@ -66,7 +62,7 @@ public class ContextLoader {
                 characterPreferenceService.findForPrompt(characterId, preferencePlan),
                 characterExampleService.findRelevantEntities(characterId, resolved, relationship.strategy(),
                         relationship.relationshipStage(), relationship.relationshipTemperatureScore(), character.romanceStyleScore(), traits),
-                preferencePlan.active() ? List.of() : memoryRetrievalService.retrieve(characterId, request.getMessage(), state,
+                preferencePlan.active() ? List.of() : memoryRetrievalService.retrieve(characterId, request.getMessage(), selfState,
                         traits, relationship.relationshipStage(), relationship.relationshipTemperatureScore(), resolved),
                 request.getHistory() == null ? List.of() : request.getHistory());
     }
@@ -77,8 +73,4 @@ public class ContextLoader {
         return request.getCharacter();
     }
 
-    private State defaultState(Long characterId) {
-        State state = new State(); state.setCharacterId(characterId); state.setEmotion("neutral");
-        state.setEmotionIntensity(0); state.setEnergy(50); state.setStress(20); return state;
-    }
 }

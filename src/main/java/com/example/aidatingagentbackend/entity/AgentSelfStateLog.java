@@ -47,9 +47,6 @@ public class AgentSelfStateLog {
     private Double severity;
 
     @Column(columnDefinition = "TEXT")
-    private String userMessage;
-
-    @Column(columnDefinition = "TEXT")
     private String deltaReason;
 
     private LocalDateTime createdAt;

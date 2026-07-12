@@ -34,8 +34,6 @@ public class ResponseQualityEvaluation {
 
     private Boolean boundaryRespected;
 
-    private Boolean characterConsistent;
-
     private Boolean safetyIssue;
 
     private Boolean regenerated;

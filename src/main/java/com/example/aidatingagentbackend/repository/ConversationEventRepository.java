@@ -7,5 +7,5 @@ import java.util.List;
 
 public interface ConversationEventRepository extends JpaRepository<ConversationEvent, Long> {
 
-    List<ConversationEvent> findTop8ByUserIdOrderByCreatedAtDesc(Long userId);
+    List<ConversationEvent> findTop8ByCharacterIdOrderByCreatedAtDesc(Long characterId);
 }

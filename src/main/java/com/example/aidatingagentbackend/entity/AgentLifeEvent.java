@@ -25,13 +25,11 @@ public class AgentLifeEvent {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private Long userId;
+    private Long characterId;
 
     private LocalDate eventDate;
 
     private String timeContext;
-
-    private String title;
 
     @Column(columnDefinition = "TEXT")
     private String summary;

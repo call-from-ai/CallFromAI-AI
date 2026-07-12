@@ -44,11 +44,6 @@ public class CharacterPreferenceService {
     }
 
     @Transactional(readOnly = true)
-    public List<CharacterPreference> findForPrompt(Long characterId) {
-        return characterPreferenceRepository.findTop12ByCharacterIdOrderByUpdatedAtDescIdDesc(characterId);
-    }
-
-    @Transactional(readOnly = true)
     public List<CharacterPreference> findForPrompt(Long characterId, PreferenceQuestionPlan plan) {
         if (plan != null && plan.preferenceKey() != null) {
             return characterPreferenceRepository.findByCharacterIdAndPreferenceKey(characterId, plan.preferenceKey())

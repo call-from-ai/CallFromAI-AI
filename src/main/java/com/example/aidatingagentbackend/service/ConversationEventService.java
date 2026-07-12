@@ -26,14 +26,14 @@ public class ConversationEventService {
     }
 
     @Transactional
-    public void detectAndSave(Long userId, String userMessage, EventAnalysis eventAnalysis) {
+    public void detectAndSave(Long characterId, String userMessage, EventAnalysis eventAnalysis) {
         DetectedConversationEvent detected = detect(messageSignalDetector.detect(userMessage), eventAnalysis);
         if (detected == null) {
             return;
         }
 
         ConversationEvent event = new ConversationEvent();
-        event.setUserId(userId);
+        event.setCharacterId(characterId);
         event.setEventType(detected.eventType());
         event.setSummary(detected.summary());
         event.setAgentReaction(detected.agentReaction());
@@ -42,8 +42,8 @@ public class ConversationEventService {
     }
 
     @Transactional(readOnly = true)
-    public List<ConversationEvent> findRecentForPrompt(Long userId) {
-        return conversationEventRepository.findTop8ByUserIdOrderByCreatedAtDesc(userId);
+    public List<ConversationEvent> findRecentForPrompt(Long characterId) {
+        return conversationEventRepository.findTop8ByCharacterIdOrderByCreatedAtDesc(characterId);
     }
 
     private DetectedConversationEvent detect(MessageSignals signals, EventAnalysis eventAnalysis) {

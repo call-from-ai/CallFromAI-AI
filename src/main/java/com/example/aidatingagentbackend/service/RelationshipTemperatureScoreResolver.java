@@ -1,6 +1,5 @@
 package com.example.aidatingagentbackend.service;
 
-import com.example.aidatingagentbackend.entity.RelationshipTemperature;
 import com.example.aidatingagentbackend.entity.RelationshipTemperatureBand;
 import org.springframework.stereotype.Service;
 
@@ -43,25 +42,7 @@ public class RelationshipTemperatureScoreResolver {
         return RelationshipTemperatureBand.SPICY_LEADING;
     }
 
-    public Integer defaultScoreForLegacy(RelationshipTemperature temperature) {
-        if (temperature == null) {
-            return settingsDefaultPolicy.defaultRelationshipTemperatureScore();
-        }
-        return switch (temperature) {
-            case FRIENDLY -> 35;
-            case NEUTRAL -> 50;
-            case SPICY -> 85;
-            case CONFLICT_REPAIR -> 50;
-        };
-    }
-
-    public Integer resolveScore(Integer score, RelationshipTemperature legacyTemperature) {
-        if (score != null) {
-            return validate(score);
-        }
-        if (legacyTemperature != null) {
-            return defaultScoreForLegacy(legacyTemperature);
-        }
-        return settingsDefaultPolicy.defaultRelationshipTemperatureScore();
+    public Integer resolveScore(Integer score) {
+        return score == null ? settingsDefaultPolicy.defaultRelationshipTemperatureScore() : validate(score);
     }
 }

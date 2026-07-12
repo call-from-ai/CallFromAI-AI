@@ -7,5 +7,5 @@ import java.util.Optional;
 
 public interface AgentGoalRepository extends JpaRepository<AgentGoal, Long> {
 
-    Optional<AgentGoal> findTopByUserIdAndStatusOrderByPriorityDescCreatedAtDesc(Long userId, String status);
+    Optional<AgentGoal> findTopByCharacterIdAndStatusOrderByPriorityDescCreatedAtDesc(Long characterId, String status);
 }

@@ -1,16 +1,15 @@
 package com.example.aidatingagentbackend.context;
 
-import com.example.aidatingagentbackend.engine.EmotionEngine;
 import com.example.aidatingagentbackend.engine.EventAnalysis;
 import com.example.aidatingagentbackend.engine.MemoryEngine;
 import com.example.aidatingagentbackend.engine.RelationshipEngine;
 import com.example.aidatingagentbackend.dto.RelationshipDelta;
 import com.example.aidatingagentbackend.dto.RelationshipSnapshot;
 import com.example.aidatingagentbackend.entity.Memory;
-import com.example.aidatingagentbackend.entity.State;
+import com.example.aidatingagentbackend.entity.AgentSelfState;
 import com.example.aidatingagentbackend.entity.TurningPoint;
 import com.example.aidatingagentbackend.repository.MemoryRepository;
-import com.example.aidatingagentbackend.repository.StateRepository;
+import com.example.aidatingagentbackend.repository.AgentSelfStateRepository;
 import com.example.aidatingagentbackend.repository.TurningPointRepository;
 import org.springframework.stereotype.Service;
 
@@ -20,39 +19,36 @@ import java.util.List;
 @Service
 public class ContextUpdater {
 
-    private final EmotionEngine emotionEngine;
     private final RelationshipEngine relationshipEngine;
     private final MemoryEngine memoryEngine;
     private final MemoryEmbeddingService memoryEmbeddingService;
 
-    private final StateRepository stateRepository;
+    private final AgentSelfStateRepository agentSelfStateRepository;
     private final MemoryRepository memoryRepository;
     private final TurningPointRepository turningPointRepository;
 
     private static final List<TurningPointRule> TURNING_POINT_RULES = List.of(
-            new TurningPointRule("CONFESSION", 8, List.of("고백", "좋아해", "사랑해")),
-            new TurningPointRule("FIRST_DATE", 7, List.of("첫 데이트", "처음 데이트")),
-            new TurningPointRule("CONFLICT", 8, List.of("싸웠", "화났", "실망", "배신", "거짓말")),
-            new TurningPointRule("REPAIR", 7, List.of("사과", "미안", "화해", "잘못했")),
-            new TurningPointRule("ANNIVERSARY", 6, List.of("기념일", "100일", "1주년")),
-            new TurningPointRule("BREAKUP_RISK", 10, List.of("헤어지자", "그만 만나", "끝내자", "이별"))
+            new TurningPointRule("CONFESSION", List.of("고백", "좋아해", "사랑해")),
+            new TurningPointRule("FIRST_DATE", List.of("첫 데이트", "처음 데이트")),
+            new TurningPointRule("CONFLICT", List.of("싸웠", "화났", "실망", "배신", "거짓말")),
+            new TurningPointRule("REPAIR", List.of("사과", "미안", "화해", "잘못했")),
+            new TurningPointRule("ANNIVERSARY", List.of("기념일", "100일", "1주년")),
+            new TurningPointRule("BREAKUP_RISK", List.of("헤어지자", "그만 만나", "끝내자", "이별"))
     );
 
 
         public ContextUpdater(
-                EmotionEngine emotionEngine,
                 RelationshipEngine relationshipEngine,
                 MemoryEngine memoryEngine,
                 MemoryEmbeddingService memoryEmbeddingService,
-                StateRepository stateRepository,
+                AgentSelfStateRepository agentSelfStateRepository,
                 MemoryRepository memoryRepository,
                 TurningPointRepository turningPointRepository
         ) {
-            this.emotionEngine = emotionEngine;
             this.relationshipEngine = relationshipEngine;
             this.memoryEngine = memoryEngine;
             this.memoryEmbeddingService = memoryEmbeddingService;
-            this.stateRepository = stateRepository;
+            this.agentSelfStateRepository = agentSelfStateRepository;
             this.memoryRepository = memoryRepository;
             this.turningPointRepository = turningPointRepository;
         }
@@ -60,20 +56,8 @@ public class ContextUpdater {
 
     public RelationshipUpdate updateBeforeResponse(Long characterId, RelationshipSnapshot relationship, String userMessage, EventAnalysis eventAnalysis){
 
-        State state =
-                stateRepository.findByCharacterId(characterId)
-                        .orElseGet(() -> createDefaultState(characterId));
-
-        var emotion =
-                emotionEngine.analyze(state,userMessage,eventAnalysis);
-
         var relation =
                 relationshipEngine.analyze(relationship,userMessage,eventAnalysis);
-
-        state.setEmotion(emotion.emotion());
-        state.setEmotionIntensity(emotion.emotionIntensity());
-
-        stateRepository.save(state);
         RelationshipSnapshot next = new RelationshipSnapshot(
                 relationship.relationshipId(), relationship.relationshipStage(), relationship.relationshipTemperatureScore(),
                 relation.trust(), relation.closeness(), relation.conflictLevel(), relation.repairProgress(), relation.breakupRisk(),
@@ -87,15 +71,15 @@ public class ContextUpdater {
 
     public void updateMemoryAfterResponse(Long characterId, String userMessage,String reply){
 
-        State state =
-                stateRepository.findByCharacterId(characterId)
-                        .orElseGet(() -> createDefaultState(characterId));
+        AgentSelfState selfState = agentSelfStateRepository.findByCharacterId(characterId).orElse(null);
+        String emotion = selfState == null ? "calm" : selfState.representativeEmotion();
+        int emotionIntensity = selfState == null ? 0 : selfState.emotionIntensity();
 
         var decision =
                 memoryEngine.analyze(
                         userMessage+"\n"+reply,
-                        state.getEmotion(),
-                        state.getEmotionIntensity());
+                        emotion,
+                        emotionIntensity);
 
         if(Boolean.TRUE.equals(decision.shouldCreate())){
 
@@ -110,21 +94,12 @@ public class ContextUpdater {
             memoryRepository.save(memory);
         }
 
-        saveTurningPointIfNeeded(characterId, userMessage, reply, state);
+        saveTurningPointIfNeeded(characterId, userMessage, reply, emotion, emotionIntensity);
 
     }
 
-    private State createDefaultState(Long characterId) {
-        State state = new State();
-        state.setCharacterId(characterId);
-        state.setEmotion("neutral");
-        state.setEmotionIntensity(0);
-        state.setEnergy(50);
-        state.setStress(20);
-        return state;
-    }
-
-    private void saveTurningPointIfNeeded(Long characterId, String userMessage, String reply, State state) {
+    private void saveTurningPointIfNeeded(Long characterId, String userMessage, String reply,
+                                          String emotion, int emotionIntensity) {
         String conversation = ((userMessage == null ? "" : userMessage) + "\n" + (reply == null ? "" : reply)).toLowerCase();
 
         TURNING_POINT_RULES.stream()
@@ -135,8 +110,8 @@ public class ContextUpdater {
                     turningPoint.setCharacterId(characterId);
                     turningPoint.setEventType(rule.eventType());
                     turningPoint.setSummary(buildTurningPointSummary(userMessage, reply));
-                    turningPoint.setImpactEmotion(state.getEmotion());
-                    turningPoint.setImpactScore(rule.impactScore());
+                    turningPoint.setImpactEmotion(emotion);
+                    turningPoint.setImpactScore(emotionIntensity);
                     turningPoint.setCreatedAt(LocalDateTime.now());
                     turningPointRepository.save(turningPoint);
                 });
@@ -155,7 +130,7 @@ public class ContextUpdater {
         return value == null ? "" : value;
     }
 
-    private record TurningPointRule(String eventType, int impactScore, List<String> keywords) {
+    private record TurningPointRule(String eventType, List<String> keywords) {
 
         boolean matches(String conversation) {
             return keywords.stream()

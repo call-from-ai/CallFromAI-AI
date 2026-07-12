@@ -8,7 +8,7 @@ import java.util.List;
 
 public interface AgentLifeEventRepository extends JpaRepository<AgentLifeEvent, Long> {
 
-    boolean existsByUserIdAndEventDateAndTimeContext(Long userId, LocalDate eventDate, String timeContext);
+    boolean existsByCharacterIdAndEventDateAndTimeContext(Long characterId, LocalDate eventDate, String timeContext);
 
-    List<AgentLifeEvent> findTop8ByUserIdOrderByEventDateDescIdDesc(Long userId);
+    List<AgentLifeEvent> findTop8ByCharacterIdOrderByEventDateDescIdDesc(Long characterId);
 }

@@ -36,12 +36,12 @@ public class AgentWorldStateService {
     }
 
     @Transactional
-    public AgentWorldState updateBeforeResponse(Long userId, CharacterSnapshot character, RelationshipSnapshot relationship) {
-        AgentSelfState selfState = agentSelfStateRepository.findByCharacterId(userId).orElse(null);
-        List<TurningPoint> turningPoints = turningPointRepository.findTop10ByCharacterIdOrderByCreatedAtDesc(userId);
+    public AgentWorldState updateBeforeResponse(Long characterId, CharacterSnapshot character, RelationshipSnapshot relationship) {
+        AgentSelfState selfState = agentSelfStateRepository.findByCharacterId(characterId).orElse(null);
+        List<TurningPoint> turningPoints = turningPointRepository.findTop10ByCharacterIdOrderByCreatedAtDesc(characterId);
 
-        AgentWorldState state = agentWorldStateRepository.findByUserId(userId)
-                .orElseGet(() -> createDefaultState(userId));
+        AgentWorldState state = agentWorldStateRepository.findByCharacterId(characterId)
+                .orElseGet(() -> createDefaultState(characterId));
         LifeTemplate template = LifeTemplate.resolve(lifeTypeResolver.resolve(character.job(), character.lifeType()), resolveTimeContext());
 
         state.setCurrentActivity(template.currentActivity());
@@ -57,14 +57,14 @@ public class AgentWorldStateService {
     }
 
     @Transactional(readOnly = true)
-    public AgentWorldState findByUserId(Long userId) {
-        return agentWorldStateRepository.findByUserId(userId)
-                .orElseGet(() -> createDefaultState(userId));
+    public AgentWorldState findByCharacterId(Long characterId) {
+        return agentWorldStateRepository.findByCharacterId(characterId)
+                .orElseGet(() -> createDefaultState(characterId));
     }
 
-    private AgentWorldState createDefaultState(Long userId) {
+    private AgentWorldState createDefaultState(Long characterId) {
         AgentWorldState state = new AgentWorldState();
-        state.setUserId(userId);
+        state.setCharacterId(characterId);
         state.setCurrentActivity("잠깐 쉬는 중");
         state.setLocation("방");
         state.setTimeContext(resolveTimeContext());

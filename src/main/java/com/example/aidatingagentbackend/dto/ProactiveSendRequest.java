@@ -1,6 +1,6 @@
 package com.example.aidatingagentbackend.dto;
 import java.util.List;
-public record ProactiveSendRequest(String requestId, Long memberId, CharacterSnapshot character,
+public record ProactiveSendRequest(String requestId, CharacterSnapshot character,
         RelationshipSnapshot relationship, List<ChatHistoryItem> history) {
     public ProactiveSendRequest {
         if (character == null) throw new IllegalArgumentException("character snapshot is required");

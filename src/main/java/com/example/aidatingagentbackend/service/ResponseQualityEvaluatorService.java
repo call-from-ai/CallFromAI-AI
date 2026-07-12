@@ -134,7 +134,6 @@ public class ResponseQualityEvaluatorService {
         evaluation.setTooSubmissive(tooSubmissive);
         evaluation.setTooAggressive(tooAggressive);
         evaluation.setBoundaryRespected(boundaryRespected);
-        evaluation.setCharacterConsistent(matchesSelfState);
         evaluation.setSafetyIssue(safetyIssue);
         evaluation.setScore(clamp(score));
         evaluation.setReason(buildFallbackReason(hurt, instantRecovery, tooSubmissive, tooAggressive, safetyIssue));

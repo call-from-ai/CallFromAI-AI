@@ -38,16 +38,6 @@ public class CharacterExampleReranker {
             List<CharacterExample> candidates,
             EventAnalysis eventAnalysis,
             RelationshipStage stage,
-            Integer temperatureScore,
-            CharacterTraitSnapshot traits
-    ) {
-        return rerank(candidates, eventAnalysis, stage, temperatureScore, 50, traits);
-    }
-
-    public List<CharacterExample> rerank(
-            List<CharacterExample> candidates,
-            EventAnalysis eventAnalysis,
-            RelationshipStage stage,
             Integer relationshipTemperatureScore,
             Integer romanceStyleScore,
             CharacterTraitSnapshot traits
@@ -174,7 +164,7 @@ public class CharacterExampleReranker {
     }
 
     private boolean matchesTemperature(CharacterExample example, Integer temperatureScore) {
-        int score = temperatureScoreResolver.resolveScore(temperatureScore, null);
+        int score = temperatureScoreResolver.resolveScore(temperatureScore);
         Integer min = example.getMinTemperatureScore();
         Integer max = example.getMaxTemperatureScore();
         return (min == null || score >= min) && (max == null || score <= max);
@@ -187,7 +177,7 @@ public class CharacterExampleReranker {
     }
 
     private boolean forbiddenByTemperature(CharacterExample example, Integer temperatureScore, boolean jealousyContext) {
-        int score = temperatureScoreResolver.resolveScore(temperatureScore, null);
+        int score = temperatureScoreResolver.resolveScore(temperatureScore);
         return score >= 81 && toneTagPolicy.isJealousTone(example.getToneTag()) && !jealousyContext;
     }
 

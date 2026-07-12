@@ -26,32 +26,31 @@ public class AgentLifeEventService {
     }
 
     @Transactional
-    public List<AgentLifeEvent> ensureAndFindForPrompt(Long userId, CharacterSnapshot character) {
+    public List<AgentLifeEvent> ensureAndFindForPrompt(Long characterId, CharacterSnapshot character) {
         AgentLifeType lifeType = lifeTypeResolver.resolve(character.job(), character.lifeType());
-        createIfMissing(userId, lifeType, LocalDate.now().minusDays(1), "yesterday");
-        createIfMissing(userId, lifeType, LocalDate.now(), resolveTimeContext());
-        return agentLifeEventRepository.findTop8ByUserIdOrderByEventDateDescIdDesc(userId);
+        createIfMissing(characterId, lifeType, LocalDate.now().minusDays(1), "yesterday");
+        createIfMissing(characterId, lifeType, LocalDate.now(), resolveTimeContext());
+        return agentLifeEventRepository.findTop8ByCharacterIdOrderByEventDateDescIdDesc(characterId);
     }
 
-    private void createIfMissing(Long userId, AgentLifeType lifeType, LocalDate eventDate, String timeContext) {
-        if (agentLifeEventRepository.existsByUserIdAndEventDateAndTimeContext(userId, eventDate, timeContext)) {
+    private void createIfMissing(Long characterId, AgentLifeType lifeType, LocalDate eventDate, String timeContext) {
+        if (agentLifeEventRepository.existsByCharacterIdAndEventDateAndTimeContext(characterId, eventDate, timeContext)) {
             return;
         }
 
-        LifeEventTemplate template = LifeEventTemplate.resolve(lifeType, timeContext, pick(userId, eventDate, timeContext));
+        LifeEventTemplate template = LifeEventTemplate.resolve(lifeType, timeContext, pick(characterId, eventDate, timeContext));
         AgentLifeEvent event = new AgentLifeEvent();
-        event.setUserId(userId);
+        event.setCharacterId(characterId);
         event.setEventDate(eventDate);
         event.setTimeContext(timeContext);
-        event.setTitle(template.title());
         event.setSummary(template.summary());
         event.setDetail(template.detail());
         event.setEmotion(template.emotion());
         agentLifeEventRepository.save(event);
     }
 
-    private int pick(Long userId, LocalDate date, String timeContext) {
-        int hash = (String.valueOf(userId) + date + timeContext).hashCode();
+    private int pick(Long characterId, LocalDate date, String timeContext) {
+        int hash = (String.valueOf(characterId) + date + timeContext).hashCode();
         return Math.abs(hash % 3);
     }
 

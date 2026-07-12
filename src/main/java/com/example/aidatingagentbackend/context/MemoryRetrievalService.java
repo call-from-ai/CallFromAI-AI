@@ -4,8 +4,8 @@ import com.example.aidatingagentbackend.engine.AgentEventType;
 import com.example.aidatingagentbackend.engine.EventAnalysis;
 import com.example.aidatingagentbackend.dto.CharacterTraitSnapshot;
 import com.example.aidatingagentbackend.entity.Memory;
+import com.example.aidatingagentbackend.entity.AgentSelfState;
 import com.example.aidatingagentbackend.entity.RelationshipStage;
-import com.example.aidatingagentbackend.entity.State;
 import com.example.aidatingagentbackend.repository.MemoryRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -38,21 +38,16 @@ public class MemoryRetrievalService {
     }
 
     @Transactional
-    public List<Memory> retrieve(Long characterId, String userMessage, State state) {
-        return retrieve(characterId, userMessage, state, null, null, null, null);
-    }
-
-    @Transactional
     public List<Memory> retrieve(
             Long characterId,
             String userMessage,
-            State state,
+            AgentSelfState selfState,
             CharacterTraitSnapshot characterTraitProfile,
             RelationshipStage relationshipStage,
             Integer relationshipTemperatureScore,
             EventAnalysis eventAnalysis
     ) {
-        String currentEmotion = state == null ? null : state.getEmotion();
+        String currentEmotion = selfState == null ? "calm" : selfState.representativeEmotion();
         Set<String> queryTerms = tokenize(userMessage);
         double[] queryEmbedding = memoryEmbeddingService.embed(userMessage);
 

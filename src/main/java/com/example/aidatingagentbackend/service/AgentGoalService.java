@@ -24,18 +24,18 @@ public class AgentGoalService {
     }
 
     @Transactional
-    public AgentGoal selectCurrentGoal(Long userId, RelationshipSnapshot relationship) {
-        AgentSelfState selfState = agentSelfStateRepository.findByCharacterId(userId).orElse(null);
+    public AgentGoal selectCurrentGoal(Long characterId, RelationshipSnapshot relationship) {
+        AgentSelfState selfState = agentSelfStateRepository.findByCharacterId(characterId).orElse(null);
         GoalDecision decision = decide(selfState, relationship);
 
-        return agentGoalRepository.findTopByUserIdAndStatusOrderByPriorityDescCreatedAtDesc(userId, "ACTIVE")
+        return agentGoalRepository.findTopByCharacterIdAndStatusOrderByPriorityDescCreatedAtDesc(characterId, "ACTIVE")
                 .filter(goal -> goal.getGoalType().equals(decision.goalType()))
-                .orElseGet(() -> agentGoalRepository.save(createGoal(userId, decision)));
+                .orElseGet(() -> agentGoalRepository.save(createGoal(characterId, decision)));
     }
 
     @Transactional(readOnly = true)
-    public AgentGoal findCurrentGoal(Long userId) {
-        return agentGoalRepository.findTopByUserIdAndStatusOrderByPriorityDescCreatedAtDesc(userId, "ACTIVE")
+    public AgentGoal findCurrentGoal(Long characterId) {
+        return agentGoalRepository.findTopByCharacterIdAndStatusOrderByPriorityDescCreatedAtDesc(characterId, "ACTIVE")
                 .orElse(null);
     }
 
@@ -64,9 +64,9 @@ public class AgentGoalService {
                 || (value(relationship.getConflictLevel()) < 25 && value(relationship.getBreakupRisk()) < 25);
     }
 
-    private AgentGoal createGoal(Long userId, GoalDecision decision) {
+    private AgentGoal createGoal(Long characterId, GoalDecision decision) {
         AgentGoal goal = new AgentGoal();
-        goal.setUserId(userId);
+        goal.setCharacterId(characterId);
         goal.setGoalType(decision.goalType());
         goal.setDescription(decision.description());
         goal.setPriority(decision.priority());

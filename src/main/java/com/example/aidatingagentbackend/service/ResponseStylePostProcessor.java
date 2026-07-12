@@ -4,7 +4,6 @@ import com.example.aidatingagentbackend.entity.AgentSelfState;
 import com.example.aidatingagentbackend.dto.CharacterTraitSnapshot;
 import com.example.aidatingagentbackend.dto.RelationshipStrategy;
 import com.example.aidatingagentbackend.entity.RelationshipStage;
-import com.example.aidatingagentbackend.entity.RelationshipTemperature;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -12,55 +11,20 @@ public class ResponseStylePostProcessor {
 
     public String process(String reply, RelationshipStrategy strategy, Integer relationshipTemperatureScore,
             Integer romanceStyleScore, CharacterTraitSnapshot traits, RelationshipStage stage, AgentSelfState selfState) {
-        RelationshipTemperature legacy = strategy == RelationshipStrategy.CONFLICT_REPAIR
-                ? RelationshipTemperature.CONFLICT_REPAIR : RelationshipTemperature.NEUTRAL;
-        return process(reply, legacy, relationshipTemperatureScore, romanceStyleScore, traits, stage, selfState);
-    }
-
-    public String process(String reply, RelationshipTemperature relationshipTemperature) {
-        return process(reply, relationshipTemperature, null, null, null, null, null);
-    }
-
-    public String process(
-            String reply,
-            RelationshipTemperature relationshipTemperature,
-            Integer relationshipTemperatureScore,
-            Integer romanceStyleScore,
-            CharacterTraitSnapshot characterTraitProfile,
-            RelationshipStage relationshipStage,
-            AgentSelfState agentSelfState
-    ) {
         if (reply == null || reply.isBlank()) {
             return reply;
         }
 
-        RelationshipTemperature temperature = relationshipTemperature == null
-                ? RelationshipTemperature.NEUTRAL
-                : relationshipTemperature;
-        int score = relationshipTemperatureScore == null
-                ? legacyScore(temperature)
+        int score = relationshipTemperatureScore == null ? 50
                 : Math.max(0, Math.min(100, relationshipTemperatureScore));
 
         String processed = stripExcessivePeriods(reply);
-        if (temperature == RelationshipTemperature.SPICY) {
-            processed = spicyPolish(processed);
-        }
-        if (temperature == RelationshipTemperature.CONFLICT_REPAIR) {
+        if (strategy == RelationshipStrategy.CONFLICT_REPAIR) {
             processed = conflictRepairPolish(processed);
         }
-        processed = scoreBasedPolish(processed, score, romanceStyleScore, characterTraitProfile, relationshipStage, agentSelfState);
+        processed = scoreBasedPolish(processed, score, romanceStyleScore, traits, stage, selfState);
 
         return processed.strip();
-    }
-
-    @Deprecated
-    public String process(
-            String reply, RelationshipTemperature relationshipTemperature,
-            Integer relationshipTemperatureScore, CharacterTraitSnapshot characterTraitProfile,
-            RelationshipStage relationshipStage, AgentSelfState agentSelfState
-    ) {
-        return process(reply, relationshipTemperature, relationshipTemperatureScore,
-                relationshipTemperatureScore, characterTraitProfile, relationshipStage, agentSelfState);
     }
 
     private String stripExcessivePeriods(String reply) {
@@ -72,18 +36,6 @@ public class ResponseStylePostProcessor {
             builder.append(processedLine).append("\n");
         }
         return builder.toString().stripTrailing();
-    }
-
-    private String spicyPolish(String reply) {
-        String processed = reply;
-        processed = processed.replace("습니다", "");
-        processed = processed.replace("해요", "해");
-        processed = processed.replace("이에요", "임");
-        processed = processed.replace("예요", "임");
-        processed = processed.replace("그렇구나", "그래?");
-        processed = processed.replace("괜찮았어?", "괜찮았냐");
-        processed = processed.replace("뭐하고 있어?", "머함");
-        return processed;
     }
 
     private String conflictRepairPolish(String reply) {
@@ -178,15 +130,6 @@ public class ResponseStylePostProcessor {
 
     private String limitExclamation(String reply) {
         return reply.replaceAll("!{2,}", "!");
-    }
-
-    private int legacyScore(RelationshipTemperature temperature) {
-        return switch (temperature) {
-            case FRIENDLY -> 35;
-            case NEUTRAL -> 50;
-            case SPICY -> 85;
-            case CONFLICT_REPAIR -> 50;
-        };
     }
 
     private int value(Integer value) {

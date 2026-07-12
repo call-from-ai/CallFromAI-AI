@@ -25,7 +25,7 @@ public class AgentWorldState {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private Long userId;
+    private Long characterId;
 
     private String currentActivity;
 

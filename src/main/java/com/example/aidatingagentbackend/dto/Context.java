@@ -5,9 +5,7 @@ import java.util.List;
 
 public record Context(
         CharacterSnapshot character,
-        State state,
         RelationshipSnapshot relationship,
-        RelationshipDelta relationshipDelta,
         CharacterTraitSnapshot characterTraitProfile,
         RelationshipStage relationshipStage,
         Integer relationshipTemperatureScore,

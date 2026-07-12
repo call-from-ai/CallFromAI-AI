@@ -105,7 +105,6 @@ public class AIProcessingService {
     public String buildPrompt(Context context, String userMessage, boolean compactMode) {
         return promptBuilder.builder()
                 .character(context.character())
-                .state(context.state())
                 .relationship(context.relationship())
                 .characterTraitProfile(context.characterTraitProfile())
                 .relationshipStage(context.relationshipStage())

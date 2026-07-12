@@ -38,6 +38,11 @@ public class MemoryEngine {
             "jealousy",
             "anxiety",
             "relieved"
+            , "upset"
+            , "distant"
+            , "affectionate"
+            , "softened"
+            , "hurt_but_listening"
     );
 
     public MemoryDecision analyze(String conversation, String emotion, Integer importance) {
