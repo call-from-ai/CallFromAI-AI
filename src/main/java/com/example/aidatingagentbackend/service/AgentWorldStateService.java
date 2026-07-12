@@ -204,7 +204,7 @@ public class AgentWorldStateService {
             return switch (resolvedType) {
                 case STUDENT -> student(timeContext);
                 case WORKER -> worker(timeContext);
-                case UNEMPLOYED -> unemployed(timeContext);
+                case FLEXIBLE, UNEMPLOYED -> unemployed(timeContext);
             };
         }
 

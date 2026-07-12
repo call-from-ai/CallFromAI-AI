@@ -19,6 +19,22 @@ public interface CharacterExampleRepository extends JpaRepository<CharacterExamp
             from CharacterExample example
             where example.characterId = :characterId
               and (example.eventType = :eventType or example.eventType is null)
+              and (example.active is null or example.active = true)
+            order by
+              case when example.eventType = :eventType then 0 else 1 end,
+              example.priority desc,
+              example.id asc
+            """)
+    List<CharacterExample> findCandidateStyleExamples(
+            @Param("characterId") Long characterId,
+            @Param("eventType") AgentEventType eventType
+    );
+
+    @Query("""
+            select example
+            from CharacterExample example
+            where example.characterId = :characterId
+              and (example.eventType = :eventType or example.eventType is null)
               and (example.relationshipTemperature = :relationshipTemperature or example.relationshipTemperature is null)
             order by
               case when example.eventType = :eventType then 0 else 1 end,

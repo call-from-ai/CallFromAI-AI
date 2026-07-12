@@ -3,6 +3,7 @@ package com.example.aidatingagentbackend.dto;
 import com.example.aidatingagentbackend.entity.Character;
 import com.example.aidatingagentbackend.entity.ChatMessage;
 import com.example.aidatingagentbackend.entity.CharacterPreference;
+import com.example.aidatingagentbackend.entity.CharacterTraitProfile;
 import com.example.aidatingagentbackend.entity.AgentSelfState;
 import com.example.aidatingagentbackend.entity.AgentGoal;
 import com.example.aidatingagentbackend.entity.AgentLifeEvent;
@@ -12,6 +13,7 @@ import com.example.aidatingagentbackend.entity.Memory;
 import com.example.aidatingagentbackend.entity.CharacterExample;
 import com.example.aidatingagentbackend.entity.ConversationEvent;
 import com.example.aidatingagentbackend.entity.Relationship;
+import com.example.aidatingagentbackend.entity.RelationshipStage;
 import com.example.aidatingagentbackend.entity.RelationshipTemperature;
 import com.example.aidatingagentbackend.entity.State;
 
@@ -24,6 +26,12 @@ public record Context(
         State state,
 
         Relationship relationship,
+
+        CharacterTraitProfile characterTraitProfile,
+
+        RelationshipStage relationshipStage,
+
+        Integer relationshipTemperatureScore,
 
         AgentSelfState agentSelfState,
 

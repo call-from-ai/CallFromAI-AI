@@ -5,6 +5,8 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -34,4 +36,17 @@ public class Character {
 
     @Column(columnDefinition = "TEXT")
     private String responseStyle;
+
+    private String gender;
+    private Integer age;
+    private String job;
+    @Enumerated(EnumType.STRING)
+    private AgentLifeType lifeType;
+    private Integer romanceStyleScore;
+    @Enumerated(EnumType.STRING)
+    private Mbti mbti;
+    @Enumerated(EnumType.STRING)
+    private SpeechStyle speechStyle;
+    @Enumerated(EnumType.STRING)
+    private RelationshipStage relationshipStage;
 }

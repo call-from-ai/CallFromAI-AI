@@ -81,7 +81,7 @@ public class AgentLifeEventService {
             return switch (lifeType) {
                 case STUDENT -> student(timeContext, pick);
                 case WORKER -> worker(timeContext, pick);
-                case UNEMPLOYED -> unemployed(timeContext, pick);
+                case FLEXIBLE, UNEMPLOYED -> unemployed(timeContext, pick);
             };
         }
 

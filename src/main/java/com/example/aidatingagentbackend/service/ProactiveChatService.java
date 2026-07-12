@@ -33,6 +33,7 @@ public class ProactiveChatService {
     private final AgentWorldStateService agentWorldStateService;
     private final AgentGoalService agentGoalService;
     private final ResponseStylePostProcessor responseStylePostProcessor;
+    private final ProactiveContactPolicyService proactiveContactPolicyService;
 
     public ProactiveChatService(
             ContextLoader contextLoader,
@@ -41,7 +42,8 @@ public class ProactiveChatService {
             ChatMessageRepository chatMessageRepository,
             AgentWorldStateService agentWorldStateService,
             AgentGoalService agentGoalService,
-            ResponseStylePostProcessor responseStylePostProcessor
+            ResponseStylePostProcessor responseStylePostProcessor,
+            ProactiveContactPolicyService proactiveContactPolicyService
     ) {
         this.contextLoader = contextLoader;
         this.promptBuilder = promptBuilder;
@@ -50,6 +52,7 @@ public class ProactiveChatService {
         this.agentWorldStateService = agentWorldStateService;
         this.agentGoalService = agentGoalService;
         this.responseStylePostProcessor = responseStylePostProcessor;
+        this.proactiveContactPolicyService = proactiveContactPolicyService;
     }
 
     public SseEmitter subscribe(Long userId) {
@@ -106,9 +109,22 @@ public class ProactiveChatService {
             String promptSeed = "The user has not sent a new message. Send one short proactive check-in as the agent. "
                     + "Do not pretend to perform real physical actions. Do not guilt-trip, pressure, or demand a reply.";
             Context context = contextLoader.load(userId, promptSeed);
+            if (!proactiveContactPolicyService.shouldSend(context)) {
+                broadcast(userId, "proactive_skipped", Map.of(
+                        "reason", "contact_policy"
+                ));
+                return;
+            }
             String prompt = buildPrompt(context, promptSeed);
             String reply = geminiService.generate(prompt);
-            reply = responseStylePostProcessor.process(reply, context.relationshipTemperature());
+            reply = responseStylePostProcessor.process(
+                    reply,
+                    context.relationshipTemperature(),
+                    context.relationshipTemperatureScore(),
+                    context.characterTraitProfile(),
+                    context.relationshipStage(),
+                    context.agentSelfState()
+            );
             saveAssistantMessage(userId, reply);
 
             long totalLatencyMs = System.currentTimeMillis() - startedAt;
@@ -137,6 +153,9 @@ public class ProactiveChatService {
                 .character(context.character())
                 .state(context.state())
                 .relationship(context.relationship())
+                .characterTraitProfile(context.characterTraitProfile())
+                .relationshipStage(context.relationshipStage())
+                .relationshipTemperatureScore(context.relationshipTemperatureScore())
                 .agentSelfState(context.agentSelfState())
                 .agentProfile(context.agentProfile())
                 .agentWorldState(context.agentWorldState())

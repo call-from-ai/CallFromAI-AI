@@ -26,6 +26,8 @@ public class RelationshipResponse {
 
     private String relationshipStage;
 
+    private Integer relationshipTemperatureScore;
+
     private Integer daysTogether;
 
     public static RelationshipResponse from(Relationship relationship) {
@@ -38,6 +40,7 @@ public class RelationshipResponse {
         response.setRepairProgress(relationship.getRepairProgress());
         response.setBreakupRisk(relationship.getBreakupRisk());
         response.setRelationshipStage(relationship.getRelationshipStage());
+        response.setRelationshipTemperatureScore(relationship.getRelationshipTemperatureScore());
         response.setDaysTogether(relationship.getDaysTogether());
         return response;
     }

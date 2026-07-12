@@ -1,23 +1,13 @@
 package com.example.aidatingagentbackend.service;
 
-import com.example.aidatingagentbackend.context.ContextLoader;
-import com.example.aidatingagentbackend.context.ContextUpdater;
 import com.example.aidatingagentbackend.dto.ChatRequest;
 import com.example.aidatingagentbackend.dto.ChatResponse;
-import com.example.aidatingagentbackend.dto.Context;
-import com.example.aidatingagentbackend.engine.EventAnalysis;
-import com.example.aidatingagentbackend.entity.ChatMessage;
-import com.example.aidatingagentbackend.entity.RelationshipTemperature;
-import com.example.aidatingagentbackend.entity.ResponseQualityEvaluation;
-import com.example.aidatingagentbackend.prompt.PromptBuilder;
-import com.example.aidatingagentbackend.repository.ChatMessageRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.io.IOException;
-import java.time.LocalDateTime;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -28,126 +18,20 @@ public class ChatService {
     private static final Logger log = LoggerFactory.getLogger(ChatService.class);
     private static final long STREAM_TIMEOUT_MS = 120_000L;
 
-    private final PromptBuilder promptBuilder;
+    private final AIProcessingService aiProcessingService;
     private final GeminiService geminiService;
 
-    private final ContextLoader contextLoader;
-    private final ChatMessageRepository chatMessageRepository;
-    private final ContextUpdater contextUpdater;
-    private final EmotionUpdateService emotionUpdateService;
-    private final ResponseQualityEvaluatorService responseQualityEvaluatorService;
-    private final AgentWorldStateService agentWorldStateService;
-    private final AgentGoalService agentGoalService;
-    private final ResponseStylePostProcessor responseStylePostProcessor;
-    private final ConversationEventService conversationEventService;
-    private final CharacterPreferenceService characterPreferenceService;
-
     public ChatService(
-            PromptBuilder promptBuilder,
-            GeminiService geminiService,
-            ContextLoader contextLoader,
-            ChatMessageRepository chatMessageRepository,
-            ContextUpdater contextUpdater,
-            EmotionUpdateService emotionUpdateService,
-            ResponseQualityEvaluatorService responseQualityEvaluatorService,
-            AgentWorldStateService agentWorldStateService,
-            AgentGoalService agentGoalService,
-            ResponseStylePostProcessor responseStylePostProcessor,
-            ConversationEventService conversationEventService,
-            CharacterPreferenceService characterPreferenceService) {
-        this.promptBuilder = promptBuilder;
+            AIProcessingService aiProcessingService,
+            GeminiService geminiService
+    ) {
+        this.aiProcessingService = aiProcessingService;
         this.geminiService = geminiService;
-        this.contextLoader = contextLoader;
-        this.chatMessageRepository = chatMessageRepository;
-        this.contextUpdater = contextUpdater;
-        this.emotionUpdateService = emotionUpdateService;
-        this.responseQualityEvaluatorService = responseQualityEvaluatorService;
-        this.agentWorldStateService = agentWorldStateService;
-        this.agentGoalService = agentGoalService;
-        this.responseStylePostProcessor = responseStylePostProcessor;
-        this.conversationEventService = conversationEventService;
-        this.characterPreferenceService = characterPreferenceService;
     }
 
-    public ChatResponse chat(ChatRequest request){
-        Long characterId = resolveCharacterId(request);
-
-        EmotionUpdateService.EmotionUpdateResult emotionUpdateResult =
-                emotionUpdateService.updateBeforeResponse(characterId, request.getMessage());
-        EventAnalysis eventAnalysis = emotionUpdateResult.eventAnalysis();
-        RelationshipTemperature relationshipTemperature = resolveRelationshipTemperature(request);
-        conversationEventService.detectAndSave(characterId, request.getMessage(), eventAnalysis);
-        contextUpdater.updateBeforeResponse(characterId, request.getMessage(), eventAnalysis);
-        agentWorldStateService.updateBeforeResponse(characterId);
-        agentGoalService.selectCurrentGoal(characterId);
-
-        Context context =
-                contextLoader.load(
-                        characterId,
-                        request.getMessage(),
-                        eventAnalysis.eventType(),
-                        relationshipTemperature
-                );
-
-        String prompt =
-
-                promptBuilder.builder()
-
-                        .character(context.character())
-
-                        .state(context.state())
-
-                        .relationship(context.relationship())
-
-                        .agentSelfState(context.agentSelfState())
-
-                        .agentProfile(context.agentProfile())
-
-                        .agentWorldState(context.agentWorldState())
-
-                        .agentGoal(context.agentGoal())
-
-                        .agentInitiative(context.agentInitiative())
-
-                        .relationshipTemperature(context.relationshipTemperature())
-
-                        .agentLifeEvents(context.agentLifeEvents())
-
-                        .conversationEvents(context.conversationEvents())
-
-                        .preferenceQuestionPlan(context.preferenceQuestionPlan())
-
-                        .conversationTopicPlan(context.conversationTopicPlan())
-
-                        .characterPreferences(context.characterPreferences())
-
-                        .characterExamples(context.characterExamples())
-
-                        .memories(context.memories())
-
-                        .chatHistory(context.history())
-
-                        .userMessage(request.getMessage())
-
-                        .build();
-        String reply =
-                geminiService.generate(prompt);
-        reply = responseStylePostProcessor.process(reply, relationshipTemperature);
-
-        reply = evaluateAndRegenerateIfNeeded(request, context, prompt, reply, eventAnalysis);
-
-        save(characterId,"USER",request.getMessage());
-        save(characterId,"ASSISTANT",reply);
-        characterPreferenceService.persistInventedPreferenceIfNeeded(
-                characterId,
-                request.getMessage(),
-                reply,
-                context.preferenceQuestionPlan()
-        );
-
-        contextUpdater.updateMemoryAfterResponse(characterId, request.getMessage(),reply);
-
-        return new ChatResponse(reply);
+    public ChatResponse chat(ChatRequest request) {
+        AIProcessingService.CompletedAIProcessing completed = aiProcessingService.process(request);
+        return new ChatResponse(completed.reply());
     }
 
     public SseEmitter sendMessageStream(ChatRequest request) {
@@ -161,33 +45,16 @@ public class ChatService {
 
             geminiService.resetCallCount();
             try {
-                Long characterId = resolveCharacterId(request);
-                EmotionUpdateService.EmotionUpdateResult emotionUpdateResult =
-                        emotionUpdateService.updateBeforeResponse(characterId, request.getMessage());
-                EventAnalysis eventAnalysis = emotionUpdateResult.eventAnalysis();
-                RelationshipTemperature relationshipTemperature = resolveRelationshipTemperature(request);
-                conversationEventService.detectAndSave(characterId, request.getMessage(), eventAnalysis);
-                contextUpdater.updateBeforeResponse(characterId, request.getMessage(), eventAnalysis);
-                agentWorldStateService.updateBeforeResponse(characterId);
-                agentGoalService.selectCurrentGoal(characterId);
-
-                Context context =
-                        contextLoader.load(
-                                characterId,
-                                request.getMessage(),
-                                eventAnalysis.eventType(),
-                                relationshipTemperature
-                        );
-
-                String prompt = buildPrompt(context, request.getMessage(), true);
+                AIProcessingService.PreparedAIProcessing prepared =
+                        aiProcessingService.prepare(request, true);
 
                 sendEvent(emitter, "meta", Map.of(
-                        "eventType", eventAnalysis.eventType().name(),
+                        "eventType", prepared.eventAnalysis().eventType().name(),
                         "compactPrompt", true
                 ));
 
                 final long[] firstTokenHolder = {firstTokenAt};
-                geminiService.generateStream(prompt, chunk -> {
+                geminiService.generateStream(prepared.prompt(), chunk -> {
                     if (firstChunkSent.compareAndSet(false, true)) {
                         firstTokenHolder[0] = System.currentTimeMillis();
                     }
@@ -196,27 +63,7 @@ public class ChatService {
                 });
                 firstTokenAt = firstTokenHolder[0];
 
-                String reply = responseStylePostProcessor.process(streamedReply.toString(), relationshipTemperature);
-                save(characterId, "USER", request.getMessage());
-                save(characterId, "ASSISTANT", reply);
-                characterPreferenceService.persistInventedPreferenceIfNeeded(
-                        characterId,
-                        request.getMessage(),
-                        reply,
-                        context.preferenceQuestionPlan()
-                );
-                contextUpdater.updateMemoryAfterResponse(characterId, request.getMessage(), reply);
-
-                if (responseQualityEvaluatorService.shouldEvaluate(eventAnalysis, context)) {
-                    responseQualityEvaluatorService.evaluateAndSave(
-                            characterId,
-                            request.getMessage(),
-                            reply,
-                            context,
-                            eventAnalysis,
-                            false
-                    );
-                }
+                aiProcessingService.finishGeneratedReply(prepared, streamedReply.toString(), false);
 
                 long completedAt = System.currentTimeMillis();
                 long firstTokenLatencyMs = firstTokenAt < 0 ? completedAt - startedAt : firstTokenAt - startedAt;
@@ -224,7 +71,7 @@ public class ChatService {
                 int llmCallCount = geminiService.currentCallCount();
                 log.info(
                         "chat.stream latency characterId={} firstTokenLatencyMs={} totalLatencyMs={} llmCallCount={}",
-                        characterId,
+                        prepared.characterId(),
                         firstTokenLatencyMs,
                         totalLatencyMs,
                         llmCallCount
@@ -247,70 +94,6 @@ public class ChatService {
         return emitter;
     }
 
-    private String evaluateAndRegenerateIfNeeded(
-            ChatRequest request,
-            Context context,
-            String prompt,
-            String reply,
-            EventAnalysis eventAnalysis
-    ) {
-        if (!responseQualityEvaluatorService.shouldEvaluate(eventAnalysis, context)) {
-            return reply;
-        }
-
-        ResponseQualityEvaluation evaluation =
-                responseQualityEvaluatorService.evaluateAndSave(
-                        resolveCharacterId(request),
-                        request.getMessage(),
-                        reply,
-                        context,
-                        eventAnalysis,
-                        false
-                );
-
-        if (!responseQualityEvaluatorService.shouldRegenerate(evaluation)) {
-            return reply;
-        }
-
-        String regenerationPrompt =
-                promptBuilder.buildRegenerationPrompt(prompt, reply, evaluation);
-        String regeneratedReply = geminiService.generate(regenerationPrompt);
-        regeneratedReply = responseStylePostProcessor.process(regeneratedReply, context.relationshipTemperature());
-        responseQualityEvaluatorService.evaluateAndSave(
-                resolveCharacterId(request),
-                request.getMessage(),
-                regeneratedReply,
-                context,
-                eventAnalysis,
-                true
-        );
-        return regeneratedReply;
-    }
-
-    private String buildPrompt(Context context, String userMessage, boolean compactMode) {
-        return promptBuilder.builder()
-                .character(context.character())
-                .state(context.state())
-                .relationship(context.relationship())
-                .agentSelfState(context.agentSelfState())
-                .agentProfile(context.agentProfile())
-                .agentWorldState(context.agentWorldState())
-                .agentGoal(context.agentGoal())
-                .agentInitiative(context.agentInitiative())
-                .relationshipTemperature(context.relationshipTemperature())
-                .agentLifeEvents(context.agentLifeEvents())
-                .conversationEvents(context.conversationEvents())
-                .preferenceQuestionPlan(context.preferenceQuestionPlan())
-                .conversationTopicPlan(context.conversationTopicPlan())
-                .characterPreferences(context.characterPreferences())
-                .characterExamples(context.characterExamples())
-                .memories(context.memories())
-                .chatHistory(context.history())
-                .userMessage(userMessage)
-                .compactMode(compactMode)
-                .build();
-    }
-
     private void sendEvent(SseEmitter emitter, String eventName, Object data) {
         try {
             emitter.send(SseEmitter.event()
@@ -319,33 +102,5 @@ public class ChatService {
         } catch (IOException exception) {
             throw new IllegalStateException("Failed to send stream event.", exception);
         }
-    }
-
-    private RelationshipTemperature resolveRelationshipTemperature(ChatRequest request) {
-        return request.getRelationshipTemperature() == null
-                ? RelationshipTemperature.NEUTRAL
-                : request.getRelationshipTemperature();
-    }
-
-    private Long resolveCharacterId(ChatRequest request) {
-        Long characterId = request.resolveCharacterId();
-        if (characterId == null) {
-            throw new IllegalArgumentException("characterId is required. userId is still accepted as a legacy alias.");
-        }
-        return characterId;
-    }
-
-    private void save(Long characterId,
-                      String role,
-                      String content){
-
-        ChatMessage message=new ChatMessage();
-
-        message.setCharacterId(characterId);
-        message.setRole(role);
-        message.setContent(content);
-        message.setCreatedAt(LocalDateTime.now());
-
-        chatMessageRepository.save(message);
     }
 }

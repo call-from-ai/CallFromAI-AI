@@ -2,6 +2,7 @@ package com.example.aidatingagentbackend.service;
 
 import com.example.aidatingagentbackend.dto.Context;
 import com.example.aidatingagentbackend.entity.AgentSelfState;
+import com.example.aidatingagentbackend.entity.RelationshipStage;
 import com.example.aidatingagentbackend.entity.ResponseQualityEvaluation;
 import org.junit.jupiter.api.Test;
 
@@ -60,6 +61,9 @@ class ResponseQualityEvaluatorServiceTests {
                 null,
                 null,
                 null,
+                null,
+                RelationshipStage.CRUSH,
+                50,
                 selfState,
                 null,
                 null,

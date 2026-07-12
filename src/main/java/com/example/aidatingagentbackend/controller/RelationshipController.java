@@ -2,6 +2,8 @@ package com.example.aidatingagentbackend.controller;
 
 import com.example.aidatingagentbackend.dto.RelationshipRequest;
 import com.example.aidatingagentbackend.dto.RelationshipResponse;
+import com.example.aidatingagentbackend.dto.RelationshipSettingsRequest;
+import com.example.aidatingagentbackend.dto.RelationshipSettingsResponse;
 import com.example.aidatingagentbackend.service.RelationshipService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -39,6 +41,19 @@ public class RelationshipController {
     @GetMapping("/{id}")
     public ResponseEntity<RelationshipResponse> findById(@PathVariable Long id) {
         return ResponseEntity.ok(relationshipService.findById(id));
+    }
+
+    @GetMapping("/{id}/settings")
+    public ResponseEntity<RelationshipSettingsResponse> findSettings(@PathVariable Long id) {
+        return ResponseEntity.ok(relationshipService.findSettings(id));
+    }
+
+    @PutMapping("/{id}/settings")
+    public ResponseEntity<RelationshipSettingsResponse> updateSettings(
+            @PathVariable Long id,
+            @RequestBody RelationshipSettingsRequest request
+    ) {
+        return ResponseEntity.ok(relationshipService.updateSettings(id, request));
     }
 
     @PutMapping("/{id}")

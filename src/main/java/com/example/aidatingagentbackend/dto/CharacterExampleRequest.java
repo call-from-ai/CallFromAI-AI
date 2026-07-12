@@ -17,6 +17,12 @@ public class CharacterExampleRequest {
 
     private RelationshipTemperature relationshipTemperature;
 
+    private String relationshipStage;
+
+    private Integer minTemperatureScore;
+
+    private Integer maxTemperatureScore;
+
     private String userExample;
 
     private String assistantExample;
@@ -24,4 +30,6 @@ public class CharacterExampleRequest {
     private String toneTag;
 
     private Integer priority;
+
+    private Boolean active;
 }

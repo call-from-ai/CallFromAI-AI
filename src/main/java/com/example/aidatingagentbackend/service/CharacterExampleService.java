@@ -3,9 +3,14 @@ package com.example.aidatingagentbackend.service;
 import com.example.aidatingagentbackend.dto.CharacterExampleRequest;
 import com.example.aidatingagentbackend.dto.CharacterExampleResponse;
 import com.example.aidatingagentbackend.engine.AgentEventType;
+import com.example.aidatingagentbackend.engine.EventAnalysis;
 import com.example.aidatingagentbackend.entity.CharacterExample;
+import com.example.aidatingagentbackend.entity.CharacterTraitProfile;
+import com.example.aidatingagentbackend.entity.Relationship;
+import com.example.aidatingagentbackend.entity.RelationshipStage;
 import com.example.aidatingagentbackend.entity.RelationshipTemperature;
 import com.example.aidatingagentbackend.repository.CharacterExampleRepository;
+import com.example.aidatingagentbackend.repository.RelationshipRepository;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -16,9 +21,26 @@ import java.util.List;
 public class CharacterExampleService {
 
     private final CharacterExampleRepository characterExampleRepository;
+    private final CharacterTraitProfileService characterTraitProfileService;
+    private final RelationshipRepository relationshipRepository;
+    private final RelationshipStageResolver relationshipStageResolver;
+    private final RelationshipTemperatureScoreResolver relationshipTemperatureScoreResolver;
+    private final CharacterExampleReranker characterExampleReranker;
 
-    public CharacterExampleService(CharacterExampleRepository characterExampleRepository) {
+    public CharacterExampleService(
+            CharacterExampleRepository characterExampleRepository,
+            CharacterTraitProfileService characterTraitProfileService,
+            RelationshipRepository relationshipRepository,
+            RelationshipStageResolver relationshipStageResolver,
+            RelationshipTemperatureScoreResolver relationshipTemperatureScoreResolver,
+            CharacterExampleReranker characterExampleReranker
+    ) {
         this.characterExampleRepository = characterExampleRepository;
+        this.characterTraitProfileService = characterTraitProfileService;
+        this.relationshipRepository = relationshipRepository;
+        this.relationshipStageResolver = relationshipStageResolver;
+        this.relationshipTemperatureScoreResolver = relationshipTemperatureScoreResolver;
+        this.characterExampleReranker = characterExampleReranker;
     }
 
     @Transactional
@@ -29,10 +51,14 @@ public class CharacterExampleService {
         example.setRelationshipTemperature(request.getRelationshipTemperature() == null
                 ? RelationshipTemperature.NEUTRAL
                 : request.getRelationshipTemperature());
+        example.setRelationshipStage(request.getRelationshipStage());
+        example.setMinTemperatureScore(request.getMinTemperatureScore());
+        example.setMaxTemperatureScore(request.getMaxTemperatureScore());
         example.setUserExample(request.getUserExample());
         example.setAssistantExample(request.getAssistantExample());
         example.setToneTag(request.getToneTag());
         example.setPriority(request.getPriority() == null ? 0 : request.getPriority());
+        example.setActive(request.getActive() == null ? true : request.getActive());
         return CharacterExampleResponse.from(characterExampleRepository.save(example));
     }
 
@@ -62,23 +88,97 @@ public class CharacterExampleService {
             AgentEventType eventType,
             RelationshipTemperature relationshipTemperature
     ) {
+        return findRelevantEntities(characterId, EventAnalysis.fallback(resolveEventType(eventType)), relationshipTemperature);
+    }
+
+    @Transactional(readOnly = true)
+    public List<CharacterExample> findRelevantEntities(
+            Long characterId,
+            EventAnalysis eventAnalysis,
+            RelationshipTemperature relationshipTemperature
+    ) {
+        EventAnalysis resolvedAnalysis = eventAnalysis == null
+                ? EventAnalysis.fallback(AgentEventType.NORMAL)
+                : eventAnalysis;
+        AgentEventType resolvedEventType = resolveEventType(resolvedAnalysis.eventType());
+        RelationshipTemperature resolvedTemperature = resolveTemperature(relationshipTemperature);
+
+        Relationship relationship = relationshipRepository.findByCharacterId(characterId).orElse(null);
+        RelationshipStage relationshipStage = relationship == null
+                ? relationshipStageResolver.resolve(null)
+                : relationshipStageResolver.resolve(relationship.getRelationshipStage());
+        Integer temperatureScore = relationshipTemperatureScoreResolver.resolveScore(
+                relationship == null ? null : relationship.getRelationshipTemperatureScore(),
+                resolvedTemperature
+        );
+        CharacterTraitProfile traits = characterTraitProfileService.findEntityOrDefault(characterId);
+
+        return findRelevantEntities(
+                characterId,
+                resolvedAnalysis,
+                resolvedTemperature,
+                relationshipStage,
+                temperatureScore,
+                traits
+        );
+    }
+
+    @Transactional(readOnly = true)
+    public List<CharacterExample> findRelevantEntities(
+            Long characterId,
+            EventAnalysis eventAnalysis,
+            RelationshipTemperature relationshipTemperature,
+            RelationshipStage relationshipStage,
+            Integer temperatureScore,
+            CharacterTraitProfile traits
+    ) {
+        EventAnalysis resolvedAnalysis = eventAnalysis == null
+                ? EventAnalysis.fallback(AgentEventType.NORMAL)
+                : eventAnalysis;
+        AgentEventType resolvedEventType = resolveEventType(resolvedAnalysis.eventType());
+        RelationshipTemperature resolvedTemperature = resolveTemperature(relationshipTemperature);
+        RelationshipStage resolvedStage = relationshipStage == null
+                ? relationshipStageResolver.resolve(null)
+                : relationshipStage;
+        Integer resolvedTemperatureScore = relationshipTemperatureScoreResolver.resolveScore(
+                temperatureScore,
+                resolvedTemperature
+        );
+        CharacterTraitProfile resolvedTraits = traits == null
+                ? characterTraitProfileService.findEntityOrDefault(characterId)
+                : traits;
+
+        List<CharacterExample> reranked = characterExampleReranker.rerank(
+                characterExampleRepository.findCandidateStyleExamples(characterId, resolvedEventType),
+                resolvedAnalysis,
+                resolvedStage,
+                resolvedTemperatureScore,
+                resolvedTraits
+        );
+
+        if (!reranked.isEmpty()) {
+            return reranked;
+        }
+
+        return findLegacyExamples(characterId, resolvedEventType, resolvedTemperature);
+    }
+
+    private List<CharacterExample> findLegacyExamples(
+            Long characterId,
+            AgentEventType eventType,
+            RelationshipTemperature relationshipTemperature
+    ) {
         AgentEventType resolvedEventType = eventType == null ? AgentEventType.NORMAL : eventType;
         RelationshipTemperature resolvedTemperature = relationshipTemperature == null
                 ? RelationshipTemperature.NEUTRAL
                 : relationshipTemperature;
 
-        List<CharacterExample> examples = characterExampleRepository.findRelevantStyleExamples(
+        return characterExampleRepository.findRelevantStyleExamples(
                 characterId,
                 resolvedEventType,
                 resolvedTemperature,
                 PageRequest.of(0, 5)
         );
-
-        if (!examples.isEmpty()) {
-            return examples;
-        }
-
-        return characterExampleRepository.findTop5ByCharacterIdOrderByPriorityDescIdAsc(characterId);
     }
 
     @Transactional
@@ -149,6 +249,15 @@ public class CharacterExampleService {
         example.setPriority(priority);
         example.setUserExample(userExample);
         example.setAssistantExample(assistantExample);
+        example.setActive(true);
         return example;
+    }
+
+    private AgentEventType resolveEventType(AgentEventType eventType) {
+        return eventType == null ? AgentEventType.NORMAL : eventType;
+    }
+
+    private RelationshipTemperature resolveTemperature(RelationshipTemperature relationshipTemperature) {
+        return relationshipTemperature == null ? RelationshipTemperature.NEUTRAL : relationshipTemperature;
     }
 }

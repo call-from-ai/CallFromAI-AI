@@ -20,6 +20,12 @@ public class CharacterExampleResponse {
 
     private RelationshipTemperature relationshipTemperature;
 
+    private String relationshipStage;
+
+    private Integer minTemperatureScore;
+
+    private Integer maxTemperatureScore;
+
     private String userExample;
 
     private String assistantExample;
@@ -28,16 +34,22 @@ public class CharacterExampleResponse {
 
     private Integer priority;
 
+    private Boolean active;
+
     public static CharacterExampleResponse from(CharacterExample example) {
         CharacterExampleResponse response = new CharacterExampleResponse();
         response.setId(example.getId());
         response.setCharacterId(example.getCharacterId());
         response.setEventType(example.getEventType());
         response.setRelationshipTemperature(example.getRelationshipTemperature());
+        response.setRelationshipStage(example.getRelationshipStage());
+        response.setMinTemperatureScore(example.getMinTemperatureScore());
+        response.setMaxTemperatureScore(example.getMaxTemperatureScore());
         response.setUserExample(example.getUserExample());
         response.setAssistantExample(example.getAssistantExample());
         response.setToneTag(example.getToneTag());
         response.setPriority(example.getPriority());
+        response.setActive(example.getActive());
         return response;
     }
 }

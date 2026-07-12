@@ -3,13 +3,16 @@ package com.example.aidatingagentbackend.context;
 import com.example.aidatingagentbackend.dto.Context;
 import com.example.aidatingagentbackend.dto.PreferenceQuestionPlan;
 import com.example.aidatingagentbackend.engine.AgentEventType;
+import com.example.aidatingagentbackend.engine.EventAnalysis;
 import com.example.aidatingagentbackend.entity.Character;
 import com.example.aidatingagentbackend.entity.AgentGoal;
 import com.example.aidatingagentbackend.entity.AgentLifeEvent;
 import com.example.aidatingagentbackend.entity.AgentSelfState;
 import com.example.aidatingagentbackend.entity.AgentWorldState;
+import com.example.aidatingagentbackend.entity.CharacterTraitProfile;
 import com.example.aidatingagentbackend.entity.RelationshipTemperature;
 import com.example.aidatingagentbackend.entity.Relationship;
+import com.example.aidatingagentbackend.entity.RelationshipStage;
 import com.example.aidatingagentbackend.entity.State;
 import com.example.aidatingagentbackend.repository.AgentSelfStateRepository;
 import com.example.aidatingagentbackend.repository.CharacterRepository;
@@ -23,8 +26,12 @@ import com.example.aidatingagentbackend.service.AgentProfileService;
 import com.example.aidatingagentbackend.service.AgentWorldStateService;
 import com.example.aidatingagentbackend.service.CharacterExampleService;
 import com.example.aidatingagentbackend.service.CharacterPreferenceService;
+import com.example.aidatingagentbackend.service.CharacterTraitProfileService;
 import com.example.aidatingagentbackend.service.ConversationEventService;
 import com.example.aidatingagentbackend.service.ConversationTopicService;
+import com.example.aidatingagentbackend.service.RelationshipStageResolver;
+import com.example.aidatingagentbackend.service.RelationshipTemperatureScoreResolver;
+import com.example.aidatingagentbackend.service.SettingsDefaultPolicy;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -39,6 +46,7 @@ public class ContextLoader {
     private final MemoryRetrievalService memoryRetrievalService;
     private final ChatMessageRepository chatRepository;
     private final CharacterExampleService characterExampleService;
+    private final CharacterTraitProfileService characterTraitProfileService;
     private final AgentProfileService agentProfileService;
     private final AgentWorldStateService agentWorldStateService;
     private final AgentGoalService agentGoalService;
@@ -47,6 +55,9 @@ public class ContextLoader {
     private final ConversationEventService conversationEventService;
     private final CharacterPreferenceService characterPreferenceService;
     private final ConversationTopicService conversationTopicService;
+    private final RelationshipStageResolver relationshipStageResolver;
+    private final RelationshipTemperatureScoreResolver relationshipTemperatureScoreResolver;
+    private final SettingsDefaultPolicy settingsDefaultPolicy;
 
     public ContextLoader(
             CharacterRepository characterRepository,
@@ -56,6 +67,7 @@ public class ContextLoader {
             MemoryRetrievalService memoryRetrievalService,
             ChatMessageRepository chatRepository,
             CharacterExampleService characterExampleService,
+            CharacterTraitProfileService characterTraitProfileService,
             AgentProfileService agentProfileService,
             AgentWorldStateService agentWorldStateService,
             AgentGoalService agentGoalService,
@@ -63,7 +75,10 @@ public class ContextLoader {
             AgentLifeEventService agentLifeEventService,
             ConversationEventService conversationEventService,
             CharacterPreferenceService characterPreferenceService,
-            ConversationTopicService conversationTopicService
+            ConversationTopicService conversationTopicService,
+            RelationshipStageResolver relationshipStageResolver,
+            RelationshipTemperatureScoreResolver relationshipTemperatureScoreResolver,
+            SettingsDefaultPolicy settingsDefaultPolicy
     ) {
         this.characterRepository = characterRepository;
         this.stateRepository = stateRepository;
@@ -72,6 +87,7 @@ public class ContextLoader {
         this.memoryRetrievalService = memoryRetrievalService;
         this.chatRepository = chatRepository;
         this.characterExampleService = characterExampleService;
+        this.characterTraitProfileService = characterTraitProfileService;
         this.agentProfileService = agentProfileService;
         this.agentWorldStateService = agentWorldStateService;
         this.agentGoalService = agentGoalService;
@@ -80,6 +96,9 @@ public class ContextLoader {
         this.conversationEventService = conversationEventService;
         this.characterPreferenceService = characterPreferenceService;
         this.conversationTopicService = conversationTopicService;
+        this.relationshipStageResolver = relationshipStageResolver;
+        this.relationshipTemperatureScoreResolver = relationshipTemperatureScoreResolver;
+        this.settingsDefaultPolicy = settingsDefaultPolicy;
     }
 
     public Context load(Long characterId, String userMessage) {
@@ -92,7 +111,21 @@ public class ContextLoader {
             AgentEventType eventType,
             RelationshipTemperature relationshipTemperature
     ) {
-        AgentEventType resolvedEventType = eventType == null ? AgentEventType.NORMAL : eventType;
+        return load(characterId, userMessage, EventAnalysis.fallback(eventType == null ? AgentEventType.NORMAL : eventType), relationshipTemperature);
+    }
+
+    public Context load(
+            Long characterId,
+            String userMessage,
+            EventAnalysis eventAnalysis,
+            RelationshipTemperature relationshipTemperature
+    ) {
+        EventAnalysis resolvedEventAnalysis = eventAnalysis == null
+                ? EventAnalysis.fallback(AgentEventType.NORMAL)
+                : eventAnalysis;
+        AgentEventType resolvedEventType = resolvedEventAnalysis.eventType() == null
+                ? AgentEventType.NORMAL
+                : resolvedEventAnalysis.eventType();
         RelationshipTemperature resolvedTemperature = relationshipTemperature == null
                 ? RelationshipTemperature.NEUTRAL
                 : relationshipTemperature;
@@ -108,6 +141,12 @@ public class ContextLoader {
         Relationship relationship =
                 relationshipRepository.findByCharacterId(characterId)
                         .orElseGet(() -> createDefaultRelationship(characterId));
+        CharacterTraitProfile characterTraitProfile = characterTraitProfileService.findEntityOrDefault(characterId);
+        RelationshipStage relationshipStage = relationshipStageResolver.resolve(relationship.getRelationshipStage());
+        Integer relationshipTemperatureScore = relationshipTemperatureScoreResolver.resolveScore(
+                relationship.getRelationshipTemperatureScore(),
+                resolvedTemperature
+        );
 
         AgentSelfState agentSelfState = agentSelfStateRepository.findByCharacterId(characterId)
                 .orElse(null);
@@ -123,6 +162,12 @@ public class ContextLoader {
                 state,
 
                 relationship,
+
+                characterTraitProfile,
+
+                relationshipStage,
+
+                relationshipTemperatureScore,
 
                 agentSelfState,
 
@@ -146,9 +191,26 @@ public class ContextLoader {
 
                 characterPreferenceService.findForPrompt(characterId, preferenceQuestionPlan),
 
-                characterExampleService.findRelevantEntities(characterId, resolvedEventType, resolvedTemperature),
+                characterExampleService.findRelevantEntities(
+                        characterId,
+                        resolvedEventAnalysis,
+                        resolvedTemperature,
+                        relationshipStage,
+                        relationshipTemperatureScore,
+                        characterTraitProfile
+                ),
 
-                preferenceQuestionPlan.active() ? List.of() : memoryRetrievalService.retrieve(characterId, userMessage, state),
+                preferenceQuestionPlan.active()
+                        ? List.of()
+                        : memoryRetrievalService.retrieve(
+                                characterId,
+                                userMessage,
+                                state,
+                                characterTraitProfile,
+                                relationshipStage,
+                                relationshipTemperatureScore,
+                                resolvedEventAnalysis
+                        ),
 
                 chatRepository
                         .findTop20ByCharacterIdOrderByCreatedAtDesc(characterId)
@@ -175,9 +237,9 @@ public class ContextLoader {
         relationship.setConflictLevel(0);
         relationship.setRepairProgress(0);
         relationship.setBreakupRisk(0);
-        relationship.setRelationshipStage("NEW");
+        relationship.setRelationshipStage(settingsDefaultPolicy.defaultRelationshipStageValue());
         relationship.setDaysTogether(0);
-        return relationshipRepository.save(relationship);
+        return relationship;
     }
 
 }

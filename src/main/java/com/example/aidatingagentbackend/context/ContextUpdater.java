@@ -12,6 +12,7 @@ import com.example.aidatingagentbackend.repository.MemoryRepository;
 import com.example.aidatingagentbackend.repository.RelationshipRepository;
 import com.example.aidatingagentbackend.repository.StateRepository;
 import com.example.aidatingagentbackend.repository.TurningPointRepository;
+import com.example.aidatingagentbackend.service.SettingsDefaultPolicy;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -29,6 +30,7 @@ public class ContextUpdater {
     private final RelationshipRepository relationshipRepository;
     private final MemoryRepository memoryRepository;
     private final TurningPointRepository turningPointRepository;
+    private final SettingsDefaultPolicy settingsDefaultPolicy;
 
     private static final List<TurningPointRule> TURNING_POINT_RULES = List.of(
             new TurningPointRule("CONFESSION", 8, List.of("고백", "좋아해", "사랑해")),
@@ -48,7 +50,8 @@ public class ContextUpdater {
                 StateRepository stateRepository,
                 RelationshipRepository relationshipRepository,
                 MemoryRepository memoryRepository,
-                TurningPointRepository turningPointRepository
+                TurningPointRepository turningPointRepository,
+                SettingsDefaultPolicy settingsDefaultPolicy
         ) {
             this.emotionEngine = emotionEngine;
             this.relationshipEngine = relationshipEngine;
@@ -58,6 +61,7 @@ public class ContextUpdater {
             this.relationshipRepository = relationshipRepository;
             this.memoryRepository = memoryRepository;
             this.turningPointRepository = turningPointRepository;
+            this.settingsDefaultPolicy = settingsDefaultPolicy;
         }
 
 
@@ -137,7 +141,8 @@ public class ContextUpdater {
         relationship.setConflictLevel(0);
         relationship.setRepairProgress(0);
         relationship.setBreakupRisk(0);
-        relationship.setRelationshipStage("NEW");
+        relationship.setRelationshipStage(settingsDefaultPolicy.defaultRelationshipStageValue());
+        relationship.setRelationshipTemperatureScore(settingsDefaultPolicy.defaultRelationshipTemperatureScore());
         relationship.setDaysTogether(0);
         return relationship;
     }

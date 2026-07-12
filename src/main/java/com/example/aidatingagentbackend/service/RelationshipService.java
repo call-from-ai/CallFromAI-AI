@@ -2,6 +2,8 @@ package com.example.aidatingagentbackend.service;
 
 import com.example.aidatingagentbackend.dto.RelationshipRequest;
 import com.example.aidatingagentbackend.dto.RelationshipResponse;
+import com.example.aidatingagentbackend.dto.RelationshipSettingsRequest;
+import com.example.aidatingagentbackend.dto.RelationshipSettingsResponse;
 import com.example.aidatingagentbackend.entity.Relationship;
 import com.example.aidatingagentbackend.repository.RelationshipRepository;
 import org.springframework.http.HttpStatus;
@@ -15,9 +17,17 @@ import java.util.List;
 public class RelationshipService {
 
     private final RelationshipRepository relationshipRepository;
+    private final RelationshipStageResolver relationshipStageResolver;
+    private final RelationshipTemperatureScoreResolver relationshipTemperatureScoreResolver;
 
-    public RelationshipService(RelationshipRepository relationshipRepository) {
+    public RelationshipService(
+            RelationshipRepository relationshipRepository,
+            RelationshipStageResolver relationshipStageResolver,
+            RelationshipTemperatureScoreResolver relationshipTemperatureScoreResolver
+    ) {
         this.relationshipRepository = relationshipRepository;
+        this.relationshipStageResolver = relationshipStageResolver;
+        this.relationshipTemperatureScoreResolver = relationshipTemperatureScoreResolver;
     }
 
     @Transactional
@@ -48,6 +58,20 @@ public class RelationshipService {
     }
 
     @Transactional
+    public RelationshipSettingsResponse updateSettings(Long id, RelationshipSettingsRequest request) {
+        Relationship relationship = findRelationship(id);
+        relationship.setRelationshipStage(normalizeStage(request.getRelationshipStage()));
+        relationship.setRelationshipTemperatureScore(resolveTemperatureScore(request));
+        Relationship saved = relationshipRepository.save(relationship);
+        return settingsResponse(saved);
+    }
+
+    @Transactional(readOnly = true)
+    public RelationshipSettingsResponse findSettings(Long id) {
+        return settingsResponse(findRelationship(id));
+    }
+
+    @Transactional
     public void delete(Long id) {
         Relationship relationship = findRelationship(id);
         relationshipRepository.delete(relationship);
@@ -65,7 +89,44 @@ public class RelationshipService {
         relationship.setConflictLevel(request.getConflictLevel());
         relationship.setRepairProgress(request.getRepairProgress());
         relationship.setBreakupRisk(request.getBreakupRisk());
-        relationship.setRelationshipStage(request.getRelationshipStage());
+        relationship.setRelationshipStage(normalizeStage(request.getRelationshipStage()));
+        relationship.setRelationshipTemperatureScore(resolveTemperatureScore(request.getRelationshipTemperatureScore()));
         relationship.setDaysTogether(request.getDaysTogether());
+    }
+
+    private String normalizeStage(String relationshipStage) {
+        try {
+            return relationshipStageResolver.normalize(relationshipStage);
+        } catch (IllegalArgumentException exception) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid relationshipStage.", exception);
+        }
+    }
+
+    private Integer resolveTemperatureScore(Integer relationshipTemperatureScore) {
+        try {
+            return relationshipTemperatureScoreResolver.resolveScore(relationshipTemperatureScore, null);
+        } catch (IllegalArgumentException exception) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, exception.getMessage(), exception);
+        }
+    }
+
+    private Integer resolveTemperatureScore(RelationshipSettingsRequest request) {
+        try {
+            return relationshipTemperatureScoreResolver.resolveScore(
+                    request.getRelationshipTemperatureScore(),
+                    request.getRelationshipTemperature()
+            );
+        } catch (IllegalArgumentException exception) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, exception.getMessage(), exception);
+        }
+    }
+
+    private RelationshipSettingsResponse settingsResponse(Relationship relationship) {
+        String stage = relationshipStageResolver.resolve(relationship.getRelationshipStage()).name();
+        Integer temperatureScore = relationshipTemperatureScoreResolver.resolveScore(
+                relationship.getRelationshipTemperatureScore(),
+                null
+        );
+        return RelationshipSettingsResponse.from(relationship, stage, temperatureScore);
     }
 }

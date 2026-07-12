@@ -2,7 +2,10 @@ package com.example.aidatingagentbackend.controller;
 
 import com.example.aidatingagentbackend.dto.CharacterRequest;
 import com.example.aidatingagentbackend.dto.CharacterResponse;
+import com.example.aidatingagentbackend.dto.CharacterTraitsRequest;
+import com.example.aidatingagentbackend.dto.CharacterTraitsResponse;
 import com.example.aidatingagentbackend.service.CharacterService;
+import com.example.aidatingagentbackend.service.CharacterTraitProfileService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -21,9 +24,14 @@ import java.util.List;
 public class CharacterController {
 
     private final CharacterService characterService;
+    private final CharacterTraitProfileService characterTraitProfileService;
 
-    public CharacterController(CharacterService characterService) {
+    public CharacterController(
+            CharacterService characterService,
+            CharacterTraitProfileService characterTraitProfileService
+    ) {
         this.characterService = characterService;
+        this.characterTraitProfileService = characterTraitProfileService;
     }
 
     @PostMapping
@@ -39,6 +47,19 @@ public class CharacterController {
     @GetMapping("/{id}")
     public ResponseEntity<CharacterResponse> findById(@PathVariable Long id) {
         return ResponseEntity.ok(characterService.findById(id));
+    }
+
+    @PutMapping("/{id}/traits")
+    public ResponseEntity<CharacterTraitsResponse> updateTraits(
+            @PathVariable Long id,
+            @RequestBody CharacterTraitsRequest request
+    ) {
+        return ResponseEntity.ok(characterTraitProfileService.saveForCharacter(id, request.getPersonalityKeywords()));
+    }
+
+    @GetMapping("/{id}/traits")
+    public ResponseEntity<CharacterTraitsResponse> findTraits(@PathVariable Long id) {
+        return ResponseEntity.ok(characterTraitProfileService.findTraitsByCharacterId(id));
     }
 
     @PutMapping("/{id}")

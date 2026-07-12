@@ -34,5 +34,7 @@ public class Relationship {
 
     private String relationshipStage;
 
+    private Integer relationshipTemperatureScore;
+
     private Integer daysTogether;
 }

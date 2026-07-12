@@ -32,6 +32,12 @@ public class CharacterExample {
     @Enumerated(EnumType.STRING)
     private RelationshipTemperature relationshipTemperature;
 
+    private String relationshipStage;
+
+    private Integer minTemperatureScore;
+
+    private Integer maxTemperatureScore;
+
     @Column(columnDefinition = "TEXT")
     private String userExample;
 
@@ -41,4 +47,6 @@ public class CharacterExample {
     private String toneTag;
 
     private Integer priority;
+
+    private Boolean active;
 }
