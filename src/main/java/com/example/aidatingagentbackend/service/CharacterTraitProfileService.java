@@ -52,6 +52,7 @@ public class CharacterTraitProfileService {
         return CharacterTraitsResponse.from(characterTraitProfileRepository.save(profile));
     }
 
+    @Transactional
     public CharacterTraitProfile saveForCharacter(
             Long characterId, List<PersonalityTraitSelection> selections, Mbti mbti
     ) {

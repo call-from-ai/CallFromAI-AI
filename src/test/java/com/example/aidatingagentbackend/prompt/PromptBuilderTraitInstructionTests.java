@@ -41,7 +41,7 @@ class PromptBuilderTraitInstructionTests {
     @Test
     void temperatureNinetyIncludesConfidentInstruction() {
         String prompt = baseBuilder()
-                .relationshipTemperatureScore(90)
+                .romanceStyleScore(90)
                 .build();
 
         assertThat(prompt).contains("짧고 자신감 있는 문장");
@@ -52,7 +52,7 @@ class PromptBuilderTraitInstructionTests {
     @Test
     void temperatureTenLimitsFlirting() {
         String prompt = baseBuilder()
-                .relationshipTemperatureScore(10)
+                .romanceStyleScore(10)
                 .build();
 
         assertThat(prompt).contains("차분하고 안정적인");

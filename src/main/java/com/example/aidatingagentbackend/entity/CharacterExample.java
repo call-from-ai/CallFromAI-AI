@@ -38,6 +38,9 @@ public class CharacterExample {
 
     private Integer maxTemperatureScore;
 
+    @Enumerated(EnumType.STRING)
+    private RomanceStyleBand romanceStyleBand;
+
     @Column(columnDefinition = "TEXT")
     private String userExample;
 

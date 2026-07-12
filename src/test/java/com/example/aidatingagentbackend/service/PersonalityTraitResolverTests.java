@@ -166,4 +166,22 @@ class PersonalityTraitResolverTests {
         assertThat(resolver.resolve(Set.of(PersonalityKeyword.GOOD_LISTENER))).isEqualTo(before);
         assertThat(before.jealousy()).isEqualTo(3);
     }
+
+    @Test
+    void mbtiTotalAdjustmentPerTraitNeverExceedsOne() {
+        List<PersonalityTraitSelection> keywords = List.of(
+                new PersonalityTraitSelection(PersonalityKeyword.HOMEBODY, 1));
+        CharacterTrait base = resolver.resolve(keywords, null);
+        CharacterTrait enfj = resolver.resolve(keywords, Mbti.ENFJ);
+        assertThat(Math.abs(enfj.humor() - base.humor())).isLessThanOrEqualTo(1);
+        assertThat(Math.abs(enfj.playfulness() - base.playfulness())).isLessThanOrEqualTo(1);
+        assertThat(Math.abs(enfj.affection() - base.affection())).isLessThanOrEqualTo(1);
+        assertThat(Math.abs(enfj.empathy() - base.empathy())).isLessThanOrEqualTo(1);
+        assertThat(Math.abs(enfj.attachment() - base.attachment())).isLessThanOrEqualTo(1);
+        assertThat(Math.abs(enfj.jealousy() - base.jealousy())).isLessThanOrEqualTo(1);
+        assertThat(Math.abs(enfj.dominance() - base.dominance())).isLessThanOrEqualTo(1);
+        assertThat(Math.abs(enfj.confidence() - base.confidence())).isLessThanOrEqualTo(1);
+        assertThat(Math.abs(enfj.expressiveness() - base.expressiveness())).isLessThanOrEqualTo(1);
+        assertThat(Math.abs(enfj.emotionalStability() - base.emotionalStability())).isLessThanOrEqualTo(1);
+    }
 }

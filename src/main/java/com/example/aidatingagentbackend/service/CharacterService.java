@@ -2,6 +2,8 @@ package com.example.aidatingagentbackend.service;
 
 import com.example.aidatingagentbackend.dto.CharacterRequest;
 import com.example.aidatingagentbackend.dto.CharacterResponse;
+import com.example.aidatingagentbackend.dto.CharacterTraitsRequest;
+import com.example.aidatingagentbackend.dto.CharacterTraitsResponse;
 import com.example.aidatingagentbackend.entity.Character;
 import com.example.aidatingagentbackend.dto.PersonalityTraitSelection;
 import com.example.aidatingagentbackend.entity.AgentLifeType;
@@ -49,6 +51,24 @@ public class CharacterService {
         initializeRelationship(character);
         initializeSelfState(character.getId());
         return CharacterResponse.from(character);
+    }
+
+    @Transactional
+    public CharacterTraitsResponse updateTraits(Long characterId, CharacterTraitsRequest request) {
+        List<PersonalityTraitSelection> selections;
+        if (request != null && request.getTraits() != null) {
+            selections = validateSelections(request.getTraits());
+        } else if (request != null && request.getPersonalityKeywords() != null) {
+            int[] priority = {1};
+            selections = validateSelections(request.getPersonalityKeywords().stream()
+                    .map(keyword -> new PersonalityTraitSelection(keyword, priority[0]++)).toList());
+        } else {
+            badRequest("traits are required");
+            return null;
+        }
+        Character character = findCharacter(characterId);
+        return CharacterTraitsResponse.from(
+                characterTraitProfileService.saveForCharacter(characterId, selections, character.getMbti()));
     }
 
     @Transactional(readOnly = true)
@@ -105,7 +125,10 @@ public class CharacterService {
         }
         if (request.getRelationshipStage() == null) badRequest("relationshipStage is required");
         if (request.getSpeechStyle() == null) badRequest("speechStyle is required");
-        List<PersonalityTraitSelection> traits = request.getTraits();
+        return validateSelections(request.getTraits());
+    }
+
+    private List<PersonalityTraitSelection> validateSelections(List<PersonalityTraitSelection> traits) {
         if (traits == null || traits.isEmpty() || traits.size() > 5) badRequest("traits must contain between 1 and 5 items");
         Set<Object> keywords = new HashSet<>();
         Set<Integer> priorities = new HashSet<>();

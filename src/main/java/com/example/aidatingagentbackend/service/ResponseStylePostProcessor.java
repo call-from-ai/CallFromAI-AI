@@ -10,13 +10,14 @@ import org.springframework.stereotype.Service;
 public class ResponseStylePostProcessor {
 
     public String process(String reply, RelationshipTemperature relationshipTemperature) {
-        return process(reply, relationshipTemperature, null, null, null, null);
+        return process(reply, relationshipTemperature, null, null, null, null, null);
     }
 
     public String process(
             String reply,
             RelationshipTemperature relationshipTemperature,
             Integer relationshipTemperatureScore,
+            Integer romanceStyleScore,
             CharacterTraitProfile characterTraitProfile,
             RelationshipStage relationshipStage,
             AgentSelfState agentSelfState
@@ -39,9 +40,19 @@ public class ResponseStylePostProcessor {
         if (temperature == RelationshipTemperature.CONFLICT_REPAIR) {
             processed = conflictRepairPolish(processed);
         }
-        processed = scoreBasedPolish(processed, score, characterTraitProfile, relationshipStage, agentSelfState);
+        processed = scoreBasedPolish(processed, score, romanceStyleScore, characterTraitProfile, relationshipStage, agentSelfState);
 
         return processed.strip();
+    }
+
+    @Deprecated
+    public String process(
+            String reply, RelationshipTemperature relationshipTemperature,
+            Integer relationshipTemperatureScore, CharacterTraitProfile characterTraitProfile,
+            RelationshipStage relationshipStage, AgentSelfState agentSelfState
+    ) {
+        return process(reply, relationshipTemperature, relationshipTemperatureScore,
+                relationshipTemperatureScore, characterTraitProfile, relationshipStage, agentSelfState);
     }
 
     private String stripExcessivePeriods(String reply) {
@@ -77,16 +88,17 @@ public class ResponseStylePostProcessor {
     private String scoreBasedPolish(
             String reply,
             int temperatureScore,
+            Integer romanceStyleScore,
             CharacterTraitProfile traits,
             RelationshipStage stage,
             AgentSelfState selfState
     ) {
         String processed = reply;
-        if (temperatureScore >= 81) {
+        int styleScore = romanceStyleScore == null ? 50 : Math.max(0, Math.min(100, romanceStyleScore));
+        if (styleScore >= 81) {
             processed = trimQuestionPileup(processed);
             processed = reducePeriods(processed);
-            processed = softenFormalEndings(processed);
-        } else if (temperatureScore <= 20) {
+        } else if (styleScore <= 20) {
             processed = limitLaughs(processed, 1);
         }
 

@@ -54,7 +54,7 @@ public class CharacterController {
             @PathVariable Long id,
             @RequestBody CharacterTraitsRequest request
     ) {
-        return ResponseEntity.ok(characterTraitProfileService.saveForCharacter(id, request.getPersonalityKeywords()));
+        return ResponseEntity.ok(characterService.updateTraits(id, request));
     }
 
     @GetMapping("/{id}/traits")

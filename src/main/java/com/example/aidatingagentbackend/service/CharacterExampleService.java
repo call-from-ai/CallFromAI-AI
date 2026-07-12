@@ -54,6 +54,7 @@ public class CharacterExampleService {
         example.setRelationshipStage(request.getRelationshipStage());
         example.setMinTemperatureScore(request.getMinTemperatureScore());
         example.setMaxTemperatureScore(request.getMaxTemperatureScore());
+        example.setRomanceStyleBand(request.getRomanceStyleBand());
         example.setUserExample(request.getUserExample());
         example.setAssistantExample(request.getAssistantExample());
         example.setToneTag(request.getToneTag());
@@ -119,6 +120,7 @@ public class CharacterExampleService {
                 resolvedTemperature,
                 relationshipStage,
                 temperatureScore,
+                50,
                 traits
         );
     }
@@ -130,6 +132,7 @@ public class CharacterExampleService {
             RelationshipTemperature relationshipTemperature,
             RelationshipStage relationshipStage,
             Integer temperatureScore,
+            Integer romanceStyleScore,
             CharacterTraitProfile traits
     ) {
         EventAnalysis resolvedAnalysis = eventAnalysis == null
@@ -153,6 +156,7 @@ public class CharacterExampleService {
                 resolvedAnalysis,
                 resolvedStage,
                 resolvedTemperatureScore,
+                romanceStyleScore,
                 resolvedTraits
         );
 
@@ -161,6 +165,17 @@ public class CharacterExampleService {
         }
 
         return findLegacyExamples(characterId, resolvedEventType, resolvedTemperature);
+    }
+
+    @Deprecated
+    @Transactional(readOnly = true)
+    public List<CharacterExample> findRelevantEntities(
+            Long characterId, EventAnalysis eventAnalysis, RelationshipTemperature relationshipTemperature,
+            RelationshipStage relationshipStage, Integer relationshipTemperatureScore,
+            CharacterTraitProfile traits
+    ) {
+        return findRelevantEntities(characterId, eventAnalysis, relationshipTemperature, relationshipStage,
+                relationshipTemperatureScore, 50, traits);
     }
 
     private List<CharacterExample> findLegacyExamples(

@@ -2,6 +2,7 @@ package com.example.aidatingagentbackend.dto;
 
 import com.example.aidatingagentbackend.engine.AgentEventType;
 import com.example.aidatingagentbackend.entity.RelationshipTemperature;
+import com.example.aidatingagentbackend.entity.RomanceStyleBand;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -22,6 +23,7 @@ public class CharacterExampleRequest {
     private Integer minTemperatureScore;
 
     private Integer maxTemperatureScore;
+    private RomanceStyleBand romanceStyleBand;
 
     private String userExample;
 

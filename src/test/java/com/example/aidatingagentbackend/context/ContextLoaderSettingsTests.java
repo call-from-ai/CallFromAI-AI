@@ -5,6 +5,7 @@ import com.example.aidatingagentbackend.engine.EventAnalysis;
 import com.example.aidatingagentbackend.dto.PreferenceQuestionPlan;
 import com.example.aidatingagentbackend.entity.AgentSelfState;
 import com.example.aidatingagentbackend.entity.CharacterTraitProfile;
+import com.example.aidatingagentbackend.entity.Character;
 import com.example.aidatingagentbackend.entity.Relationship;
 import com.example.aidatingagentbackend.entity.RelationshipStage;
 import com.example.aidatingagentbackend.entity.RelationshipTemperature;
@@ -81,6 +82,25 @@ class ContextLoaderSettingsTests {
     }
 
     @Test
+    void romanceStyleScoreIsLoadedSeparatelyFromRelationshipTemperatureScore() {
+        Fixture fixture = fixture();
+        Character character = new Character();
+        character.setId(1L);
+        character.setRomanceStyleScore(90);
+        when(fixture.characterRepository.findById(1L)).thenReturn(Optional.of(character));
+        Relationship relationship = new Relationship();
+        relationship.setCharacterId(1L);
+        relationship.setRelationshipStage("CRUSH");
+        relationship.setRelationshipTemperatureScore(25);
+        when(fixture.relationshipRepository.findByCharacterId(1L)).thenReturn(Optional.of(relationship));
+
+        var context = fixture.loader.load(1L, "안녕", EventAnalysis.fallback(AgentEventType.NORMAL), null);
+
+        assertThat(context.romanceStyleScore()).isEqualTo(90);
+        assertThat(context.relationshipTemperatureScore()).isEqualTo(25);
+    }
+
+    @Test
     void legacyTemperatureEnumIsUsedWhenRelationshipHasNoStoredScore() {
         Fixture fixture = fixture();
         Relationship relationship = new Relationship();
@@ -124,6 +144,7 @@ class ContextLoaderSettingsTests {
                 eq(RelationshipTemperature.NEUTRAL),
                 eq(RelationshipStage.EARLY_DATING),
                 eq(65),
+                eq(50),
                 any(CharacterTraitProfile.class)
         );
     }
@@ -178,6 +199,7 @@ class ContextLoaderSettingsTests {
                 any(),
                 any(),
                 any(),
+                any(),
                 any()
         )).thenReturn(List.of());
         when(memoryRetrievalService.retrieve(
@@ -213,11 +235,12 @@ class ContextLoaderSettingsTests {
                 settingsDefaultPolicy
         );
 
-        return new Fixture(loader, relationshipRepository, traitProfileService, agentSelfStateRepository, characterExampleService);
+        return new Fixture(loader, characterRepository, relationshipRepository, traitProfileService, agentSelfStateRepository, characterExampleService);
     }
 
     private record Fixture(
             ContextLoader loader,
+            CharacterRepository characterRepository,
             RelationshipRepository relationshipRepository,
             CharacterTraitProfileService traitProfileService,
             AgentSelfStateRepository agentSelfStateRepository,

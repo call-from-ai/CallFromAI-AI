@@ -147,6 +147,9 @@ public class ContextLoader {
                 relationship.getRelationshipTemperatureScore(),
                 resolvedTemperature
         );
+        Integer romanceStyleScore = character == null || character.getRomanceStyleScore() == null
+                ? 50
+                : Math.max(0, Math.min(100, character.getRomanceStyleScore()));
 
         AgentSelfState agentSelfState = agentSelfStateRepository.findByCharacterId(characterId)
                 .orElse(null);
@@ -168,6 +171,8 @@ public class ContextLoader {
                 relationshipStage,
 
                 relationshipTemperatureScore,
+
+                romanceStyleScore,
 
                 agentSelfState,
 
@@ -197,6 +202,7 @@ public class ContextLoader {
                         resolvedTemperature,
                         relationshipStage,
                         relationshipTemperatureScore,
+                        romanceStyleScore,
                         characterTraitProfile
                 ),
 

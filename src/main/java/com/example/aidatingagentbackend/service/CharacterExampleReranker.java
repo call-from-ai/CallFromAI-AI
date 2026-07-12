@@ -6,6 +6,7 @@ import com.example.aidatingagentbackend.entity.CharacterExample;
 import com.example.aidatingagentbackend.entity.CharacterTraitProfile;
 import com.example.aidatingagentbackend.entity.RelationshipStage;
 import com.example.aidatingagentbackend.entity.RelationshipTemperatureBand;
+import com.example.aidatingagentbackend.entity.RomanceStyleBand;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -40,22 +41,34 @@ public class CharacterExampleReranker {
             Integer temperatureScore,
             CharacterTraitProfile traits
     ) {
+        return rerank(candidates, eventAnalysis, stage, temperatureScore, 50, traits);
+    }
+
+    public List<CharacterExample> rerank(
+            List<CharacterExample> candidates,
+            EventAnalysis eventAnalysis,
+            RelationshipStage stage,
+            Integer relationshipTemperatureScore,
+            Integer romanceStyleScore,
+            CharacterTraitProfile traits
+    ) {
         if (candidates == null || candidates.isEmpty()) {
             return List.of();
         }
 
         boolean jealousyContext = isJealousyContext(eventAnalysis);
-        RelationshipTemperatureBand band = temperatureScoreResolver.resolveBand(temperatureScore);
+        RelationshipTemperatureBand band = temperatureScoreResolver.resolveBand(relationshipTemperatureScore);
+        RomanceStyleBand romanceBand = RomanceStyleBand.from(romanceStyleScore == null ? 50 : Math.max(0, Math.min(100, romanceStyleScore)));
         Set<CharacterExampleRelevantTraitPolicy.RelevantTrait> relevantTraits = relevantTraitPolicy.select(eventAnalysis);
         List<ScoredExample> scored = candidates.stream()
                 .filter(example -> isActive(example)
                         && matchesStage(example, stage)
-                        && matchesTemperature(example, temperatureScore)
+                        && matchesTemperature(example, relationshipTemperatureScore)
                         && !forbiddenByStage(example, stage)
-                        && !forbiddenByTemperature(example, temperatureScore, jealousyContext))
+                        && !forbiddenByTemperature(example, relationshipTemperatureScore, jealousyContext))
                 .map(example -> new ScoredExample(
                         example,
-                        score(example, eventAnalysis, stage, band, traits, jealousyContext, relevantTraits)
+                        score(example, eventAnalysis, stage, band, romanceBand, traits, jealousyContext, relevantTraits)
                 ))
                 .sorted(Comparator.comparingDouble(ScoredExample::score).reversed()
                         .thenComparing(example -> example.example().getId(), Comparator.nullsLast(Long::compareTo)))
@@ -69,6 +82,7 @@ public class CharacterExampleReranker {
             EventAnalysis eventAnalysis,
             RelationshipStage stage,
             RelationshipTemperatureBand band,
+            RomanceStyleBand romanceStyleBand,
             CharacterTraitProfile traits,
             boolean jealousyContext,
             Set<CharacterExampleRelevantTraitPolicy.RelevantTrait> relevantTraits
@@ -77,6 +91,7 @@ public class CharacterExampleReranker {
         score += eventScore(example, eventAnalysis);
         score += stageScore(example, stage);
         score += toneTagPolicy.score(example.getToneTag(), traits, band, jealousyContext, relevantTraits);
+        if (example.getRomanceStyleBand() == romanceStyleBand) score += 6.0;
         return score;
     }
 

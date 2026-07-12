@@ -7,6 +7,8 @@ import jakarta.persistence.Id;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
+import jakarta.persistence.Column;
+import jakarta.persistence.UniqueConstraint;
 import jakarta.persistence.Version;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -15,7 +17,8 @@ import lombok.Setter;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "agent_self_states")
+@Table(name = "agent_self_states", uniqueConstraints =
+        @UniqueConstraint(name = "uk_agent_self_state_character", columnNames = "character_id"))
 @Getter
 @Setter
 @NoArgsConstructor
@@ -28,6 +31,7 @@ public class AgentSelfState {
     @Version
     private Long version;
 
+    @Column(name = "character_id", nullable = false)
     private Long characterId;
 
     private Double affection;

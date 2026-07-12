@@ -2,6 +2,9 @@ package com.example.aidatingagentbackend.service;
 
 import com.example.aidatingagentbackend.dto.CharacterRequest;
 import com.example.aidatingagentbackend.dto.PersonalityTraitSelection;
+import com.example.aidatingagentbackend.dto.CharacterTraitsRequest;
+import com.example.aidatingagentbackend.entity.CharacterTraitProfile;
+import com.example.aidatingagentbackend.entity.Mbti;
 import com.example.aidatingagentbackend.entity.Character;
 import com.example.aidatingagentbackend.entity.PersonalityKeyword;
 import com.example.aidatingagentbackend.entity.RelationshipStage;
@@ -20,6 +23,9 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.verify;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.argThat;
 
 class CharacterServiceCreatePolicyTests {
 
@@ -52,6 +58,28 @@ class CharacterServiceCreatePolicyTests {
         CharacterRequest above = valid(); above.setSpiceLevel(101);
         assertThatThrownBy(() -> service.create(below)).isInstanceOf(ResponseStatusException.class);
         assertThatThrownBy(() -> service.create(above)).isInstanceOf(ResponseStatusException.class);
+    }
+
+    @Test
+    void traitUpdatePreservesNewPriorityAndUsesStoredCharacterMbti() {
+        CharacterRepository characters = mock(CharacterRepository.class);
+        Character character = new Character(); character.setId(7L); character.setMbti(Mbti.ENFJ);
+        when(characters.findById(7L)).thenReturn(java.util.Optional.of(character));
+        CharacterTraitProfileService profiles = mock(CharacterTraitProfileService.class);
+        CharacterTraitProfile profile = new CharacterTraitProfile(); profile.setCharacterId(7L);
+        when(profiles.saveForCharacter(eq(7L), any(), eq(Mbti.ENFJ))).thenReturn(profile);
+        CharacterService service = new CharacterService(characters, profiles,
+                mock(AgentSelfStateRepository.class), mock(RelationshipRepository.class));
+        CharacterTraitsRequest request = new CharacterTraitsRequest();
+        request.setTraits(List.of(s(PersonalityKeyword.PLAYFUL, 1), s(PersonalityKeyword.HUMOROUS, 2)));
+
+        service.updateTraits(7L, request);
+
+        verify(profiles).saveForCharacter(eq(7L), argThat(items ->
+                items.size() == 2
+                        && items.get(0).getTrait() == PersonalityKeyword.PLAYFUL && items.get(0).getPriority() == 1
+                        && items.get(1).getTrait() == PersonalityKeyword.HUMOROUS && items.get(1).getPriority() == 2),
+                eq(Mbti.ENFJ));
     }
 
     private CharacterService service() {

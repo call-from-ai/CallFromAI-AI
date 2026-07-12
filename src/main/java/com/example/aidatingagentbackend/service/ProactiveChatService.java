@@ -121,6 +121,7 @@ public class ProactiveChatService {
                     reply,
                     context.relationshipTemperature(),
                     context.relationshipTemperatureScore(),
+                    context.romanceStyleScore(),
                     context.characterTraitProfile(),
                     context.relationshipStage(),
                     context.agentSelfState()
@@ -156,6 +157,7 @@ public class ProactiveChatService {
                 .characterTraitProfile(context.characterTraitProfile())
                 .relationshipStage(context.relationshipStage())
                 .relationshipTemperatureScore(context.relationshipTemperatureScore())
+                .romanceStyleScore(context.romanceStyleScore())
                 .agentSelfState(context.agentSelfState())
                 .agentProfile(context.agentProfile())
                 .agentWorldState(context.agentWorldState())

@@ -79,6 +79,7 @@ public class PromptBuilder {
         private CharacterTraitProfile characterTraitProfile;
         private RelationshipStage relationshipStage = RelationshipStage.CRUSH;
         private Integer relationshipTemperatureScore = 50;
+        private Integer romanceStyleScore = 50;
         private AgentSelfState agentSelfState;
         private AgentProfile agentProfile;
         private AgentWorldState agentWorldState;
@@ -129,6 +130,11 @@ public class PromptBuilder {
             this.relationshipTemperatureScore = relationshipTemperatureScore == null
                     ? 50
                     : Math.max(0, Math.min(100, relationshipTemperatureScore));
+            return this;
+        }
+
+        public Builder romanceStyleScore(Integer romanceStyleScore) {
+            this.romanceStyleScore = romanceStyleScore == null ? 50 : Math.max(0, Math.min(100, romanceStyleScore));
             return this;
         }
 
@@ -257,7 +263,8 @@ public class PromptBuilder {
             }
             if (relationship != null) {
                 appendInline(prompt, "Stage", relationshipStage);
-                appendInline(prompt, "TemperatureBand", temperatureBandLabel());
+                appendInline(prompt, "RelationshipDistanceBand", temperatureBandLabel());
+                appendInline(prompt, "RomanceStyleBand", romanceStyleBandLabel());
                 appendInline(prompt, "Conflict", qualitativeLevel(relationship.getConflictLevel(), 30, 65));
                 appendInline(prompt, "BreakupRisk", qualitativeLevel(relationship.getBreakupRisk(), 25, 60));
             }
@@ -288,8 +295,8 @@ public class PromptBuilder {
         }
 
         private void appendTemperatureBehavior(StringBuilder prompt) {
-            prompt.append("[Temperature Behavior]\n");
-            int score = relationshipTemperatureScore == null ? 50 : relationshipTemperatureScore;
+            prompt.append("[Romance Expression Style]\n");
+            int score = romanceStyleScore == null ? 50 : romanceStyleScore;
             if (score <= 20) {
                 prompt.append("- 차분하고 안정적인 말투를 유지한다.\n");
                 prompt.append("- 짧은 배려를 사용하고 과한 플러팅은 제한한다.\n");
@@ -304,7 +311,7 @@ public class PromptBuilder {
                 prompt.append("- 짧고 자신감 있는 문장, 도발, 밀당, 리드하는 태도를 사용할 수 있다.\n");
                 prompt.append("- 현재 실제 hurt가 높으면 바로 쉽게 풀리지 않을 수 있다.\n");
             }
-            prompt.append("- 높은 temperature라도 매 응답을 도발적으로 만들지 말고 현재 message와 감정 상태를 우선한다.\n");
+            prompt.append("- 높은 romance style이라도 매 응답을 도발적으로 만들지 말고 현재 관계 거리와 감정 상태를 우선한다.\n");
             prompt.append("- 모욕, 협박, 강압, 통제, 자해 협박, 과도한 죄책감 유발, 현실의 고립 유도는 금지한다.\n\n");
         }
 
@@ -532,6 +539,15 @@ public class PromptBuilder {
                 return "active";
             }
             return "spicy-leading";
+        }
+
+        private String romanceStyleBandLabel() {
+            int score = romanceStyleScore == null ? 50 : romanceStyleScore;
+            if (score <= 20) return "mild";
+            if (score <= 40) return "soft";
+            if (score <= 60) return "balanced";
+            if (score <= 80) return "spicy";
+            return "extra-spicy";
         }
 
         private String qualitativeLevel(Integer value, int medium, int high) {

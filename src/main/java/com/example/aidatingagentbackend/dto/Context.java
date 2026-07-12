@@ -33,6 +33,8 @@ public record Context(
 
         Integer relationshipTemperatureScore,
 
+        Integer romanceStyleScore,
+
         AgentSelfState agentSelfState,
 
         AgentProfile agentProfile,
@@ -62,4 +64,22 @@ public record Context(
         List<ChatMessage> history
 
 ) {
+    /** Compatibility constructor for callers created before romanceStyleScore was separated. */
+    public Context(
+            Character character, State state, Relationship relationship,
+            CharacterTraitProfile characterTraitProfile, RelationshipStage relationshipStage,
+            Integer relationshipTemperatureScore, AgentSelfState agentSelfState,
+            AgentProfile agentProfile, AgentWorldState agentWorldState, AgentGoal agentGoal,
+            AgentInitiative agentInitiative, RelationshipTemperature relationshipTemperature,
+            List<AgentLifeEvent> agentLifeEvents, List<ConversationEvent> conversationEvents,
+            PreferenceQuestionPlan preferenceQuestionPlan, ConversationTopicPlan conversationTopicPlan,
+            List<CharacterPreference> characterPreferences, List<CharacterExample> characterExamples,
+            List<Memory> memories, List<ChatMessage> history
+    ) {
+        this(character, state, relationship, characterTraitProfile, relationshipStage,
+                relationshipTemperatureScore, 50, agentSelfState, agentProfile, agentWorldState,
+                agentGoal, agentInitiative, relationshipTemperature, agentLifeEvents, conversationEvents,
+                preferenceQuestionPlan, conversationTopicPlan, characterPreferences, characterExamples,
+                memories, history);
+    }
 }

@@ -119,6 +119,7 @@ public class AIProcessingService {
                 .characterTraitProfile(context.characterTraitProfile())
                 .relationshipStage(context.relationshipStage())
                 .relationshipTemperatureScore(context.relationshipTemperatureScore())
+                .romanceStyleScore(context.romanceStyleScore())
                 .agentSelfState(context.agentSelfState())
                 .agentProfile(context.agentProfile())
                 .agentWorldState(context.agentWorldState())
@@ -196,6 +197,7 @@ public class AIProcessingService {
                 reply,
                 context.relationshipTemperature(),
                 context.relationshipTemperatureScore(),
+                context.romanceStyleScore(),
                 context.characterTraitProfile(),
                 context.relationshipStage(),
                 context.agentSelfState()

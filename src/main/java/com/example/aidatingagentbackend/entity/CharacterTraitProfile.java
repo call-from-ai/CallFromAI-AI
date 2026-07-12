@@ -14,6 +14,7 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -25,7 +26,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Entity
-@Table(name = "character_trait_profiles")
+@Table(name = "character_trait_profiles", uniqueConstraints =
+        @UniqueConstraint(name = "uk_trait_profile_character", columnNames = "character_id"))
 @Getter
 @Setter
 @NoArgsConstructor
@@ -35,6 +37,7 @@ public class CharacterTraitProfile {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(name = "character_id", nullable = false)
     private Long characterId;
 
     @ElementCollection(fetch = FetchType.EAGER)
@@ -47,7 +50,12 @@ public class CharacterTraitProfile {
     private Set<PersonalityKeyword> personalityKeywords = new LinkedHashSet<>();
 
     @ElementCollection(fetch = FetchType.EAGER)
-    @CollectionTable(name = "character_trait_selections", joinColumns = @JoinColumn(name = "character_trait_profile_id"))
+    @CollectionTable(name = "character_trait_selections",
+            joinColumns = @JoinColumn(name = "character_trait_profile_id", nullable = false),
+            uniqueConstraints = {
+                    @UniqueConstraint(name = "uk_trait_selection_keyword", columnNames = {"character_trait_profile_id", "trait"}),
+                    @UniqueConstraint(name = "uk_trait_selection_priority", columnNames = {"character_trait_profile_id", "priority"})
+            })
     private List<SelectedPersonalityTrait> selectedTraits = new ArrayList<>();
 
     private Integer humor;

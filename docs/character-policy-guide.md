@@ -110,6 +110,14 @@ speechStyle, spiceLevel은 Trait 계산 입력이 아니며 HOMEBODY도 lifeType
 priority를 뒤집으면 -5.4와 +8이 되어 결과도 달라진다. 선택과 priority는
 `character_trait_selections`에 보존된다.
 
+### V2 migration deployment note
+
+`V2__character_policy_constraints.sql`은 기존 중복 데이터를 자동 삭제하지 않는다. 배포 전에
+`character_trait_profiles.character_id`, `relationships.character_id`, `agent_self_states.character_id` 중복과
+동일 profile의 trait/priority 중복을 점검해야 한다. 중복이 있으면 migration은 의도적으로 실패한다.
+`romance_style_score`와 legacy `relationship_temperature_score`는 서로 다른 값이며 Context와 prompt에서도
+별도 필드로 전달한다.
+
 ## 4. PersonalityKeyword → Trait 정책
 
 모든 trait 기본값은 5다. 아래 delta를 중복 제거된 `LinkedHashSet` 순서로 합산한 뒤 각 trait를 0~10 clamp한다.

@@ -82,16 +82,22 @@ public class PersonalityTraitResolver {
 
     private static void applyMbti(Map<TraitKey, Double> v, Mbti mbti) {
         if (mbti == null) return;
+        EnumMap<TraitKey, Double> delta = new EnumMap<>(TraitKey.class);
+        for (TraitKey key : TraitKey.values()) delta.put(key, 0.0);
         String type = mbti.name();
-        add(v, TraitKey.EXPRESSIVENESS, type.charAt(0) == 'E' ? 1 : -1);
-        add(v, type.charAt(0) == 'E' ? TraitKey.PLAYFULNESS : TraitKey.EMPATHY, .5);
-        add(v, type.charAt(0) == 'E' ? TraitKey.DOMINANCE : TraitKey.ATTACHMENT, .5);
-        if (type.charAt(1) == 'N') { add(v, TraitKey.HUMOR, .5); add(v, TraitKey.PLAYFULNESS, .5); }
-        else { add(v, TraitKey.EMPATHY, .5); add(v, TraitKey.EMOTIONAL_STABILITY, .5); }
-        if (type.charAt(2) == 'T') { add(v, TraitKey.EMOTIONAL_STABILITY, .5); add(v, TraitKey.EMPATHY, -.5); }
-        else { add(v, TraitKey.EMPATHY, 1); add(v, TraitKey.EXPRESSIVENESS, .5); }
-        if (type.charAt(3) == 'J') { add(v, TraitKey.DOMINANCE, .5); add(v, TraitKey.EMOTIONAL_STABILITY, .5); }
-        else { add(v, TraitKey.PLAYFULNESS, .5); add(v, TraitKey.HUMOR, .5); }
+        add(delta, TraitKey.EXPRESSIVENESS, type.charAt(0) == 'E' ? 1 : -1);
+        add(delta, type.charAt(0) == 'E' ? TraitKey.PLAYFULNESS : TraitKey.EMPATHY, .5);
+        add(delta, type.charAt(0) == 'E' ? TraitKey.DOMINANCE : TraitKey.ATTACHMENT, .5);
+        if (type.charAt(1) == 'N') { add(delta, TraitKey.HUMOR, .5); add(delta, TraitKey.PLAYFULNESS, .5); }
+        else { add(delta, TraitKey.EMPATHY, .5); add(delta, TraitKey.EMOTIONAL_STABILITY, .5); }
+        if (type.charAt(2) == 'T') { add(delta, TraitKey.EMOTIONAL_STABILITY, .5); add(delta, TraitKey.EMPATHY, -.5); }
+        else { add(delta, TraitKey.EMPATHY, 1); add(delta, TraitKey.EXPRESSIVENESS, .5); }
+        if (type.charAt(3) == 'J') { add(delta, TraitKey.DOMINANCE, .5); add(delta, TraitKey.EMOTIONAL_STABILITY, .5); }
+        else { add(delta, TraitKey.PLAYFULNESS, .5); add(delta, TraitKey.HUMOR, .5); }
+        for (TraitKey key : TraitKey.values()) {
+            double clampedDelta = Math.max(-1.0, Math.min(1.0, delta.get(key)));
+            add(v, key, clampedDelta);
+        }
     }
 
     private static void add(Map<TraitKey, Double> values, TraitKey key, double delta) {
