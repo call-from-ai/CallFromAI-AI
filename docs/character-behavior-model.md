@@ -1,365 +1,173 @@
 # RomanticAgent Character Behavior Model
 
-## Current Architecture
+> 기준: 2026-07-13의 런타임 코드. 이 문서는 캐릭터 행동 모델의 계층과 데이터 소유권을 정의한다.
 
-The current AI-side pipeline keeps character behavior as a layered model:
+## 1. 모델 개요
 
-1. Character core profile
-2. Relationship settings
-3. Agent self emotion state
-4. Event and message signal analysis
-5. Memory and style example retrieval
-6. Prompt behavior policy
-7. LLM generation
-8. Post-processing and quality evaluation
+```text
+백엔드 snapshot(character + relationship + history + message)
+→ 사건·signal 분석
+→ AgentSelfState 갱신
+→ 관계 변화 계산
+→ AI 파생 context(world/goal/life/event/preference)
+→ Memory 사실 검색 + CharacterExample 스타일 검색
+→ prompt 생성
+→ LLM 생성·후처리·선택적 품질 평가
+→ reply + 관계/self-state/event 결과 반환
+```
 
-The implementation is intentionally incremental. It does not mirror the future service backend ERD inside this project.
+백엔드는 캐릭터와 관계의 원본, 채팅·통화 원문, 사용자와 전송 스케줄을 소유한다. AI 서버는 이 원본을 로컬에 복제하지 않고 매 요청 snapshot을 계산 기준으로 사용한다. AI DB에는 캐릭터 행동을 연속적으로 만들기 위한 파생 데이터만 저장한다.
 
-## Source Of Truth
+## 2. Source of truth
 
-| Domain | Source of truth | Notes |
+| 도메인 | Source of truth | AI 서버 처리 |
 | --- | --- | --- |
-| Character core personality | `PersonalityKeyword`, `CharacterTraitProfile` | Keywords are user/config input. `CharacterTraitProfile` stores calculated final trait values. |
-| Calculated traits | `CharacterTraitProfile` | Recalculated only when settings are saved. Chat requests reuse stored values. |
-| Relationship stage | `Relationship.relationshipStage` | Defaults to `CRUSH` only in context when missing. |
-| Relationship temperature | `Relationship.relationshipTemperatureScore` | 0-100 source of truth. Legacy enum is adapter input. |
-| Current agent self emotion | `AgentSelfState` | Multidimensional self state used before response generation. |
-| Representative emotion | `State.emotion` | Legacy/current representative state. |
-| Relationship metrics | `Relationship` | Trust, closeness, conflict, repair, breakup risk. |
-| Past facts | `Memory` | Actual extracted user/conversation facts. |
-| Style examples | `CharacterExample` | Style reference only, never factual memory. |
+| 캐릭터 정체성 | 요청의 `CharacterSnapshot` | prompt 입력으로만 사용, 원본 저장 없음 |
+| 최종 trait 10개 | `CharacterSnapshot.traits` | 0~10 필수 검증 후 감정·검색·prompt·후처리에 사용 |
+| 관계 단계·온도·수치 | 요청의 `RelationshipSnapshot` | 다음 관계와 delta 계산, 원본 저장 없음 |
+| 대화 원문 | 요청의 `history`와 `message` | 현재 요청 context로만 사용, 메시지 행 저장 없음 |
+| 현재 AI 감정 | AI 파생 `AgentSelfState` | 매 처리 전 갱신·로그 저장 |
+| 과거 사실 | AI 파생 `Memory` | 검색·prompt 및 응답 후 선택적 생성 |
+| 말투 예시 | AI 파생 `CharacterExample` | 현재 사건·stage·score·trait에 맞춰 선별 |
+| 생활·목표·사건·취향 | AI 파생 world/goal/life/event/preference 데이터 | prompt context와 proactive 정책에 사용 |
 
-## PersonalityKeyword To Trait Mapping
+AI 서버는 최종 trait를 자체 계산하지 않는다. 백엔드가 키워드나 MBTI를 어떤 방식으로 관리하든 AI 요청에는 이미 계산된 10개 값이 모두 있어야 한다. 누락 fallback은 없다.
 
-`PersonalityTraitResolver` maps keywords to a bounded `CharacterTrait`:
+## 3. Character snapshot
 
-- `HUMOROUS`, `DAD_JOKE`, `QUIRKY`: raise humor.
-- `PLAYFUL`, `TEASING`, `SMOOTH`: raise playfulness/confidence.
-- `CUTE`, `EXPRESSIVE`, `NICKNAME_LOVER`, `COMPLIMENT_GIVER`: raise affection/expressiveness.
-- `GOOD_LISTENER`: raises empathy and emotional stability.
-- `HIGH_JEALOUSY`, `OPENLY_JEALOUS`, `POSSESSIVE`: raise jealousy and attachment.
-- `CLINGY`, `FREQUENT_CONTACT_CHECKER`: raise attachment.
-- `EASY_GOING`, `HOMEBODY`: raise emotional stability or low-pressure behavior.
-- `SHY`, `TSUNDERE`: reduce direct expressiveness/confidence while preserving affection.
+`CharacterSnapshot`은 다음 계층으로 사용된다.
 
-All final values are clamped to 0-10 and stored in `CharacterTraitProfile`.
+- identity: `characterId`, `name`, `mind`, `responseStyle`, `job`, `lifeType`
+- romance style: `romanceStyleScore` 0~100
+- final traits: humor, playfulness, affection, empathy, attachment, jealousy, dominance, confidence, expressiveness, emotionalStability 각각 0~10
+- optional metadata: `calculationVersion`
 
-## CharacterTrait Definition
+trait는 사건 자체를 생성하지 않고 이미 감지된 상황에 대한 반응 크기와 표현을 조절한다.
 
-Traits:
+| 행동 축 | 주 영향 trait |
+| --- | --- |
+| 농담·장난 | humor, playfulness |
+| 애정·공감 | affection, empathy |
+| 관계 위협 민감도 | attachment, jealousy |
+| 주도적 표현 | dominance, confidence |
+| 직접성·감정 회복 | expressiveness, emotionalStability |
 
-- `humor`
-- `playfulness`
-- `affection`
-- `empathy`
-- `attachment`
-- `jealousy`
-- `dominance`
-- `confidence`
-- `expressiveness`
-- `emotionalStability`
+`TraitInstructionResolver`는 주로 8 이상과 2 이하에서 명시적 행동 지시를 만든다. `EmotionTraitModifier`는 affection, attachment, jealousy, emotionalStability를 관련 사건 delta에 적용한다. 질투 trait는 실제 경쟁·질투 문맥이 없으면 질투 감정을 만들지 않는다.
 
-Runtime components should use `CharacterTraitProfile` when present. If a future backend sends both `personalityKeywords` and final `characterTraits`, final `characterTraits` should win. Keywords can be used for consistency checks or fallback calculation.
+## 4. Relationship model
 
-## RelationshipStage
+canonical stage는 `CRUSH`, `DATING`, `DEEP_LOVE`다.
 
-- `CRUSH`: allows interest, limits strong lover language, excessive nicknames, and possessive wording.
-- `EARLY_DATING`: allows affection, flirting, nicknames, and call suggestions.
-- `LONG_TERM`: favors daily care, schedule awareness, comfortable teasing, and less exaggerated excitement.
+- `CRUSH`: 약한 호감은 허용하지만 강한 연인·애칭·소유 표현을 제한한다.
+- `DATING`: 자연스러운 애정, 플러팅, 애칭과 전화 제안 텍스트를 허용한다.
+- `DEEP_LOVE`: 안정된 친밀감, 일상 배려, 편안한 장난을 우선한다.
 
-`RelationshipStageEmotionPolicy` also modifies emotion deltas:
+호환 입력인 `EARLY_DATING`, `LONG_TERM`은 각각 `DATING`, `DEEP_LOVE`로 변환된다.
 
-- CRUSH can be slightly more sensitive to low-severity coldness.
-- EARLY_DATING can amplify positive affection and severe breakup hurt.
-- LONG_TERM reduces overreaction to low-severity delayed/cold replies.
+`relationshipTemperatureScore`는 0~100 관계 표현 온도다.
 
-## Relationship Temperature
+- 0~20: calm
+- 21~40: friendly affection
+- 41~60: playful flirting
+- 61~80: active affection
+- 81~100: spicy leading
 
-`relationshipTemperatureScore` is 0-100:
+`romanceStyleScore`는 캐릭터의 연애 표현 강도이므로 관계 온도와 별개다. `RelationshipStrategy.CONFLICT_REPAIR`도 온도값이 아니라 갈등 회복 상황 전략이다.
 
-- 0-20: calm, stable, short care, low flirting.
-- 21-40: warm and gentle affection.
-- 41-60: playful, light flirting.
-- 61-80: active affection, stronger teasing, jealousy only when context supports it.
-- 81-100: confident, leading, teasing, and direct style, without abuse or coercion.
+`RelationshipEngine`은 요청 snapshot의 trust, closeness, conflictLevel, repairProgress, breakupRisk를 기준으로 `EventAnalysis` 또는 키워드 규칙을 적용한다. 모든 결과를 0~100으로 clamp하고 `RelationshipDelta`와 `nextRelationship`을 반환한다. stage, 온도, daysTogether는 자동 변경하지 않는다.
 
-Legacy `RelationshipTemperature` enum remains:
+## 5. Event and AgentSelfState
 
-- `FRIENDLY`: legacy input/style compatibility, maps to score 35.
-- `NEUTRAL`: legacy input/style compatibility, maps to score 50.
-- `SPICY`: legacy input/style compatibility, maps to score 85.
-- `CONFLICT_REPAIR`: situation strategy, maps to score 50 but is not a temperature band.
+사건 분류는 다음 일곱 가지다.
 
-`CONFLICT_REPAIR` must remain a repair strategy and not become a score band.
+- `BREAKUP_DECLARATION`
+- `BREAKUP_RETRACTION`
+- `APOLOGY`
+- `AFFECTION`
+- `INSULT`
+- `IGNORE_OR_COLD`
+- `NORMAL`
 
-## Emotion Modifier
+`EventAnalyzer`가 eventType, severity, sincerity, isJoke, isManipulative, primaryEmotion, summary를 분석한다. 실패하면 규칙 기반 `EventDetector` 결과를 사용한다.
 
-`EmotionUpdateService` updates `AgentSelfState` before response generation. It calls:
+현재 감정 모델은 `AgentSelfState`로 통합되어 있다. affection, trust, hurt, anger, insecurity, disappointment, emotionalDistance와 대표 텍스트 상태를 가지며 수치는 0~1이다. 매 처리에서 시간 decay → base event delta → trait modifier → stage modifier → signal transition → clamp → log 저장 순서로 갱신한다.
 
-- `EventAnalyzer` with rule fallback
-- `MessageSignalDetector`
-- `EmotionTraitModifier`
-- `RelationshipStageEmotionPolicy`
-- `AgentSelfStateLog`
-- `ReflectionCandidateService`
+응답 전후 상태는 각각 `previousAgentSelfState`, `nextAgentSelfState`로 노출된다. 이 상태와 로그는 AI 파생 데이터이며 관계 원본 수치와는 별도다.
 
-Traits do not invent emotions. They only modify event deltas when relevant.
+## 6. AI-owned derived context
 
-Examples:
+| 모델 | 역할 |
+| --- | --- |
+| `AgentWorldState` | 시간대와 현재 활동·위치·mood·energy·stress·loneliness를 구성한다. |
+| `AgentGoal` | 현재 관계와 상태에 맞는 활성 목표를 선택한다. |
+| `AgentLifeEvent` | 캐릭터 생활 유형에 맞는 과거/당일 생활 사건을 제공한다. |
+| `ConversationEvent` | 중요한 대화 signal 또는 높은 severity 사건을 공유 사건으로 남긴다. |
+| `CharacterPreference` | 대화 중 정한 캐릭터 취향을 일관되게 재사용한다. |
+| `TurningPoint` | 고백, 첫 데이트, 갈등, 회복, 기념일, 이별 위험을 요약한다. |
+| `ResponseQualityEvaluation` | 필요한 상황에서 답변의 self-state·경계·안전 적합도를 평가한다. |
 
-- Attachment amplifies relationship-threat sensitivity.
-- Jealousy applies only when the event analysis indicates jealousy/competition.
-- Emotional stability reduces negative overreaction and improves decay/recovery.
-- High-severity breakup is still preserved even in stable or long-term relationships.
+이 데이터는 백엔드의 캐릭터·관계·채팅 테이블을 대체하지 않는다.
 
-## CharacterExample Retrieval
+## 7. Memory RAG
 
-`CharacterExample` remains a style reference:
-
-- Candidate query uses `characterId` and current `eventType`.
-- Java reranking applies stage, temperature score, relevant traits, tone tag, priority, duplicate removal, and diversity.
-- Fallback uses legacy enum-based search.
-- Empty result is valid.
-
-Prompt rules explicitly state that examples are not facts and must not be copied verbatim.
-
-## Memory Retrieval
-
-`MemoryRetrievalService` keeps the original scoring structure:
+`MemoryRetrievalService`는 해당 `characterId`의 `Memory`를 다음 신호로 점수화한다.
 
 ```text
-score =
-  importance * 0.5
-  + cosineSimilarity * 70
-  + emotionBonus
-  + tokenOverlap
-  - recentUsePenalty
-  + traitBonus
-  + stageBonus
+importance * 0.5
++ cosine similarity * 70
++ emotion bonus
++ token overlap
+- recent-use penalty
++ trait bonus (최대 6)
++ stage bonus (최대 2)
 ```
 
-Trait and stage are weak signals only:
+최대 5개를 조회하지만 prompt에는 가장 높은 1개만 최대 140자로 넣는다. memory는 공유 사실이며 문체 예시가 아니다. 응답 후 `MemoryEngine`이 중요하다고 판단한 대화만 요약·embedding으로 저장한다.
 
-- trait bonus max: 6.0
-- stage bonus max: 2.0
+## 8. CharacterExample RAG
 
-Attachment, empathy, jealousy, and affection can lightly boost relevant memories. Jealousy bonus requires an actual jealousy/competition event. Memory is factual context; it is not style guidance.
+`CharacterExample`은 스타일 참고 전용이다. 현재 event type으로 후보를 찾고 다음 신호로 rerank한다.
 
-## Prompt Behavior
+- relationship stage
+- relationship temperature score
+- romance style band
+- relevant trait와 tone tag
+- priority, duplicate 제거, 다양성
 
-`PromptBuilder` orders prompt sections as:
+최대 5개를 prompt에 제공한다. 일치 결과가 없으면 호환용 relationship-temperature 검색을 사용한다. 예시의 내용을 실제 과거 사실로 말하거나 그대로 복사하면 안 된다.
 
-1. System rules
-2. Character identity
-3. Relationship context
-4. RelationshipStage behavior
-5. Temperature behavior
-6. CharacterTrait behavior
-7. AgentSelfState expression strategy
-8. Topic/preference/initiative/life state
-9. Conversation events
-10. Memory
-11. CharacterExample
-12. Chat history
-13. Current user message
+## 9. Prompt and response behavior
 
-`TraitInstructionResolver` converts final calculated traits into behavior instructions and resolves conflicts:
+`PromptBuilder`의 주요 순서는 안전 규칙, character, relationship, stage, temperature, trait, self-state, topic/preference/initiative/life, shared event, memory, example, history, 현재 메시지다.
 
-- affection high + expressiveness low: indirect affection
-- jealousy high + emotional stability high: direct explanation without explosion
-- playfulness high + empathy high: stop joking in serious concern contexts
-- attachment high + long term: avoid overreacting to normal delays
+일반 prompt는 전달된 history의 앞 6개, compact prompt는 앞 4개를 사용하며 순서를 뒤집지 않는다. `EventAnalyzer`는 앞 10개를 본다. 각 prompt history content는 160자로 제한된다.
 
-## Response Style Post Processing
+생성 결과에는 `ResponseStylePostProcessor`가 punctuation, 과도한 질문·웃음, stage에 맞지 않는 강한 애칭, 갈등 회복 표현 등을 조정한다. `ResponseQualityEvaluatorService`가 필요한 사건만 평가하고 낮은 점수이면 동기 경로에서 한 번 재생성할 수 있다.
 
-`ResponseStylePostProcessor` does not create new meaning. It only adjusts:
+성공한 동기 응답은 reply, relationship delta, next relationship, 전후 self state, event analysis를 반환한다. 채팅 원문 저장과 관계 원본 반영은 백엔드 책임이다.
 
-- punctuation
-- informal endings
-- question pileup
-- laugh marker frequency
-- overly strong pet names in CRUSH
-- conflict repair wording
+## 10. Proactive behavior
 
-Existing SPICY behavior remains as compatibility behavior.
+proactive 실행 시점은 백엔드 outbound scheduler가 결정한다. AI 서버는 `/api/chat/proactive/send`로 받은 최신 snapshot을 사용해 짧은 check-in을 계산할 뿐 자체 주기 실행이나 사용자 연결 관리를 하지 않는다.
 
-## Proactive Contact Policy
+`ProactiveContactPolicyService`는 다음 상황을 차단한다.
 
-`ProactiveChatService` sends scheduled proactive messages to connected users, but `ProactiveContactPolicyService` prevents high-pressure proactive contact:
+- hurt가 0.65 이상이고 현재 목표가 관계 회복이 아님
+- anger가 0.65 이상
+- 관계 온도 81 이상, jealousy trait 8 이상이며 회복/check-in 목표가 아님
+- `CRUSH`, 관계 온도 40 이하에서 고압적인 애정·과거 사건 목표
 
-- high hurt blocks proactive contact unless the goal is repair
-- high anger blocks proactive contact
-- high temperature + high jealousy does not force proactive affection
-- CRUSH + low temperature blocks high-pressure affection/past-event goals
+`romanceStyleScore`는 전송 여부가 아니라 문구 강도에만 영향한다.
 
-The policy does not schedule real outbound jobs. Future actual delivery belongs to the service backend `outbound_schedule`.
+## 11. Transport and ownership exclusions
 
-## Current Chat Flow
+AI 서버는 브라우저 직접 호출 경로를 제공하지 않는다. 백엔드가 server-to-server로 호출하고 클라이언트 인증, CORS, chat/call 연결, SSE 중계, 메시지 저장을 담당한다.
 
-```text
-ChatController
--> ChatService
--> AIProcessingService
--> EmotionUpdateService
--> EventAnalyzer / EventDetector fallback
--> AgentSelfState update and log
--> ConversationEventService
--> ContextUpdater
--> AgentWorldStateService
--> AgentGoalService
--> ContextLoader
--> MemoryRetrievalService
--> CharacterExampleService
--> PromptBuilder
--> GeminiService
--> ResponseStylePostProcessor
--> ResponseQualityEvaluatorService when needed
--> ChatMessage save
--> Memory update
-```
+AI 서버가 제공하는 transport는 동기 채팅, streaming 채팅 alias 두 개, proactive send다. 캐릭터·관계 CRUD, 채팅 저장·조회, 내부 timer, 구독 endpoint, call/STT/TTS는 이 모델의 범위가 아니다.
 
-Streaming uses the same context and prompt path, then saves the accumulated answer after completion.
+## 12. Known contract gaps
 
-`ChatService` is now a transport facade. `AIProcessingService` owns the shared AI processing unit:
-
-- `prepare(request, compactPrompt)` updates pre-response state, creates one `Context`, and builds one prompt.
-- synchronous chat calls `process(request)`.
-- streaming chat calls `prepare(...)`, streams with the prepared prompt, then calls `finishGeneratedReply(...)`.
-- both paths reuse the same `Context` for post-processing, quality evaluation, preference persistence, and memory update.
-
-## Performance Notes
-
-Per normal message:
-
-- Gemini response generation: 1 call
-- EventAnalyzer: conditional hybrid call
-- ResponseQualityEvaluator: conditional conflict/safety call
-- Regeneration: only if evaluator score is low
-
-Known repeated reads:
-
-- `EmotionUpdateService`, `AgentWorldStateService`, `AgentGoalService`, `ContextUpdater`, and `ContextLoader` each read relationship/self state for their own transactional updates.
-- Inside `ContextLoader`, resolved relationship, traits, stage, and temperature score are reused by memory/example retrieval and prompt construction.
-- `CharacterTraitProfile` is not recalculated during chat if stored. It is recalculated only on settings save.
-
-## Future Backend ERD Mapping
-
-Recommended mapping:
-
-- `member` -> user
-- `character` -> character core info
-- `character_tag.tag_code` -> `PersonalityKeyword`
-- new `character_trait_profile` -> final `CharacterTrait`
-- `relationship.relationship_stage` -> `RelationshipStage`
-- `relationship.relationship_temperature_score` -> temperature score
-- `relationship.affinity_score` -> relationship affinity
-- `relationship.emotion` -> representative emotion
-- new `relationship_emotion_state` -> `AgentSelfState`
-- `emotion_log` -> emotion state changes
-- `relationship_status` -> recent chat/call time and statistics
-- `chat_room` / `chat_message` -> raw chat
-- `call` / `call_history` / `call_reservation` -> raw call data
-- `outbound_schedule` -> actual proactive contact schedule
-
-This project should not directly read those service backend tables. The backend should pass an AI processing DTO.
-
-## Backend To AI DTO
-
-If both `personalityKeywords` and `characterTraits` are present:
-
-1. use `characterTraits` as calculated truth
-2. use `personalityKeywords` only for fallback or consistency checks
-3. compare `calculationVersion` when available
-
-## AI To Backend DTO
-
-AI response should return:
-
-- generated response
-- event analysis
-- emotion state before/after
-- representative emotion
-- relationship delta
-- detected events
-- memory update intent
-- model metadata
-
-Final persistence belongs to the service backend.
-
-## Chat Sequence Target
-
-```text
-Client
--> Backend saves user chat_message
--> Backend calls AI server
--> AI server handles event/emotion/RAG/prompt/LLM
--> AI server returns result
--> Backend saves assistant chat_message
--> Backend updates relationship
--> Backend updates relationship_emotion_state
--> Backend stores emotion_log
--> Backend sends SSE to client
-```
-
-## Call Sequence Target
-
-```text
-Client WebSocket
--> Backend manages call/session
--> STT utterance
--> Backend calls shared AI processing service
--> AI response
--> TTS
--> WebSocket delivery
--> call summary
--> relationship/emotion updates
--> emotion_log
-```
-
-Chat and call should eventually share an AI processing service that accepts source metadata such as `sourceType`, `sourceMessageId`, and `sourceCallId`.
-
-## Idempotency
-
-Future requests should carry `requestId`.
-
-Backend responsibility:
-
-- prevent duplicate user/assistant message persistence
-- prevent duplicate relationship/emotion log writes
-- own final transaction boundaries
-
-AI server responsibility:
-
-- return deterministic metadata for a given processing request where possible
-- avoid duplicate side-effect writes if it keeps local AI-only stores
-- expose before/after emotion state so backend can apply idempotent updates
-
-Do not add an `AI_PROCESSING_REQUEST` table in this project until ownership is decided.
-
-## Responsibilities To Move To Backend
-
-- user and assistant chat persistence
-- relationship persistence
-- emotion state persistence
-- emotion log persistence
-- outbound schedule execution
-- call/session state
-- idempotency request ledger
-
-## Responsibilities Remaining In AI Server
-
-- event and emotion analysis
-- prompt construction
-- memory retrieval over AI-provided or AI-owned vector context
-- style example selection
-- LLM generation
-- response quality evaluation
-- suggested state deltas
-
-## Open Decisions
-
-- exact DTO versioning and `calculationVersion` format
-- whether backend or AI owns vector memory storage
-- idempotency ledger location
-- proactive contact throttling based on `relationship_status`
-- shared chat/call AI processing API boundaries
+- `requestId`는 echo되지만 중복 실행을 막지 않는다.
+- streaming 결과는 현재 관계 delta와 self-state snapshot을 내보내지 않는다.
+- history 개수, role enum, requestId 형식과 충돌 정책은 확정되지 않았다.
+- AI 파생 데이터의 보존·삭제·복구 정책은 백엔드 팀과 별도 합의가 필요하다.

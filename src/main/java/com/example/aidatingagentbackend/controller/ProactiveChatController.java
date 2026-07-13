@@ -1,7 +1,7 @@
 package com.example.aidatingagentbackend.controller;
 
 import com.example.aidatingagentbackend.dto.ChatResponse;
-import com.example.aidatingagentbackend.dto.ProactiveSendRequest;
+import com.example.aidatingagentbackend.dto.ChatRequest;
 import com.example.aidatingagentbackend.service.ProactiveChatService;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -17,7 +17,8 @@ public class ProactiveChatController {
     }
 
     @PostMapping("/api/chat/proactive/send")
-    public ChatResponse sendNow(@RequestBody ProactiveSendRequest request) {
+    public ChatResponse sendNow(@RequestBody ChatRequest request) {
+        request.validateForProactive();
         return proactiveChatService.sendNow(request);
     }
 }

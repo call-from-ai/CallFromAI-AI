@@ -21,11 +21,13 @@ public class ChatController {
 
     @PostMapping("/chat")
     public ResponseEntity<ChatResponse> chat(@RequestBody ChatRequest request) {
+        request.validateForChat();
         return ResponseEntity.ok(chatService.chat(request));
     }
 
     @PostMapping(value = {"/chat/stream", "/api/chat/stream"}, produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter chatStream(@RequestBody ChatRequest request) {
+        request.validateForChat();
         return chatService.sendMessageStream(request);
     }
 }

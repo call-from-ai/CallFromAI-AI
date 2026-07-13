@@ -1,6 +1,7 @@
 package com.example.aidatingagentbackend.controller;
 
 import com.example.aidatingagentbackend.service.ChatService;
+import com.example.aidatingagentbackend.service.ProactiveChatService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
@@ -14,10 +15,14 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 class SnapshotValidationControllerTests {
     private MockMvc mvc;
+    private MockMvc proactiveMvc;
 
     @BeforeEach
     void setUp() {
         mvc = MockMvcBuilders.standaloneSetup(new ChatController(mock(ChatService.class)))
+                .setControllerAdvice(new GlobalExceptionHandler())
+                .build();
+        proactiveMvc = MockMvcBuilders.standaloneSetup(new ProactiveChatController(mock(ProactiveChatService.class)))
                 .setControllerAdvice(new GlobalExceptionHandler())
                 .build();
     }
@@ -38,6 +43,21 @@ class SnapshotValidationControllerTests {
                 .andExpect(jsonPath("$.status").value(400));
     }
 
+    @Test
+    void missingChatMessageReturns400() throws Exception {
+        mvc.perform(post("/chat").contentType(MediaType.APPLICATION_JSON).content(snapshotPayload(null)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("message is required"));
+    }
+
+    @Test
+    void proactiveAcceptsUnifiedRequestWithoutMessage() throws Exception {
+        proactiveMvc.perform(post("/api/chat/proactive/send")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(snapshotPayload(null)))
+                .andExpect(status().isOk());
+    }
+
     private String payload(String stage, String traits) {
         return "{\"requestId\":\"r1\",\"message\":\"hi\"," +
                 "\"character\":{\"characterId\":10,\"name\":\"hana\",\"romanceStyleScore\":90,\"traits\":" + traits + "}," +
@@ -47,5 +67,13 @@ class SnapshotValidationControllerTests {
 
     private String traits() {
         return "{\"humor\":5,\"playfulness\":5,\"affection\":5,\"empathy\":5,\"attachment\":5,\"jealousy\":5,\"dominance\":5,\"confidence\":5,\"expressiveness\":5,\"emotionalStability\":5}";
+    }
+
+    private String snapshotPayload(String message) {
+        String messageJson = message == null ? "" : ",\"message\":\"" + message + "\"";
+        return "{\"requestId\":\"r1\"" + messageJson + "," +
+                "\"character\":{\"characterId\":10,\"name\":\"hana\",\"romanceStyleScore\":90,\"traits\":" + traits() + "}," +
+                "\"relationship\":{\"relationshipId\":20,\"relationshipStage\":\"DATING\",\"relationshipTemperatureScore\":35," +
+                "\"trust\":50,\"closeness\":50,\"conflictLevel\":20,\"repairProgress\":20,\"breakupRisk\":20,\"daysTogether\":30,\"strategy\":\"NORMAL\"}}";
     }
 }

@@ -28,10 +28,23 @@ class SnapshotBoundaryTests {
 
     @Test
     void proactiveRequestRequiresBothSnapshots() {
-        assertThatThrownBy(() -> new ProactiveSendRequest("r", null, relationship(), List.of()))
+        ChatRequest missingCharacter = request(null, relationship(), null);
+        ChatRequest missingRelationship = request(character(), null, null);
+
+        assertThatThrownBy(missingCharacter::validateForProactive)
                 .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> new ProactiveSendRequest("r", character(), null, List.of()))
+        assertThatThrownBy(missingRelationship::validateForProactive)
                 .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void chatRequiresMessageButProactiveDoesNot() {
+        ChatRequest request = request(character(), relationship(), null);
+
+        assertThatThrownBy(request::validateForChat)
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("message is required");
+        request.validateForProactive();
     }
 
     @Test
@@ -83,5 +96,15 @@ class SnapshotBoundaryTests {
     private RelationshipSnapshot relationship() {
         return new RelationshipSnapshot(20L, RelationshipStage.DATING, 35,
                 50, 50, 20, 20, 20, 30, RelationshipStrategy.NORMAL);
+    }
+
+    private ChatRequest request(CharacterSnapshot character, RelationshipSnapshot relationship, String message) {
+        ChatRequest request = new ChatRequest();
+        request.setRequestId("r");
+        request.setCharacter(character);
+        request.setRelationship(relationship);
+        request.setHistory(List.of());
+        request.setMessage(message);
+        return request;
     }
 }

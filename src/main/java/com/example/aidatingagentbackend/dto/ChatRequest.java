@@ -21,4 +21,34 @@ public class ChatRequest {
     public Long resolveCharacterId() {
         return character == null ? null : character.characterId();
     }
+
+    public void validateForChat() {
+        validateSnapshots();
+        if (message == null || message.isBlank()) {
+            throw new IllegalArgumentException("message is required");
+        }
+    }
+
+    public void validateForProactive() {
+        validateSnapshots();
+    }
+
+    public ChatRequest withMessage(String resolvedMessage) {
+        ChatRequest copy = new ChatRequest();
+        copy.setRequestId(requestId);
+        copy.setCharacter(character);
+        copy.setRelationship(relationship);
+        copy.setHistory(history == null ? List.of() : List.copyOf(history));
+        copy.setMessage(resolvedMessage);
+        return copy;
+    }
+
+    private void validateSnapshots() {
+        if (character == null) {
+            throw new IllegalArgumentException("character snapshot is required");
+        }
+        if (relationship == null) {
+            throw new IllegalArgumentException("relationship snapshot is required");
+        }
+    }
 }

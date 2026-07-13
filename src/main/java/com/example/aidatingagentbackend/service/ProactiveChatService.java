@@ -2,7 +2,6 @@ package com.example.aidatingagentbackend.service;
 
 import com.example.aidatingagentbackend.dto.ChatRequest;
 import com.example.aidatingagentbackend.dto.ChatResponse;
-import com.example.aidatingagentbackend.dto.ProactiveSendRequest;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -26,13 +25,9 @@ public class ProactiveChatService {
         this.proactiveContactPolicyService = proactiveContactPolicyService;
     }
 
-    public ChatResponse sendNow(ProactiveSendRequest request) {
-        ChatRequest chatRequest = new ChatRequest();
-        chatRequest.setRequestId(request.requestId());
-        chatRequest.setCharacter(request.character());
-        chatRequest.setRelationship(request.relationship());
-        chatRequest.setHistory(request.history());
-        chatRequest.setMessage(PROACTIVE_SEED);
+    public ChatResponse sendNow(ChatRequest request) {
+        request.validateForProactive();
+        ChatRequest chatRequest = request.withMessage(PROACTIVE_SEED);
 
         AIProcessingService.PreparedAIProcessing prepared = aiProcessingService.prepare(chatRequest, true);
         if (!proactiveContactPolicyService.shouldSend(prepared.context())) {
@@ -42,7 +37,7 @@ public class ProactiveChatService {
         String generated = geminiService.generate(prepared.prompt());
         String reply = aiProcessingService.finishGeneratedReply(prepared, generated, true);
         ChatResponse response = new ChatResponse(reply);
-        response.setRequestId(request.requestId());
+        response.setRequestId(request.getRequestId());
         response.setRelationshipDelta(prepared.relationshipUpdate().delta());
         response.setNextRelationship(prepared.relationshipUpdate().nextRelationship());
         response.setPreviousAgentSelfState(prepared.emotionUpdateResult().previousState());
