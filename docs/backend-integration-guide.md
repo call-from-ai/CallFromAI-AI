@@ -1,12 +1,15 @@
 # AI 서버 백엔드 연동 가이드
-
+> 아직 미완성
 > 기준: 2026-07-13의 `ChatController`, `ProactiveChatController`, DTO, `ContextLoader`, `GlobalExceptionHandler` 실제 코드.
 
 ## 1. 아키텍처 한 줄 요약
 
+
 백엔드는 채팅·통화·사용자·캐릭터·관계 원본과 전송 일정을 소유하고, AI 서버는 매 요청 직전의 `character + relationship + history (+ message)` snapshot을 받아 답변과 계산 결과만 반환하는 request 단위 계산 서버다.
 
 단, AI 서버는 행동 연속성을 위한 AI 전용 파생 데이터(`AgentSelfState`, Memory/RAG, world/goal/event/preference 등)를 `characterId` 기준으로 유지한다. 캐릭터·관계·채팅 원본을 AI DB에 복제하지 않는다는 의미의 snapshot 경계이며, 프로세스가 완전히 무상태라는 뜻은 아니다.
+
+
 
 ## 2. 엔드포인트
 
