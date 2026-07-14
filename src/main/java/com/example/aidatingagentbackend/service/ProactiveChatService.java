@@ -14,18 +14,25 @@ public class ProactiveChatService {
     private final AIProcessingService aiProcessingService;
     private final GeminiService geminiService;
     private final ProactiveContactPolicyService proactiveContactPolicyService;
+    private final RequestIdempotencyService requestIdempotencyService;
 
     public ProactiveChatService(
             AIProcessingService aiProcessingService,
             GeminiService geminiService,
-            ProactiveContactPolicyService proactiveContactPolicyService
+            ProactiveContactPolicyService proactiveContactPolicyService,
+            RequestIdempotencyService requestIdempotencyService
     ) {
         this.aiProcessingService = aiProcessingService;
         this.geminiService = geminiService;
         this.proactiveContactPolicyService = proactiveContactPolicyService;
+        this.requestIdempotencyService = requestIdempotencyService;
     }
 
     public ChatResponse sendNow(ChatRequest request) {
+        return requestIdempotencyService.execute(request, () -> process(request));
+    }
+
+    private ChatResponse process(ChatRequest request) {
         request.validateForProactive();
         ChatRequest chatRequest = request.withMessage(PROACTIVE_SEED);
 

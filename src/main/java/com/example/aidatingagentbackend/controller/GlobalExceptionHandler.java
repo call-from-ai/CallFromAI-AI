@@ -1,6 +1,7 @@
 package com.example.aidatingagentbackend.controller;
 
 import com.example.aidatingagentbackend.dto.ErrorResponse;
+import com.example.aidatingagentbackend.exception.RequestIdConflictException;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -13,6 +14,11 @@ import java.time.Instant;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+    @ExceptionHandler(RequestIdConflictException.class)
+    public ResponseEntity<ErrorResponse> conflict(RequestIdConflictException exception, HttpServletRequest request) {
+        return response(HttpStatus.CONFLICT, exception.getMessage(), request);
+    }
+
     @ExceptionHandler({HttpMessageNotReadableException.class, IllegalArgumentException.class})
     public ResponseEntity<ErrorResponse> badRequest(Exception exception, HttpServletRequest request) {
         return response(HttpStatus.BAD_REQUEST, exception.getMessage(), request);
