@@ -2,6 +2,10 @@
 
 > 기준: 2026-07-13의 `ChatController`, `ProactiveChatController`, DTO, `ContextLoader`, `GlobalExceptionHandler` 실제 코드.
 
+## 캐릭터 snapshot 동기화
+
+BE는 `X-Internal-Api-Key`를 포함해 `PUT /internal/characters/{characterId}/snapshot`을 호출한다. path와 body의 `characterId`는 같아야 하며 성공 응답은 `204 No Content`다. AI 서버는 `characterId`별 최신 snapshot 한 건만 유지하고, 기존 `calculationVersion`보다 낮은 요청은 무시한다. 사용자 식별자나 소유 관계는 저장하지 않는다. `DELETE /internal/characters/{characterId}/data`는 snapshot과 AI 파생 데이터를 함께 삭제하며 대상이 없어도 `204`를 반환한다.
+
 ## 1. 아키텍처 한 줄 요약
 
 백엔드는 채팅·통화·사용자·캐릭터·관계 원본과 전송 일정을 소유하고, AI 서버는 매 요청 직전의 `character + relationship + history (+ message)` snapshot을 받아 답변과 계산 결과만 반환하는 request 단위 계산 서버다.
@@ -70,8 +74,8 @@ AI 서버는 trait fallback을 계산하지 않는다. 10개 중 하나라도 �
 | `relationshipStage` | `RelationshipStage` | 필수 | canonical: `CRUSH`, `DATING`, `DEEP_LOVE`. 호환: `EARLY_DATING`, `LONG_TERM`, `썸`, `연애`, `깊은 사랑` |
 | `relationshipTemperatureScore` | `Integer` | 필수 | 0~100 |
 | `trust` | `Integer` | 필수 | 0~100 |
-| `closeness` | `Integer` | 필수 | 0~100 |
-| `conflictLevel` | `Integer` | 필수 | 0~100 |
+| `closeness` | `Integer` | 선택 | 0~100. 생략 시 AI 내부 `AgentSelfState`, 상태가 없으면 중립값 50 사용 |
+| `conflictLevel` | `Integer` | 선택 | 0~100. 생략 시 AI 내부 `AgentSelfState`, 상태가 없으면 중립값 0 사용 |
 | `repairProgress` | `Integer` | 필수 | 0~100 |
 | `breakupRisk` | `Integer` | 필수 | 0~100 |
 | `daysTogether` | `Integer` | 필수 | 0 이상 |

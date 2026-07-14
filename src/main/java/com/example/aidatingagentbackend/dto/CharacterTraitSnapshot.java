@@ -10,6 +10,7 @@ public record CharacterTraitSnapshot(
         require(empathy, "empathy"); require(attachment, "attachment"); require(jealousy, "jealousy");
         require(dominance, "dominance"); require(confidence, "confidence");
         require(expressiveness, "expressiveness"); require(emotionalStability, "emotionalStability");
+        if (calculationVersion != null && calculationVersion < 0) throw new IllegalArgumentException("character.traits.calculationVersion must be non-negative");
     }
     private static void require(Integer value, String name) {
         if (value == null || value < 0 || value > 10) throw new IllegalArgumentException("character.traits." + name + " must be between 0 and 10");
