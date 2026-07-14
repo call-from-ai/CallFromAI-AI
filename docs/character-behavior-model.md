@@ -1,7 +1,7 @@
 # RomanticAgent Character Behavior Model
 
 > 기준: 2026-07-13의 런타임 코드. 이 문서는 캐릭터 행동 모델의 계층과 데이터 소유권을 정의한다.
-
+> 작성중
 ## 1. 모델 개요
 
 ```text
