@@ -15,6 +15,15 @@ spring:
 server:
   port: ${SERVER_PORT:8081}
 
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: never
+
 ai:
   internal-token: ${AI_INTERNAL_TOKEN:}
 
