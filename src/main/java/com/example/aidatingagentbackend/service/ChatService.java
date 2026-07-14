@@ -3,13 +3,18 @@ package com.example.aidatingagentbackend.service;
 import com.example.aidatingagentbackend.dto.ChatRequest;
 import com.example.aidatingagentbackend.dto.ChatResponse;
 import com.example.aidatingagentbackend.dto.AgentSelfStateSnapshot;
+import com.example.aidatingagentbackend.dto.ErrorResponse;
+import com.example.aidatingagentbackend.exception.GeminiCallException;
+import com.example.aidatingagentbackend.exception.GeminiTimeoutException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.io.IOException;
 import java.util.Map;
+import java.time.Instant;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -107,8 +112,8 @@ public class ChatService {
             } catch (Exception exception) {
                 requestIdempotencyService.release(claim.requestId());
                 log.warn("chat.stream failed characterId={}", request.resolveCharacterId(), exception);
-                sendEvent(emitter, "error", Map.of("message", exception.getMessage() == null ? "stream failed" : exception.getMessage()));
-                emitter.completeWithError(exception);
+                sendEvent(emitter, "error", streamError(exception, request.getRequestId()));
+                emitter.complete();
             } finally {
                 geminiService.clearCallCount();
             }
@@ -125,6 +130,20 @@ public class ChatService {
             emitter.complete();
         });
         return emitter;
+    }
+
+    private ErrorResponse streamError(Exception exception, String requestId) {
+        HttpStatus status;
+        if (exception instanceof GeminiTimeoutException) {
+            status = HttpStatus.GATEWAY_TIMEOUT;
+        } else if (exception instanceof GeminiCallException) {
+            status = HttpStatus.BAD_GATEWAY;
+        } else {
+            status = HttpStatus.INTERNAL_SERVER_ERROR;
+        }
+        String message = exception.getMessage() == null ? status.getReasonPhrase() : exception.getMessage();
+        return new ErrorResponse(
+                Instant.now(), status.value(), status.getReasonPhrase(), message, "/chat/stream", requestId);
     }
 
     private ChatResponse buildResponse(

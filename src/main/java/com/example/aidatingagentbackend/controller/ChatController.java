@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
+import jakarta.servlet.http.HttpServletRequest;
 
 @RestController
 public class ChatController {
@@ -20,13 +21,15 @@ public class ChatController {
     }
 
     @PostMapping("/chat")
-    public ResponseEntity<ChatResponse> chat(@RequestBody ChatRequest request) {
+    public ResponseEntity<ChatResponse> chat(@RequestBody ChatRequest request, HttpServletRequest servletRequest) {
+        RequestIdSupport.attach(servletRequest, request.getRequestId());
         request.validateForChat();
         return ResponseEntity.ok(chatService.chat(request));
     }
 
     @PostMapping(value = {"/chat/stream", "/api/chat/stream"}, produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public SseEmitter chatStream(@RequestBody ChatRequest request) {
+    public SseEmitter chatStream(@RequestBody ChatRequest request, HttpServletRequest servletRequest) {
+        RequestIdSupport.attach(servletRequest, request.getRequestId());
         request.validateForChat();
         return chatService.sendMessageStream(request);
     }

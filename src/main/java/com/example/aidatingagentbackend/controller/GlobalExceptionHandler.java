@@ -2,6 +2,9 @@ package com.example.aidatingagentbackend.controller;
 
 import com.example.aidatingagentbackend.dto.ErrorResponse;
 import com.example.aidatingagentbackend.exception.RequestIdConflictException;
+import com.example.aidatingagentbackend.exception.GeminiCallException;
+import com.example.aidatingagentbackend.exception.GeminiTimeoutException;
+import com.example.aidatingagentbackend.exception.ProactivePolicyRejectedException;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -14,6 +17,24 @@ import java.time.Instant;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+    @ExceptionHandler(GeminiTimeoutException.class)
+    public ResponseEntity<ErrorResponse> gatewayTimeout(GeminiTimeoutException exception, HttpServletRequest request) {
+        return response(HttpStatus.GATEWAY_TIMEOUT, exception.getMessage(), request);
+    }
+
+    @ExceptionHandler(GeminiCallException.class)
+    public ResponseEntity<ErrorResponse> badGateway(GeminiCallException exception, HttpServletRequest request) {
+        return response(HttpStatus.BAD_GATEWAY, exception.getMessage(), request);
+    }
+
+    @ExceptionHandler(ProactivePolicyRejectedException.class)
+    public ResponseEntity<ErrorResponse> proactiveRejected(
+            ProactivePolicyRejectedException exception,
+            HttpServletRequest request
+    ) {
+        return response(HttpStatus.UNPROCESSABLE_ENTITY, exception.getMessage(), request);
+    }
+
     @ExceptionHandler(RequestIdConflictException.class)
     public ResponseEntity<ErrorResponse> conflict(RequestIdConflictException exception, HttpServletRequest request) {
         return response(HttpStatus.CONFLICT, exception.getMessage(), request);
@@ -30,8 +51,14 @@ public class GlobalExceptionHandler {
         return response(status, exception.getReason(), request);
     }
 
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<ErrorResponse> internalError(Exception exception, HttpServletRequest request) {
+        return response(HttpStatus.INTERNAL_SERVER_ERROR, "Internal server error", request);
+    }
+
     private ResponseEntity<ErrorResponse> response(HttpStatus status, String message, HttpServletRequest request) {
         return ResponseEntity.status(status).body(new ErrorResponse(
-                Instant.now(), status.value(), status.getReasonPhrase(), message, request.getRequestURI()));
+                Instant.now(), status.value(), status.getReasonPhrase(), message, request.getRequestURI(),
+                RequestIdSupport.resolve(request)));
     }
 }

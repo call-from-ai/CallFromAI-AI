@@ -3,6 +3,7 @@ package com.example.aidatingagentbackend.service;
 import com.example.aidatingagentbackend.dto.ChatRequest;
 import com.example.aidatingagentbackend.dto.ChatResponse;
 import org.springframework.stereotype.Service;
+import com.example.aidatingagentbackend.exception.ProactivePolicyRejectedException;
 
 @Service
 public class ProactiveChatService {
@@ -38,7 +39,7 @@ public class ProactiveChatService {
 
         AIProcessingService.PreparedAIProcessing prepared = aiProcessingService.prepare(chatRequest, true);
         if (!proactiveContactPolicyService.shouldSend(prepared.context())) {
-            throw new IllegalStateException("Proactive contact policy rejected this request.");
+            throw new ProactivePolicyRejectedException("Proactive contact policy rejected this request.");
         }
 
         String generated = geminiService.generate(prepared.prompt());

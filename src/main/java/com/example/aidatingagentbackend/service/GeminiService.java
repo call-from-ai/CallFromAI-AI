@@ -1,17 +1,22 @@
 package com.example.aidatingagentbackend.service;
 
 import com.example.aidatingagentbackend.config.GeminiProperties;
+import com.example.aidatingagentbackend.exception.GeminiCallException;
+import com.example.aidatingagentbackend.exception.GeminiTimeoutException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientException;
 
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
+import java.net.SocketTimeoutException;
+import java.net.http.HttpTimeoutException;
 import java.util.Map;
 import java.util.function.Consumer;
 
@@ -41,24 +46,27 @@ public class GeminiService {
         }
         incrementCallCount();
 
-        JsonNode response =
-                restClient.post()
+        try {
+            JsonNode response = restClient.post()
                         .uri(uriBuilder ->
                                 uriBuilder.path("/models/{model}:generateContent")
                                         .queryParam("key", properties.apiKey())
                                         .build(properties.model()))
                         .body(buildRequestBody(prompt))
                         .retrieve()
-                        .body(JsonNode.class);
+                    .body(JsonNode.class);
 
-        return response
-                .path("candidates")
-                .get(0)
-                .path("content")
-                .path("parts")
-                .get(0)
-                .path("text")
-                .asText();
+            if (response == null || response.path("candidates").isEmpty()) {
+                throw new GeminiCallException("Gemini returned an empty response.", null);
+            }
+            return response.path("candidates").get(0).path("content").path("parts").get(0).path("text").asText();
+        } catch (GeminiCallException exception) {
+            throw exception;
+        } catch (RestClientException exception) {
+            throw translate(exception);
+        } catch (RuntimeException exception) {
+            throw new GeminiCallException("Gemini returned an invalid response.", exception);
+        }
 
     }
 
@@ -68,7 +76,8 @@ public class GeminiService {
         }
         incrementCallCount();
 
-        restClient.post()
+        try {
+            restClient.post()
                 .uri(uriBuilder ->
                         uriBuilder.path("/models/{model}:streamGenerateContent")
                                 .queryParam("alt", "sse")
@@ -89,7 +98,10 @@ public class GeminiService {
                         throw new UncheckedIOException(exception);
                     }
                     return null;
-                });
+                    });
+        } catch (RestClientException | UncheckedIOException exception) {
+            throw translate(exception);
+        }
     }
 
     public void resetCallCount() {
@@ -106,6 +118,17 @@ public class GeminiService {
 
     private void incrementCallCount() {
         CALL_COUNT.set(CALL_COUNT.get() + 1);
+    }
+
+    private GeminiCallException translate(RuntimeException exception) {
+        Throwable cause = exception;
+        while (cause != null) {
+            if (cause instanceof SocketTimeoutException || cause instanceof HttpTimeoutException) {
+                return new GeminiTimeoutException("Gemini request timed out.", exception);
+            }
+            cause = cause.getCause();
+        }
+        return new GeminiCallException("Gemini request failed.", exception);
     }
 
     private Map<String, Object> buildRequestBody(String prompt) {
