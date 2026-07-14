@@ -15,6 +15,9 @@ spring:
 server:
   port: ${SERVER_PORT:8081}
 
+ai:
+  internal-token: ${AI_INTERNAL_TOKEN:}
+
 gemini:
   api-key: ${GEMINI_API_KEY}
   base-url: https://generativelanguage.googleapis.com/v1beta
