@@ -7,8 +7,10 @@ import com.example.aidatingagentbackend.exception.ProactivePolicyRejectedExcepti
 import com.example.aidatingagentbackend.exception.RequestIdConflictException;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
 import org.springframework.mock.web.MockHttpServletRequest;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -25,6 +27,18 @@ class GlobalExceptionHandlerTests {
         assertStatus(handler.badGateway(new GeminiCallException("failed", null), request), HttpStatus.BAD_GATEWAY);
         assertStatus(handler.conflict(new RequestIdConflictException("conflict"), request), HttpStatus.CONFLICT);
         assertStatus(handler.proactiveRejected(new ProactivePolicyRejectedException("rejected"), request), HttpStatus.UNPROCESSABLE_ENTITY);
+    }
+
+    @Test
+    void mapsMissingResourceToNotFound() {
+        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/missing");
+
+        ResponseEntity<ErrorResponse> response = handler.notFound(
+                new NoResourceFoundException(HttpMethod.GET, "/missing"), request);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().message()).isEqualTo("Resource not found");
     }
 
     private void assertStatus(ResponseEntity<ErrorResponse> response, HttpStatus status) {
