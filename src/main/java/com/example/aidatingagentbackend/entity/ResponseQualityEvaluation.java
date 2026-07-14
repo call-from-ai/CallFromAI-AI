@@ -24,7 +24,8 @@ public class ResponseQualityEvaluation {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private Long userId;
+    @Column(name = "character_id", nullable = false)
+    private Long characterId;
 
     private Boolean matchesSelfState;
 

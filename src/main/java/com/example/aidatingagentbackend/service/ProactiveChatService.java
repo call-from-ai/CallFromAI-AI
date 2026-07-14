@@ -3,6 +3,7 @@ package com.example.aidatingagentbackend.service;
 import com.example.aidatingagentbackend.dto.ChatRequest;
 import com.example.aidatingagentbackend.dto.ChatResponse;
 import org.springframework.stereotype.Service;
+import com.example.aidatingagentbackend.exception.ProactivePolicyRejectedException;
 
 @Service
 public class ProactiveChatService {
@@ -14,24 +15,31 @@ public class ProactiveChatService {
     private final AIProcessingService aiProcessingService;
     private final GeminiService geminiService;
     private final ProactiveContactPolicyService proactiveContactPolicyService;
+    private final RequestIdempotencyService requestIdempotencyService;
 
     public ProactiveChatService(
             AIProcessingService aiProcessingService,
             GeminiService geminiService,
-            ProactiveContactPolicyService proactiveContactPolicyService
+            ProactiveContactPolicyService proactiveContactPolicyService,
+            RequestIdempotencyService requestIdempotencyService
     ) {
         this.aiProcessingService = aiProcessingService;
         this.geminiService = geminiService;
         this.proactiveContactPolicyService = proactiveContactPolicyService;
+        this.requestIdempotencyService = requestIdempotencyService;
     }
 
     public ChatResponse sendNow(ChatRequest request) {
+        return requestIdempotencyService.execute(request, () -> process(request));
+    }
+
+    private ChatResponse process(ChatRequest request) {
         request.validateForProactive();
         ChatRequest chatRequest = request.withMessage(PROACTIVE_SEED);
 
         AIProcessingService.PreparedAIProcessing prepared = aiProcessingService.prepare(chatRequest, true);
         if (!proactiveContactPolicyService.shouldSend(prepared.context())) {
-            throw new IllegalStateException("Proactive contact policy rejected this request.");
+            throw new ProactivePolicyRejectedException("Proactive contact policy rejected this request.");
         }
 
         String generated = geminiService.generate(prepared.prompt());

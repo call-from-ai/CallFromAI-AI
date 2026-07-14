@@ -2,6 +2,8 @@ package com.example.aidatingagentbackend.controller;
 
 import com.example.aidatingagentbackend.service.ChatService;
 import com.example.aidatingagentbackend.service.ProactiveChatService;
+import com.example.aidatingagentbackend.config.RequestIdCaptureFilter;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
@@ -21,6 +23,7 @@ class SnapshotValidationControllerTests {
     void setUp() {
         mvc = MockMvcBuilders.standaloneSetup(new ChatController(mock(ChatService.class)))
                 .setControllerAdvice(new GlobalExceptionHandler())
+                .addFilters(new RequestIdCaptureFilter(new ObjectMapper()))
                 .build();
         proactiveMvc = MockMvcBuilders.standaloneSetup(new ProactiveChatController(mock(ProactiveChatService.class)))
                 .setControllerAdvice(new GlobalExceptionHandler())
@@ -32,7 +35,8 @@ class SnapshotValidationControllerTests {
         mvc.perform(post("/chat").contentType(MediaType.APPLICATION_JSON).content(payload("UNKNOWN", traits())))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.status").value(400))
-                .andExpect(jsonPath("$.path").value("/chat"));
+                .andExpect(jsonPath("$.path").value("/chat"))
+                .andExpect(jsonPath("$.requestId").value("r1"));
     }
 
     @Test

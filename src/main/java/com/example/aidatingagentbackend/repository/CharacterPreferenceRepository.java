@@ -11,4 +11,6 @@ public interface CharacterPreferenceRepository extends JpaRepository<CharacterPr
     Optional<CharacterPreference> findByCharacterIdAndPreferenceKey(Long characterId, String preferenceKey);
 
     List<CharacterPreference> findTop12ByCharacterIdOrderByUpdatedAtDescIdDesc(Long characterId);
+
+    void deleteByCharacterId(Long characterId);
 }

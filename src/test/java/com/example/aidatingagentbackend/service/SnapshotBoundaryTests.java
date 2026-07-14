@@ -15,6 +15,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 
 class SnapshotBoundaryTests {
 
@@ -73,7 +75,10 @@ class SnapshotBoundaryTests {
                 10L, "안녕", analysis, emotion, update, null, "prompt");
         when(processing.process(request)).thenReturn(new AIProcessingService.CompletedAIProcessing(prepared, "reply"));
 
-        ChatResponse response = new ChatService(processing, mock(GeminiService.class)).chat(request);
+        RequestIdempotencyService idempotencyService = mock(RequestIdempotencyService.class);
+        when(idempotencyService.execute(eq(request), any())).thenAnswer(invocation ->
+                ((java.util.function.Supplier<ChatResponse>) invocation.getArgument(1)).get());
+        ChatResponse response = new ChatService(processing, mock(GeminiService.class), idempotencyService).chat(request);
         assertThat(response.getRequestId()).isEqualTo("req-77");
         assertThat(response.getRelationshipDelta()).isEqualTo(delta);
         assertThat(response.getNextRelationship()).isEqualTo(relationship());

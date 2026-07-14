@@ -12,6 +12,8 @@ import java.util.List;
 
 public interface CharacterExampleRepository extends JpaRepository<CharacterExample, Long> {
 
+    void deleteByCharacterId(Long characterId);
+
     @Query("""
             select example
             from CharacterExample example
