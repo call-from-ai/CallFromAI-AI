@@ -62,6 +62,15 @@ class SnapshotValidationControllerTests {
                 .andExpect(status().isOk());
     }
 
+    @Test
+    void chatAcceptsRelationshipWithoutClosenessAndConflictLevel() throws Exception {
+        String payload = snapshotPayload("hi")
+                .replace("\"closeness\":50,", "")
+                .replace("\"conflictLevel\":20,", "");
+        mvc.perform(post("/chat").contentType(MediaType.APPLICATION_JSON).content(payload))
+                .andExpect(status().isOk());
+    }
+
     private String payload(String stage, String traits) {
         return "{\"requestId\":\"r1\",\"message\":\"hi\"," +
                 "\"character\":{\"characterId\":10,\"name\":\"hana\",\"romanceStyleScore\":90,\"traits\":" + traits + "}," +
