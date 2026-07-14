@@ -5,6 +5,7 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 import lombok.Getter;
@@ -14,7 +15,8 @@ import lombok.Setter;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "agent_self_state_logs")
+@Table(name = "agent_self_state_logs", indexes =
+        @Index(name = "idx_agent_self_state_logs_character_id", columnList = "character_id"))
 @Getter
 @Setter
 @NoArgsConstructor
@@ -24,7 +26,8 @@ public class AgentSelfStateLog {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private Long userId;
+    @Column(name = "character_id", nullable = false)
+    private Long characterId;
 
     private Double previousHurt;
 

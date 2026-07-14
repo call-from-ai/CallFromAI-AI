@@ -112,7 +112,7 @@ public class EmotionUpdateService {
     }
 
     private AgentSelfStateLog saveLog(
-            Long userId,
+            Long characterId,
             EventAnalysis eventAnalysis,
             SelfStateSnapshot previousSnapshot,
             AgentSelfState nextState,
@@ -124,7 +124,7 @@ public class EmotionUpdateService {
         }
 
         AgentSelfStateLog log = new AgentSelfStateLog();
-        log.setUserId(userId);
+        log.setCharacterId(characterId);
         log.setPreviousHurt(previousSnapshot.hurt());
         log.setNextHurt(value(nextState.getHurt()));
         log.setPreviousTrust(previousSnapshot.trust());
