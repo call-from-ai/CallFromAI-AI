@@ -5,5 +5,5 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 
 public interface ResponseQualityEvaluationRepository extends JpaRepository<ResponseQualityEvaluation, Long> {
-
+    void deleteByCharacterId(Long characterId);
 }

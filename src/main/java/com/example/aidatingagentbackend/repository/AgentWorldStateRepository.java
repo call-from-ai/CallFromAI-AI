@@ -8,4 +8,6 @@ import java.util.Optional;
 public interface AgentWorldStateRepository extends JpaRepository<AgentWorldState, Long> {
 
     Optional<AgentWorldState> findByCharacterId(Long characterId);
+
+    void deleteByCharacterId(Long characterId);
 }

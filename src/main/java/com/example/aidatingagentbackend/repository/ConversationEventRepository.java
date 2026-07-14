@@ -8,4 +8,6 @@ import java.util.List;
 public interface ConversationEventRepository extends JpaRepository<ConversationEvent, Long> {
 
     List<ConversationEvent> findTop8ByCharacterIdOrderByCreatedAtDesc(Long characterId);
+
+    void deleteByCharacterId(Long characterId);
 }

@@ -11,4 +11,6 @@ public interface AgentLifeEventRepository extends JpaRepository<AgentLifeEvent, 
     boolean existsByCharacterIdAndEventDateAndTimeContext(Long characterId, LocalDate eventDate, String timeContext);
 
     List<AgentLifeEvent> findTop8ByCharacterIdOrderByEventDateDescIdDesc(Long characterId);
+
+    void deleteByCharacterId(Long characterId);
 }

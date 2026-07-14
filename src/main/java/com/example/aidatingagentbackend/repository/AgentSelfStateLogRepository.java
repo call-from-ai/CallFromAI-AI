@@ -7,4 +7,6 @@ import java.util.List;
 
 public interface AgentSelfStateLogRepository extends JpaRepository<AgentSelfStateLog, Long> {
     List<AgentSelfStateLog> findByCharacterIdOrderByCreatedAtDesc(Long characterId);
+
+    void deleteByCharacterId(Long characterId);
 }

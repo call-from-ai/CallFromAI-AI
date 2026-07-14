@@ -40,14 +40,14 @@ public class ResponseQualityEvaluatorService {
 
     @Transactional
     public ResponseQualityEvaluation evaluateAndSave(
-            Long userId,
+            Long characterId,
             String userMessage,
             String assistantReply,
             Context context,
             EventAnalysis eventAnalysis,
             boolean regenerated
     ) {
-        ResponseQualityEvaluation evaluation = evaluateRuleBased(userId, userMessage, assistantReply, context, regenerated);
+        ResponseQualityEvaluation evaluation = evaluateRuleBased(characterId, userMessage, assistantReply, context, regenerated);
         return responseQualityEvaluationRepository.save(evaluation);
     }
 
@@ -74,13 +74,13 @@ public class ResponseQualityEvaluatorService {
     }
 
     ResponseQualityEvaluation evaluateRuleBased(
-            Long userId,
+            Long characterId,
             String userMessage,
             String assistantReply,
             Context context,
             boolean regenerated
     ) {
-        return fallbackEvaluation(userId, userMessage, assistantReply, context, regenerated);
+        return fallbackEvaluation(characterId, userMessage, assistantReply, context, regenerated);
     }
 
     private boolean isQualitySensitiveEvent(AgentEventType eventType) {
@@ -95,13 +95,13 @@ public class ResponseQualityEvaluatorService {
     }
 
     ResponseQualityEvaluation fallbackEvaluation(
-            Long userId,
+            Long characterId,
             String userMessage,
             String assistantReply,
             Context context,
             boolean regenerated
     ) {
-        ResponseQualityEvaluation evaluation = baseEvaluation(userId, userMessage, assistantReply, regenerated);
+        ResponseQualityEvaluation evaluation = baseEvaluation(characterId, userMessage, assistantReply, regenerated);
         String normalizedReply = assistantReply == null ? "" : assistantReply.toLowerCase();
         double hurt = context == null || context.agentSelfState() == null || context.agentSelfState().getHurt() == null
                 ? 0.0
@@ -141,13 +141,13 @@ public class ResponseQualityEvaluatorService {
     }
 
     private ResponseQualityEvaluation baseEvaluation(
-            Long userId,
+            Long characterId,
             String userMessage,
             String assistantReply,
             boolean regenerated
     ) {
         ResponseQualityEvaluation evaluation = new ResponseQualityEvaluation();
-        evaluation.setUserId(userId);
+        evaluation.setCharacterId(characterId);
         evaluation.setUserMessage(userMessage);
         evaluation.setAssistantReply(assistantReply);
         evaluation.setRegenerated(regenerated);

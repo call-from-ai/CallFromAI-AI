@@ -8,4 +8,6 @@ import java.util.List;
 public interface TurningPointRepository extends JpaRepository<TurningPoint, Long> {
 
     List<TurningPoint> findTop10ByCharacterIdOrderByCreatedAtDesc(Long characterId);
+
+    void deleteByCharacterId(Long characterId);
 }

@@ -185,7 +185,7 @@ CREATE TABLE turning_points (
 
 CREATE TABLE response_quality_evaluations (
     id BIGINT NOT NULL AUTO_INCREMENT,
-    user_id BIGINT NULL,
+    character_id BIGINT NOT NULL,
     matches_self_state BIT NULL,
     too_submissive BIT NULL,
     too_aggressive BIT NULL,
@@ -198,6 +198,6 @@ CREATE TABLE response_quality_evaluations (
     assistant_reply TEXT NULL,
     created_at DATETIME(6) NULL,
     PRIMARY KEY (id),
-    CONSTRAINT fk_response_quality_evaluations_user
-        FOREIGN KEY (user_id) REFERENCES users (id)
+    CONSTRAINT fk_response_quality_evaluations_character
+        FOREIGN KEY (character_id) REFERENCES characters (id)
 );
