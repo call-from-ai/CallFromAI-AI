@@ -7,6 +7,7 @@ import com.example.aidatingagentbackend.repository.AgentSelfStateRepository;
 import com.example.aidatingagentbackend.repository.AgentWorldStateRepository;
 import com.example.aidatingagentbackend.repository.CharacterExampleRepository;
 import com.example.aidatingagentbackend.repository.CharacterPreferenceRepository;
+import com.example.aidatingagentbackend.repository.CharacterSnapshotRepository;
 import com.example.aidatingagentbackend.repository.ConversationEventRepository;
 import com.example.aidatingagentbackend.repository.MemoryRepository;
 import com.example.aidatingagentbackend.repository.ResponseQualityEvaluationRepository;
@@ -28,6 +29,7 @@ public class CharacterDerivedDataService {
     private final CharacterExampleRepository characterExampleRepository;
     private final ResponseQualityEvaluationRepository responseQualityEvaluationRepository;
     private final TurningPointRepository turningPointRepository;
+    private final CharacterSnapshotRepository characterSnapshotRepository;
 
     public CharacterDerivedDataService(
             MemoryRepository memoryRepository,
@@ -40,7 +42,8 @@ public class CharacterDerivedDataService {
             CharacterPreferenceRepository characterPreferenceRepository,
             CharacterExampleRepository characterExampleRepository,
             ResponseQualityEvaluationRepository responseQualityEvaluationRepository,
-            TurningPointRepository turningPointRepository
+            TurningPointRepository turningPointRepository,
+            CharacterSnapshotRepository characterSnapshotRepository
     ) {
         this.memoryRepository = memoryRepository;
         this.agentSelfStateRepository = agentSelfStateRepository;
@@ -53,6 +56,7 @@ public class CharacterDerivedDataService {
         this.characterExampleRepository = characterExampleRepository;
         this.responseQualityEvaluationRepository = responseQualityEvaluationRepository;
         this.turningPointRepository = turningPointRepository;
+        this.characterSnapshotRepository = characterSnapshotRepository;
     }
 
     @Transactional
@@ -72,5 +76,6 @@ public class CharacterDerivedDataService {
         characterExampleRepository.deleteByCharacterId(characterId);
         responseQualityEvaluationRepository.deleteByCharacterId(characterId);
         turningPointRepository.deleteByCharacterId(characterId);
+        characterSnapshotRepository.deleteByCharacterId(characterId);
     }
 }

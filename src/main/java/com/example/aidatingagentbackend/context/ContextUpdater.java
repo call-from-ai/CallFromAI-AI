@@ -55,18 +55,45 @@ public class ContextUpdater {
 
 
     public RelationshipUpdate updateBeforeResponse(Long characterId, RelationshipSnapshot relationship, String userMessage, EventAnalysis eventAnalysis){
-
+        RelationshipSnapshot resolvedRelationship = resolveInternalRelationship(characterId, relationship);
         var relation =
-                relationshipEngine.analyze(relationship,userMessage,eventAnalysis);
+                relationshipEngine.analyze(resolvedRelationship,userMessage,eventAnalysis);
         RelationshipSnapshot next = new RelationshipSnapshot(
                 relationship.relationshipId(), relationship.relationshipStage(), relationship.relationshipTemperatureScore(),
                 relation.trust(), relation.closeness(), relation.conflictLevel(), relation.repairProgress(), relation.breakupRisk(),
                 relationship.daysTogether(), relationship.strategy());
         RelationshipDelta delta = new RelationshipDelta(
-                relation.trust() - relationship.trust(), relation.closeness() - relationship.closeness(),
-                relation.conflictLevel() - relationship.conflictLevel(), relation.repairProgress() - relationship.repairProgress(),
-                relation.breakupRisk() - relationship.breakupRisk());
+                relation.trust() - resolvedRelationship.trust(), relation.closeness() - resolvedRelationship.closeness(),
+                relation.conflictLevel() - resolvedRelationship.conflictLevel(), relation.repairProgress() - resolvedRelationship.repairProgress(),
+                relation.breakupRisk() - resolvedRelationship.breakupRisk());
         return new RelationshipUpdate(delta, next);
+    }
+
+    private RelationshipSnapshot resolveInternalRelationship(Long characterId, RelationshipSnapshot request) {
+        AgentSelfState state = agentSelfStateRepository.findByCharacterId(characterId).orElse(null);
+        int closeness = state == null ? 50 : closenessFrom(state);
+        int conflictLevel = state == null ? 0 : conflictFrom(state);
+        return new RelationshipSnapshot(request.relationshipId(), request.relationshipStage(),
+                request.relationshipTemperatureScore(), request.trust(), closeness, conflictLevel,
+                request.repairProgress(), request.breakupRisk(), request.daysTogether(), request.strategy());
+    }
+
+    private int closenessFrom(AgentSelfState state) {
+        double affection = state.getAffection() == null ? 0.55 : state.getAffection();
+        double trust = state.getTrust() == null ? 0.60 : state.getTrust();
+        double distance = state.getEmotionalDistance() == null ? 0.15 : state.getEmotionalDistance();
+        return score(((affection + trust) / 2.0) * (1.0 - distance));
+    }
+
+    private int conflictFrom(AgentSelfState state) {
+        double hurt = state.getHurt() == null ? 0.0 : state.getHurt();
+        double anger = state.getAnger() == null ? 0.0 : state.getAnger();
+        double disappointment = state.getDisappointment() == null ? 0.0 : state.getDisappointment();
+        return score((hurt + anger + disappointment) / 3.0);
+    }
+
+    private int score(double value) {
+        return Math.max(0, Math.min(100, (int) Math.round(value * 100.0)));
     }
 
     public void updateMemoryAfterResponse(Long characterId, String userMessage,String reply){

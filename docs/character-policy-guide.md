@@ -39,7 +39,7 @@ AI 서버의 DB에는 응답 계산을 위한 파생 데이터만 남는다. 현
 
 각 값은 필수 정수 0~10이다. `calculationVersion`은 선택 메타데이터이며 AI 서버가 계산이나 호환성 판정에 사용하지 않는다. 기본 trait, 키워드 조합, MBTI fallback은 없다.
 
-`RelationshipSnapshot`은 `relationshipId`, `relationshipStage`, `relationshipTemperatureScore`, `trust`, `closeness`, `conflictLevel`, `repairProgress`, `breakupRisk`, `daysTogether`, `strategy`를 전달한다. stage와 6개의 관계 수치 및 `daysTogether`가 필수다. 관계 수치는 0~100, `daysTogether`는 0 이상이다. `strategy`가 없으면 `NORMAL`이다.
+`RelationshipSnapshot`은 `relationshipId`, `relationshipStage`, `relationshipTemperatureScore`, `trust`, `repairProgress`, `breakupRisk`, `daysTogether`, `strategy`를 전달한다. `closeness`와 `conflictLevel`은 선택값이며 BE의 affinity/floor score를 매핑하지 않는다. AI는 내부 `AgentSelfState`로 두 값을 계산하고, 상태가 없으면 중립값(50/0)을 사용한다. 관계 수치는 0~100, `daysTogether`는 0 이상이며 `strategy`가 없으면 `NORMAL`이다.
 
 ## 3. 응답 생성 파이프라인
 
@@ -111,7 +111,7 @@ trait는 장기적 표현 성향이다. `TraitInstructionResolver`, `EmotionTrai
 
 ### 관계 수치 계산
 
-`RelationshipEngine`은 요청의 `trust`, `closeness`, `conflictLevel`, `repairProgress`, `breakupRisk`에서 시작한다. `EventAnalysis`가 normal이 아니면 사건 종류·severity·sincerity·조작성 여부를 반영하고, 아니면 메시지 키워드 규칙을 적용한다. 결과는 0~100으로 clamp한다.
+`RelationshipEngine`은 요청의 `trust`, `repairProgress`, `breakupRisk`와 AI 내부 상태에서 해석한 `closeness`, `conflictLevel`에서 시작한다. BE가 선택 필드를 보내더라도 affinity/floor의 대체값으로 사용하지 않는다. `EventAnalysis`가 normal이 아니면 사건 종류·severity·sincerity·조작성 여부를 반영하고, 아니면 메시지 키워드 규칙을 적용한다. 결과는 0~100으로 clamp한다.
 
 AI 서버는 관계 원본을 저장하지 않는다. 변화량은 `relationshipDelta`, 계산 후 snapshot은 `nextRelationship`으로 반환하며 백엔드가 자기 DB에 원자적으로 반영한다. `relationshipStage`, `relationshipTemperatureScore`, `daysTogether`, `strategy`는 자동 진급·증가시키지 않고 입력값을 유지한다.
 
