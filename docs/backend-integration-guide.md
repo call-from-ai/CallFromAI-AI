@@ -5,6 +5,7 @@
 ## 캐릭터 snapshot 동기화
 
 BE는 `X-Internal-Api-Key`를 포함해 `PUT /internal/characters/{characterId}/snapshot`을 호출한다. path와 body의 `characterId`는 같아야 하며 성공 응답은 `204 No Content`다. AI 서버는 `characterId`별 최신 snapshot 한 건만 유지하고, 기존 `calculationVersion`보다 낮은 요청은 무시한다. 사용자 식별자나 소유 관계는 저장하지 않는다. `DELETE /internal/characters/{characterId}/data`는 snapshot과 AI 파생 데이터를 함께 삭제하며 대상이 없어도 `204`를 반환한다.
+/
 
 ## 1. 아키텍처 한 줄 요약
 
@@ -48,6 +49,7 @@ BE는 `X-Internal-Api-Key`를 포함해 `PUT /internal/characters/{characterId}/
 | `responseStyle` | `String` | 선택 | 길이 검증 없음 |
 | `job` | `String` | 선택 | 길이 검증 없음 |
 | `lifeType` | `AgentLifeType` | 선택 | `STUDENT`, `WORKER`, `FLEXIBLE`; `UNEMPLOYED`는 deprecated 호환값 |
+| `preferTime` | `PreferTime` | 선택 | `MORNING`, `DAY`, `LATE_EVENING`, `ANYTIME`. 누락 시 `ANYTIME` |
 | `romanceStyleScore` | `Integer` | 필수 | 0~100 |
 | `traits` | `CharacterTraitSnapshot` | 필수 | null이면 400 |
 
@@ -107,6 +109,7 @@ AI 서버는 trait fallback을 계산하지 않는다. 10개 중 하나라도 �
     "responseStyle": "짧고 자연스러운 한국어 메신저 말투",
     "job": "개발자",
     "lifeType": "WORKER",
+    "preferTime": "LATE_EVENING",
     "romanceStyleScore": 72,
     "traits": {
       "humor": 6,
