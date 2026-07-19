@@ -22,6 +22,8 @@ public class CharacterSnapshotEntity {
     @Column(name = "response_style", length = 2000) private String responseStyle;
     private String job;
     @Enumerated(EnumType.STRING) @Column(name = "life_type") private AgentLifeType lifeType;
+    @Enumerated(EnumType.STRING) @Column(name = "prefer_time", nullable = false)
+    private PreferTime preferTime = PreferTime.ANYTIME;
     @Column(name = "romance_style_score", nullable = false) private Integer romanceStyleScore;
     private Integer humor;
     private Integer playfulness;
@@ -43,7 +45,8 @@ public class CharacterSnapshotEntity {
     public void updateFrom(CharacterSnapshot snapshot) {
         CharacterTraitSnapshot traits = snapshot.traits();
         name = snapshot.name(); mind = snapshot.mind(); responseStyle = snapshot.responseStyle();
-        job = snapshot.job(); lifeType = snapshot.lifeType(); romanceStyleScore = snapshot.romanceStyleScore();
+        job = snapshot.job(); lifeType = snapshot.lifeType(); preferTime = snapshot.preferTime();
+        romanceStyleScore = snapshot.romanceStyleScore();
         humor = traits.humor(); playfulness = traits.playfulness(); affection = traits.affection();
         empathy = traits.empathy(); attachment = traits.attachment(); jealousy = traits.jealousy();
         dominance = traits.dominance(); confidence = traits.confidence(); expressiveness = traits.expressiveness();

@@ -4,6 +4,7 @@ import com.example.aidatingagentbackend.dto.CharacterSnapshot;
 import com.example.aidatingagentbackend.dto.CharacterTraitSnapshot;
 import com.example.aidatingagentbackend.entity.AgentLifeType;
 import com.example.aidatingagentbackend.entity.CharacterSnapshotEntity;
+import com.example.aidatingagentbackend.entity.PreferTime;
 import com.example.aidatingagentbackend.repository.CharacterSnapshotRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -24,7 +25,29 @@ class CharacterSnapshotServiceTests {
     void createsNewSnapshot() {
         CharacterSnapshotService service = new CharacterSnapshotService(repository);
         service.upsert(10L, snapshot("하나", 1));
-        verify(repository).save(argThat(entity -> entity.getCharacterId() == 10L && entity.getName().equals("하나")));
+        verify(repository).save(argThat(entity -> entity.getCharacterId() == 10L && entity.getName().equals("하나")
+                && entity.getPreferTime() == PreferTime.MORNING));
+    }
+
+    @Test
+    void sameCalculationVersionUpdatesPreferTime() {
+        CharacterSnapshotEntity existing = new CharacterSnapshotEntity(snapshot("하나", 1, PreferTime.MORNING));
+        when(repository.findByCharacterId(10L)).thenReturn(Optional.of(existing));
+
+        new CharacterSnapshotService(repository).upsert(10L, snapshot("하나", 1, PreferTime.LATE_EVENING));
+
+        assertEquals(PreferTime.LATE_EVENING, existing.getPreferTime());
+        verify(repository).save(existing);
+    }
+
+    @Test
+    void omittedPreferTimeDefaultsToAnytimeAndIsStored() {
+        CharacterSnapshot legacyPayload = new CharacterSnapshot(10L, "하나", "mind", "style", "DEVELOPER",
+                AgentLifeType.WORKER, 72, new CharacterTraitSnapshot(6, 7, 8, 9, 5, 2, 4, 7, 8, 7, 1));
+
+        new CharacterSnapshotService(repository).upsert(10L, legacyPayload);
+
+        verify(repository).save(argThat(entity -> entity.getPreferTime() == PreferTime.ANYTIME));
     }
 
     @Test
@@ -59,7 +82,11 @@ class CharacterSnapshotServiceTests {
     }
 
     private CharacterSnapshot snapshot(String name, int version) {
-        return new CharacterSnapshot(10L, name, "mind", "style", "DEVELOPER", AgentLifeType.WORKER, 72,
+        return snapshot(name, version, PreferTime.MORNING);
+    }
+
+    private CharacterSnapshot snapshot(String name, int version, PreferTime preferTime) {
+        return new CharacterSnapshot(10L, name, "mind", "style", "DEVELOPER", AgentLifeType.WORKER, preferTime, 72,
                 new CharacterTraitSnapshot(6, 7, 8, 9, 5, 2, 4, 7, 8, 7, version));
     }
 }
