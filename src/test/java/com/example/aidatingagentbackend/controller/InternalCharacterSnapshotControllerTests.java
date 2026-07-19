@@ -12,6 +12,7 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.mockito.Mockito.mock;
 
 class InternalCharacterSnapshotControllerTests {
@@ -38,6 +39,23 @@ class InternalCharacterSnapshotControllerTests {
         mvc.perform(put("/internal/characters/11/snapshot").header("X-Internal-Api-Key", "secret")
                         .contentType(MediaType.APPLICATION_JSON).content(payload(10)))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void missingPreferTimeIsBackwardCompatible() throws Exception {
+        mvc.perform(put("/internal/characters/10/snapshot").header("X-Internal-Api-Key", "secret")
+                        .contentType(MediaType.APPLICATION_JSON).content(payload(10)))
+                .andExpect(status().isNoContent());
+    }
+
+    @Test
+    void invalidPreferTimeUsesGlobal400Shape() throws Exception {
+        mvc.perform(put("/internal/characters/10/snapshot").header("X-Internal-Api-Key", "secret")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(payload(10).replace("\"romanceStyleScore\"", "\"preferTime\":\"NIGHT\",\"romanceStyleScore\"")))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.path").value("/internal/characters/10/snapshot"));
     }
 
     @Test

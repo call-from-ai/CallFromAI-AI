@@ -46,6 +46,7 @@ BE는 `X-Internal-Api-Key`를 포함해 `PUT /internal/characters/{characterId}/
 | `responseStyle` | `String` | 선택 | 길이 검증 없음 |
 | `job` | `String` | 선택 | 길이 검증 없음 |
 | `lifeType` | `AgentLifeType` | 선택 | `STUDENT`, `WORKER`, `FLEXIBLE`; `UNEMPLOYED`는 deprecated 호환값 |
+| `preferTime` | `PreferTime` | 선택 | `MORNING`, `DAY`, `LATE_EVENING`, `ANYTIME`. 누락 시 `ANYTIME` |
 | `romanceStyleScore` | `Integer` | 필수 | 0~100 |
 | `traits` | `CharacterTraitSnapshot` | 필수 | null이면 400 |
 
@@ -105,6 +106,7 @@ AI 서버는 trait fallback을 계산하지 않는다. 10개 중 하나라도 �
     "responseStyle": "짧고 자연스러운 한국어 메신저 말투",
     "job": "개발자",
     "lifeType": "WORKER",
+    "preferTime": "LATE_EVENING",
     "romanceStyleScore": 72,
     "traits": {
       "humor": 6,
