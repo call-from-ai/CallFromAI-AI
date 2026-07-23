@@ -167,7 +167,7 @@ AI 서버가 제공하는 transport는 동기 채팅, streaming 채팅 alias 두
 
 ## 12. Known contract gaps
 
-- `requestId`는 echo되지만 중복 실행을 막지 않는다.
+- `requestId`는 모든 요청에서 필수이며, 동일 ID·동일 body의 완료 결과는 request ledger에서 재사용한다. 처리 중인 ID 또는 동일 ID의 다른 body는 409다.
 - streaming 결과는 현재 관계 delta와 self-state snapshot을 내보내지 않는다.
-- history 개수, role enum, requestId 형식과 충돌 정책은 확정되지 않았다.
+- history 개수, role enum, requestId의 공식 형식은 확정되지 않았다. requestId 충돌은 현재 409로 처리한다.
 - AI 파생 데이터의 보존·삭제·복구 정책은 백엔드 팀과 별도 합의가 필요하다.

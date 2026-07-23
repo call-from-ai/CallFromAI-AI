@@ -17,7 +17,7 @@ AI 서버의 DB에는 응답 계산을 위한 파생 데이터만 남는다. 현
 
 | 입력 | 정책 |
 | --- | --- |
-| `requestId` | 선택값. 동기 응답과 proactive 응답에 그대로 반환되지만 AI 서버가 중복을 차단하지 않는다. |
+| `requestId` | 필수 non-blank 값. 동기·streaming·proactive 모두 AI request ledger의 correlation/idempotency key로 사용한다. |
 | `character` | 모든 엔드포인트에서 필수. 캐릭터 원본의 요청 시점 snapshot이다. |
 | `relationship` | 모든 엔드포인트에서 필수. 관계 원본의 요청 시점 snapshot이다. |
 | `history` | 선택값. null이면 빈 목록으로 취급한다. AI 서버는 전달 순서를 바꾸지 않는다. |
@@ -179,7 +179,7 @@ AI 서버는 새 사용자 메시지 대신 안전한 내부 check-in 지시문�
 
 ## 13. 구현상 주의점과 미결정 사항
 
-- `requestId`는 응답 correlation 값일 뿐 deduplication이나 deterministic replay를 제공하지 않는다.
+- 동일 `requestId`·동일 요청 body의 완료 요청은 ledger에 저장된 응답을 재사용한다. 처리 중인 ID 또는 동일 ID의 다른 body는 409를 반환하며, 실패한 실행의 ledger 항목은 삭제되어 재시도할 수 있다.
 - streaming 이벤트에는 현재 `requestId`, 관계 변화, self-state 변화, event analysis 전체가 포함되지 않는다.
 - proactive 정책 거절은 현재 전용 4xx 응답으로 매핑되지 않아 일반 서버 오류가 될 수 있다.
 - history 최대 전송 개수와 role 값은 API 계약으로 고정되어 있지 않다.

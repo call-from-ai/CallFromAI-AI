@@ -4,6 +4,7 @@ import com.example.aidatingagentbackend.context.ContextLoader;
 import com.example.aidatingagentbackend.context.ContextUpdater;
 import com.example.aidatingagentbackend.dto.ChatRequest;
 import com.example.aidatingagentbackend.dto.Context;
+import com.example.aidatingagentbackend.dto.GeminiImage;
 import com.example.aidatingagentbackend.engine.EventAnalysis;
 import com.example.aidatingagentbackend.entity.ResponseQualityEvaluation;
 import com.example.aidatingagentbackend.prompt.PromptBuilder;
@@ -87,14 +88,30 @@ public class AIProcessingService {
         return new CompletedAIProcessing(prepared, reply);
     }
 
+    public CompletedAIProcessing process(ChatRequest request, GeminiImage image) {
+        PreparedAIProcessing prepared = prepare(request, false);
+        String reply = geminiService.generate(prepared.prompt(), image);
+        reply = finishGeneratedReply(prepared, reply, true, image);
+        return new CompletedAIProcessing(prepared, reply);
+    }
+
     public String finishGeneratedReply(
             PreparedAIProcessing prepared,
             String generatedReply,
             boolean allowRegeneration
     ) {
+        return finishGeneratedReply(prepared, generatedReply, allowRegeneration, null);
+    }
+
+    public String finishGeneratedReply(
+            PreparedAIProcessing prepared,
+            String generatedReply,
+            boolean allowRegeneration,
+            GeminiImage image
+    ) {
         String reply = postProcess(prepared.context(), generatedReply);
         if (allowRegeneration) {
-            reply = evaluateAndRegenerateIfNeeded(prepared, reply);
+            reply = evaluateAndRegenerateIfNeeded(prepared, reply, image);
         } else {
             evaluateIfNeeded(prepared, reply);
         }
@@ -127,7 +144,11 @@ public class AIProcessingService {
                 .build();
     }
 
-    private String evaluateAndRegenerateIfNeeded(PreparedAIProcessing prepared, String reply) {
+    private String evaluateAndRegenerateIfNeeded(
+            PreparedAIProcessing prepared,
+            String reply,
+            GeminiImage image
+    ) {
         Context context = prepared.context();
         EventAnalysis eventAnalysis = prepared.eventAnalysis();
         if (!responseQualityEvaluatorService.shouldEvaluate(eventAnalysis, context)) {
@@ -153,7 +174,7 @@ public class AIProcessingService {
                 reply,
                 evaluation
         );
-        String regeneratedReply = geminiService.generate(regenerationPrompt);
+        String regeneratedReply = geminiService.generate(regenerationPrompt, image);
         regeneratedReply = postProcess(context, regeneratedReply);
         responseQualityEvaluatorService.evaluateAndSave(
                 prepared.characterId(),

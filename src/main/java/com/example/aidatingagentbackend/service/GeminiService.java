@@ -1,6 +1,7 @@
 package com.example.aidatingagentbackend.service;
 
 import com.example.aidatingagentbackend.config.GeminiProperties;
+import com.example.aidatingagentbackend.dto.GeminiImage;
 import com.example.aidatingagentbackend.exception.GeminiCallException;
 import com.example.aidatingagentbackend.exception.GeminiTimeoutException;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -18,6 +19,9 @@ import java.nio.charset.StandardCharsets;
 import java.net.SocketTimeoutException;
 import java.net.http.HttpTimeoutException;
 import java.util.Map;
+import java.util.ArrayList;
+import java.util.Base64;
+import java.util.List;
 import java.util.function.Consumer;
 
 @Service
@@ -40,6 +44,10 @@ public class GeminiService {
     }
 
     public String generate(String prompt) {
+        return generate(prompt, null);
+    }
+
+    public String generate(String prompt, GeminiImage image) {
 
         if (!StringUtils.hasText(properties.apiKey())) {
             throw new IllegalStateException("Gemini API Key가 없습니다.");
@@ -52,7 +60,7 @@ public class GeminiService {
                                 uriBuilder.path("/models/{model}:generateContent")
                                         .queryParam("key", properties.apiKey())
                                         .build(properties.model()))
-                        .body(buildRequestBody(prompt))
+                        .body(buildRequestBody(prompt, image))
                         .retrieve()
                     .body(JsonNode.class);
 
@@ -71,6 +79,10 @@ public class GeminiService {
     }
 
     public void generateStream(String prompt, Consumer<String> onChunk) {
+        generateStream(prompt, null, onChunk);
+    }
+
+    public void generateStream(String prompt, GeminiImage image, Consumer<String> onChunk) {
         if (!StringUtils.hasText(properties.apiKey())) {
             throw new IllegalStateException("Gemini API Key가 없습니다.");
         }
@@ -83,7 +95,7 @@ public class GeminiService {
                                 .queryParam("alt", "sse")
                                 .queryParam("key", properties.apiKey())
                                 .build(properties.model()))
-                .body(buildRequestBody(prompt))
+                .body(buildRequestBody(prompt, image))
                 .exchange((request, response) -> {
                     try (BufferedReader reader = new BufferedReader(
                             new InputStreamReader(response.getBody(), StandardCharsets.UTF_8))) {
@@ -131,18 +143,24 @@ public class GeminiService {
         return new GeminiCallException("Gemini request failed.", exception);
     }
 
-    private Map<String, Object> buildRequestBody(String prompt) {
+    private Map<String, Object> buildRequestBody(String prompt, GeminiImage image) {
+        List<Map<String, Object>> parts = new ArrayList<>();
+        if (image != null) {
+            parts.add(Map.of(
+                    "inline_data", Map.of(
+                            "mime_type", image.mimeType(),
+                            "data", Base64.getEncoder().encodeToString(image.data())
+                    )
+            ));
+        }
+        parts.add(Map.of("text", prompt));
+
         return Map.of(
                 "contents",
                 new Object[]{
                         Map.of(
-                                "parts",
-                                new Object[]{
-                                        Map.of(
-                                                "text",
-                                                prompt
-                                        )
-                                }
+                                "role", "user",
+                                "parts", parts
                         )
                 }
         );
