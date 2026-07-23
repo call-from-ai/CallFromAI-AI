@@ -4,6 +4,7 @@ import com.example.aidatingagentbackend.dto.ChatRequest;
 import com.example.aidatingagentbackend.dto.ChatResponse;
 import com.example.aidatingagentbackend.dto.AgentSelfStateSnapshot;
 import com.example.aidatingagentbackend.dto.ErrorResponse;
+import com.example.aidatingagentbackend.dto.GeminiImage;
 import com.example.aidatingagentbackend.exception.GeminiCallException;
 import com.example.aidatingagentbackend.exception.GeminiTimeoutException;
 import org.slf4j.Logger;
@@ -14,6 +15,9 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.io.IOException;
 import java.util.Map;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.HexFormat;
 import java.time.Instant;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -42,8 +46,29 @@ public class ChatService {
         return requestIdempotencyService.execute(request, () -> processChat(request));
     }
 
+    public ChatResponse chat(ChatRequest request, GeminiImage image) {
+        ChatRequest normalized = normalizeImageOnlyRequest(request, image);
+        return requestIdempotencyService.execute(
+                normalized,
+                imageHash(image),
+                () -> processChat(normalized, image)
+        );
+    }
+
+    private ChatResponse processChat(ChatRequest request, GeminiImage image) {
+        AIProcessingService.CompletedAIProcessing completed = aiProcessingService.process(request, image);
+        return buildResponse(request, completed);
+    }
+
     private ChatResponse processChat(ChatRequest request) {
         AIProcessingService.CompletedAIProcessing completed = aiProcessingService.process(request);
+        return buildResponse(request, completed);
+    }
+
+    private ChatResponse buildResponse(
+            ChatRequest request,
+            AIProcessingService.CompletedAIProcessing completed
+    ) {
         AIProcessingService.PreparedAIProcessing prepared = completed.prepared();
         ChatResponse response = new ChatResponse(completed.reply());
         response.setRequestId(request.getRequestId());
@@ -56,7 +81,13 @@ public class ChatService {
     }
 
     public SseEmitter sendMessageStream(ChatRequest request) {
-        RequestIdempotencyService.Claim claim = requestIdempotencyService.claim(request);
+        return sendMessageStream(request, null);
+    }
+
+    public SseEmitter sendMessageStream(ChatRequest request, GeminiImage image) {
+        ChatRequest normalized = normalizeImageOnlyRequest(request, image);
+        RequestIdempotencyService.Claim claim =
+                requestIdempotencyService.claim(normalized, imageHash(image));
         if (claim.cachedResponse() != null) {
             return replayStream(claim.cachedResponse());
         }
@@ -71,7 +102,7 @@ public class ChatService {
             geminiService.resetCallCount();
             try {
                 AIProcessingService.PreparedAIProcessing prepared =
-                        aiProcessingService.prepare(request, true);
+                        aiProcessingService.prepare(normalized, true);
 
                 sendEvent(emitter, "meta", Map.of(
                         "eventType", prepared.eventAnalysis().eventType().name(),
@@ -79,7 +110,7 @@ public class ChatService {
                 ));
 
                 final long[] firstTokenHolder = {firstTokenAt};
-                geminiService.generateStream(prepared.prompt(), chunk -> {
+                geminiService.generateStream(prepared.prompt(), image, chunk -> {
                     if (firstChunkSent.compareAndSet(false, true)) {
                         firstTokenHolder[0] = System.currentTimeMillis();
                     }
@@ -89,7 +120,7 @@ public class ChatService {
                 firstTokenAt = firstTokenHolder[0];
 
                 String reply = aiProcessingService.finishGeneratedReply(prepared, streamedReply.toString(), false);
-                ChatResponse response = buildResponse(request, prepared, reply);
+                ChatResponse response = buildResponse(normalized, prepared, reply);
                 requestIdempotencyService.complete(claim.requestId(), response);
 
                 long completedAt = System.currentTimeMillis();
@@ -120,6 +151,29 @@ public class ChatService {
         });
 
         return emitter;
+    }
+
+    private ChatRequest normalizeImageOnlyRequest(ChatRequest request, GeminiImage image) {
+        if (image != null && (request.getMessage() == null || request.getMessage().isBlank())) {
+            return request.withMessage(
+                    "[사용자가 이미지를 보냈습니다. 이미지 내용을 이해하고 현재 대화와 관계에 맞게 자연스럽게 반응해 주세요.]"
+            );
+        }
+        return request;
+    }
+
+    private String imageHash(GeminiImage image) {
+        if (image == null) {
+            return null;
+        }
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            digest.update(image.mimeType().getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            digest.update(image.data());
+            return HexFormat.of().formatHex(digest.digest());
+        } catch (NoSuchAlgorithmException exception) {
+            throw new IllegalStateException("SHA-256 is not available", exception);
+        }
     }
 
     private SseEmitter replayStream(ChatResponse cachedResponse) {

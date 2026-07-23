@@ -30,7 +30,7 @@ BE는 `X-Internal-Api-Key`를 포함해 `PUT /internal/characters/{characterId}/
 
 | 필드 | Java 타입 | 일반 채팅/stream | proactive | 제약·동작 |
 | --- | --- | --- | --- | --- |
-| `requestId` | `String` | 선택 | 선택 | 형식·길이 검증 없음. 동기 응답에서는 echo된다. |
+| `requestId` | `String` | 필수 | 필수 | non-blank. 앞뒤 공백을 제거해 ledger key로 사용하며 DB 최대 길이는 100자다. 성공 응답에서 echo된다. |
 | `character` | `CharacterSnapshot` | 필수 | 필수 | null이면 400. |
 | `relationship` | `RelationshipSnapshot` | 필수 | 필수 | null이면 400. |
 | `history` | `List<ChatHistoryItem>` | 선택 | 선택 | 생략 시 빈 목록. null도 처리 단계에서 빈 목록으로 취급한다. |
@@ -194,7 +194,7 @@ AI 서버는 trait fallback을 계산하지 않는다. 10개 중 하나라도 �
 
 | 필드 | Java 타입 | 의미 |
 | --- | --- | --- |
-| `requestId` | `String` | 요청값 echo. 요청에서 생략하면 null |
+| `requestId` | `String` | 요청의 필수 correlation/idempotency key를 echo |
 | `reply` | `String` | 후처리와 필요 시 재생성을 마친 assistant 답변 |
 | `relationshipDelta` | `RelationshipDelta` | 입력 관계 수치 대비 signed 변화량 |
 | `nextRelationship` | `RelationshipSnapshot` | 계산 후 전체 관계 snapshot |
@@ -377,7 +377,8 @@ AI 저장소에는 백엔드의 물리 테이블명이 없으므로 아래는 �
 백엔드 처리 원칙:
 
 - 400: payload 생성 버그로 보고 자동 재시도하지 않는다. 원인 필드와 requestId를 로깅한다.
-- 5xx/timeout: 같은 논리 요청임을 유지하되 현재 AI 서버에 deduplication이 없음을 고려한다. 무제한 재시도하지 말고 exponential backoff와 최대 횟수를 둔다.
+- 409: 같은 `requestId`가 처리 중이거나 다른 요청 body에 이미 연결된 경우다. 처리 중이면 짧은 backoff 후 같은 body로 재시도하고, body가 다르면 새 `requestId`를 발급한다.
+- 5xx/timeout: 같은 논리 요청은 같은 `requestId`와 같은 body로 제한적으로 재시도한다. 완료된 요청이면 AI 서버가 ledger의 저장 응답을 반환하고, 실패 처리된 요청이면 다시 실행한다.
 - proactive 정책 거절: 현재는 전용 status가 없으므로 메시지 기반 영구 분류에 의존하지 말고 5xx로 취급하되 알림을 보내지 않는다. 전용 4xx/204 계약은 미결정 사항이다.
 - 응답 parse 실패: 관계와 assistant 메시지를 부분 저장하지 말고 전체 요청을 실패 처리한다.
 
@@ -455,17 +456,18 @@ AI 서버도 생성 전에 `ProactiveContactPolicyService`로 상태를 검사�
 
 현재 코드 동작:
 
-- `/chat`: `ChatResponse.requestId`로 그대로 echo
-- `/api/chat/proactive/send`: `ChatResponse.requestId`로 그대로 echo
-- streaming: 어떤 SSE event에도 echo하지 않음
-- AI 서버: request ledger, uniqueness 검증, 결과 cache, 중복 side-effect 방지 없음
-
-따라서 같은 `requestId`로 재시도해도 AI 서버는 요청을 다시 처리하며 `AgentSelfState`, event, memory 등 AI 파생 side effect가 중복될 수 있다. 현재 requestId는 correlation key이지 idempotency key 구현이 아니다.
+- 모든 채팅·streaming·proactive 요청에서 non-blank `requestId`가 필수다. 없으면 400이다.
+- AI 서버는 처리 전에 `ai_request_ledger`에 `requestId`, 요청 body의 SHA-256 hash, `PROCESSING` 상태를 기록한다.
+- 같은 `requestId`와 같은 body의 완료 요청은 저장된 `ChatResponse`를 반환해 AI 처리와 파생 side effect를 다시 실행하지 않는다.
+- 같은 `requestId`가 아직 처리 중이거나, 같은 ID에 다른 body를 보내면 409 Conflict다.
+- 처리 중 예외가 발생하면 ledger 항목을 삭제하므로 같은 ID·body로 재시도할 수 있다.
+- `/chat`과 `/api/chat/proactive/send`는 응답 body에 `requestId`를 echo한다.
+- streaming 신규 처리의 SSE event에는 `requestId`가 포함되지 않지만 ledger에는 같은 규칙이 적용된다. 완료 결과 재요청 시 저장된 `reply`를 `chunk`로 재생하고 `done.cached=true`를 보낸다.
 
 백엔드는 다음을 보장해야 한다.
 
 1. user message 저장과 outbound AI 요청에 동일 requestId를 연결한다.
-2. request ledger에 pending/succeeded/failed 상태를 둔다.
+2. timeout 재시도 시 `requestId`뿐 아니라 요청 body도 동일하게 유지한다.
 3. 성공 응답의 assistant message와 관계 반영에는 requestId unique constraint를 적용한다.
 4. timeout 후 재시도할 때 이미 성공 응답을 처리했는지 먼저 확인한다.
 5. 관계 업데이트는 요청 당시 row version을 조건으로 `nextRelationship`을 적용한다.
@@ -473,7 +475,7 @@ AI 서버도 생성 전에 `ProactiveContactPolicyService`로 상태를 검사�
 ## 11. 아직 결정되지 않았거나 백엔드 팀과 논의할 부분
 
 - history의 공식 최대 개수, token/문자 제한, role enum. 현재 코드는 앞 10/6/4개만 서로 다르게 사용한다.
-- `requestId` 형식·최대 길이·충돌 응답과 AI 서버 자체 idempotency ledger 도입 여부.
+- `requestId`의 UUIDv7/ULID 등 공식 형식과 100자 이내의 더 구체적인 길이 제한.
 - streaming 완료 이벤트에 requestId, 관계 delta, next relationship, 전후 self state, 전체 event analysis를 추가할지 여부.
 - proactive 정책 거절을 204, 409, 422 등 어떤 안정된 HTTP 계약으로 표현할지 여부.
 - AI 파생 `AgentSelfState`를 백엔드에도 projection할지, 응답에서는 관측만 할지 여부.

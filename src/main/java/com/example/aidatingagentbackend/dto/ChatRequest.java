@@ -29,6 +29,13 @@ public class ChatRequest {
         }
     }
 
+    public void validateForChat(boolean hasImage) {
+        validateSnapshots();
+        if ((message == null || message.isBlank()) && !hasImage) {
+            throw new IllegalArgumentException("message or image is required");
+        }
+    }
+
     public void validateForProactive() {
         validateSnapshots();
     }
