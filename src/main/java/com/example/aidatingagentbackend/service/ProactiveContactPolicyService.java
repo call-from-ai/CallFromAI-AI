@@ -21,10 +21,6 @@ public class ProactiveContactPolicyService {
         int temperatureScore = context.relationshipTemperatureScore() == null
                 ? 50
                 : context.relationshipTemperatureScore();
-        // Romance style is intentionally not a send/no-send condition. It is carried in Context
-        // for prompt wording intensity while traits and relationship state remain decisive here.
-        int romanceStyleScore = context.romanceStyleScore() == null ? 50 : context.romanceStyleScore();
-
         if (high(value(selfState == null ? null : selfState.getHurt()))
                 && !isRepairGoal(goal)) {
             return false;
