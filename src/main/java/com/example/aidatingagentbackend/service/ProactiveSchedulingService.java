@@ -7,6 +7,7 @@ import java.time.Instant;
 import java.util.concurrent.ThreadLocalRandom;
 
 @Service
+@Deprecated(forRemoval = true)
 public class ProactiveSchedulingService {
 
     private static final Duration MINIMUM_COOLDOWN = Duration.ofMinutes(30);

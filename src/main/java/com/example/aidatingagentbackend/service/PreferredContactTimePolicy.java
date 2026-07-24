@@ -12,6 +12,7 @@ import java.time.ZonedDateTime;
 import static com.example.aidatingagentbackend.service.ProactiveSchedulingService.PreferredTimeStatus;
 
 @Component
+@Deprecated(forRemoval = true)
 public class PreferredContactTimePolicy {
     static final LocalTime MORNING_START = LocalTime.of(6, 0);
     static final LocalTime DAY_START = LocalTime.of(12, 0);

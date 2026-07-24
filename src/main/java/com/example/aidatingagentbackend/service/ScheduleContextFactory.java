@@ -8,6 +8,7 @@ import java.time.Instant;
 import java.time.ZoneId;
 
 @Component
+@Deprecated(forRemoval = true)
 public class ScheduleContextFactory {
     public static final ZoneId DEFAULT_ZONE_ID = ZoneId.of("Asia/Seoul");
 
