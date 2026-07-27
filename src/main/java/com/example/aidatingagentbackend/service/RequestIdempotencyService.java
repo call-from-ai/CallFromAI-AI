@@ -39,7 +39,11 @@ public class RequestIdempotencyService {
     }
 
     public ChatResponse execute(ChatRequest request, Supplier<ChatResponse> action) {
-        Claim claim = claim(request);
+        return execute(request, null, action);
+    }
+
+    public ChatResponse execute(ChatRequest request, String imageHash, Supplier<ChatResponse> action) {
+        Claim claim = claim(request, imageHash);
         if (claim.cachedResponse() != null) {
             return claim.cachedResponse();
         }
@@ -56,12 +60,17 @@ public class RequestIdempotencyService {
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public Claim claim(ChatRequest request) {
+        return claim(request, null);
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public Claim claim(ChatRequest request, String imageHash) {
         if (request == null || !StringUtils.hasText(request.getRequestId())) {
             throw new IllegalArgumentException("requestId is required");
         }
 
         String requestId = request.getRequestId().trim();
-        String requestHash = hash(request);
+        String requestHash = hash(request, imageHash);
         int inserted = jdbcTemplate.update(
                 "INSERT IGNORE INTO ai_request_ledger " +
                         "(request_id, request_hash, status, created_at) VALUES (?, ?, 'PROCESSING', CURRENT_TIMESTAMP)",
@@ -99,10 +108,15 @@ public class RequestIdempotencyService {
         repository.deleteById(requestId);
     }
 
-    private String hash(ChatRequest request) {
+    private String hash(ChatRequest request, String imageHash) {
         try {
             byte[] body = objectMapper.writeValueAsBytes(request);
-            return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(body));
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            digest.update(body);
+            if (StringUtils.hasText(imageHash)) {
+                digest.update(imageHash.getBytes(StandardCharsets.UTF_8));
+            }
+            return HexFormat.of().formatHex(digest.digest());
         } catch (JsonProcessingException | NoSuchAlgorithmException exception) {
             throw new IllegalStateException("Failed to hash idempotent request.", exception);
         }
