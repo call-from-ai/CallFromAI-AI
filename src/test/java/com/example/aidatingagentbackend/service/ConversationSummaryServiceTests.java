@@ -42,9 +42,22 @@ class ConversationSummaryServiceTests {
         verify(geminiService).generate(org.mockito.ArgumentMatchers.argThat(prompt ->
                 prompt.contains("기존 취향") &&
                         prompt.contains("민준의 관심사, 취향, 성격") &&
+                        prompt.contains("일반 호칭을 절대 사용하지 말 것") &&
+                        prompt.contains("사용자는 반드시 '민준'") &&
+                        prompt.contains("AI 캐릭터는 반드시 '하나'") &&
                         prompt.indexOf("민준: 첫 메시지") < prompt.indexOf("하나: 두 번째 메시지") &&
                         !prompt.contains("user: 첫 메시지") &&
                         !prompt.contains("assistant: 두 번째 메시지")));
+    }
+
+    @Test
+    void replacesGenericParticipantLabelsButKeepsAiUsedAsContent() {
+        when(geminiService.generate(anyString())).thenReturn(
+                "AI는 사용자에게 연락했고, 사용자는 AI 과제를 궁금해했습니다.");
+
+        ConversationSummaryResponse response = service.summarize(request(200));
+
+        assertEquals("하나는 민준에게 연락했고, 민준은 AI 과제를 궁금해했습니다.", response.summary());
     }
 
     @Test
