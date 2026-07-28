@@ -41,7 +41,10 @@ class ConversationSummaryServiceTests {
         assertEquals("아이스티를 좋아해요.", response.summary());
         verify(geminiService).generate(org.mockito.ArgumentMatchers.argThat(prompt ->
                 prompt.contains("기존 취향") &&
-                        prompt.indexOf("user: 첫 메시지") < prompt.indexOf("assistant: 두 번째 메시지")));
+                        prompt.contains("민준의 관심사, 취향, 성격") &&
+                        prompt.indexOf("민준: 첫 메시지") < prompt.indexOf("하나: 두 번째 메시지") &&
+                        !prompt.contains("user: 첫 메시지") &&
+                        !prompt.contains("assistant: 두 번째 메시지")));
     }
 
     @Test
@@ -64,7 +67,15 @@ class ConversationSummaryServiceTests {
     @Test
     void rejectsUnsupportedRole() {
         ConversationSummaryRequest invalid = new ConversationSummaryRequest(
-                1L, null, List.of(new SummaryMessage("system", "내용")), 200);
+                1L, "민준", "하나", null, List.of(new SummaryMessage("system", "내용")), 200);
+
+        assertThrows(IllegalArgumentException.class, () -> service.summarize(invalid));
+    }
+
+    @Test
+    void rejectsBlankParticipantName() {
+        ConversationSummaryRequest invalid = new ConversationSummaryRequest(
+                1L, " ", "하나", null, List.of(new SummaryMessage("user", "내용")), 200);
 
         assertThrows(IllegalArgumentException.class, () -> service.summarize(invalid));
     }
@@ -72,6 +83,8 @@ class ConversationSummaryServiceTests {
     private ConversationSummaryRequest request(int maxCharacters) {
         return new ConversationSummaryRequest(
                 1L,
+                "민준",
+                "하나",
                 "기존 취향",
                 List.of(
                         new SummaryMessage("user", "첫 메시지"),

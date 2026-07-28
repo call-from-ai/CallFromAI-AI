@@ -55,6 +55,8 @@ class ConversationSummaryControllerTests {
         return """
                 {
                   "relationshipId": 1,
+                  "userName": "민준",
+                  "characterName": "하나",
                   "previousSummary": null,
                   "messages": [
                     {"role": "user", "content": "나는 커피보다 아이스티가 좋아"},
