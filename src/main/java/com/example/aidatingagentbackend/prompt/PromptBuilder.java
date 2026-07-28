@@ -445,6 +445,7 @@ public class PromptBuilder {
             }
             prompt.append("[Recent Chat]\n");
             chatHistory.stream()
+                    .skip(Math.max(0, chatHistory.size() - limit))
                     .limit(limit)
                     .forEach(message -> prompt.append(message.getRole())
                             .append(": ")
