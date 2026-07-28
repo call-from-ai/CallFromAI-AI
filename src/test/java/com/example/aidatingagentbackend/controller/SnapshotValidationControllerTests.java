@@ -72,7 +72,7 @@ class SnapshotValidationControllerTests {
     }
 
     private String payload(String stage, String traits) {
-        return "{\"requestId\":\"r1\",\"message\":\"hi\"," +
+        return "{\"requestId\":\"r1\",\"channel\":\"CHAT\",\"message\":\"hi\"," +
                 "\"character\":{\"characterId\":10,\"name\":\"hana\",\"romanceStyleScore\":90,\"traits\":" + traits + "}," +
                 "\"relationship\":{\"relationshipId\":20,\"relationshipStage\":\"" + stage + "\",\"relationshipTemperatureScore\":35," +
                 "\"trust\":50,\"closeness\":50,\"conflictLevel\":20,\"repairProgress\":20,\"breakupRisk\":20,\"daysTogether\":30,\"strategy\":\"NORMAL\"}}";
@@ -84,7 +84,7 @@ class SnapshotValidationControllerTests {
 
     private String snapshotPayload(String message) {
         String messageJson = message == null ? "" : ",\"message\":\"" + message + "\"";
-        return "{\"requestId\":\"r1\"" + messageJson + "," +
+        return "{\"requestId\":\"r1\",\"channel\":\"CHAT\"" + messageJson + "," +
                 "\"character\":{\"characterId\":10,\"name\":\"hana\",\"romanceStyleScore\":90,\"traits\":" + traits() + "}," +
                 "\"relationship\":{\"relationshipId\":20,\"relationshipStage\":\"DATING\",\"relationshipTemperatureScore\":35," +
                 "\"trust\":50,\"closeness\":50,\"conflictLevel\":20,\"repairProgress\":20,\"breakupRisk\":20,\"daysTogether\":30,\"strategy\":\"NORMAL\"}}";

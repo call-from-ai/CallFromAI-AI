@@ -24,6 +24,7 @@ public class AIProcessingService {
     private final ResponseStylePostProcessor responseStylePostProcessor;
     private final ConversationEventService conversationEventService;
     private final CharacterPreferenceService characterPreferenceService;
+    private final ConversationMemoryService conversationMemoryService;
 
     public AIProcessingService(
             PromptBuilder promptBuilder,
@@ -36,7 +37,8 @@ public class AIProcessingService {
             AgentGoalService agentGoalService,
             ResponseStylePostProcessor responseStylePostProcessor,
             ConversationEventService conversationEventService,
-            CharacterPreferenceService characterPreferenceService
+            CharacterPreferenceService characterPreferenceService,
+            ConversationMemoryService conversationMemoryService
     ) {
         this.promptBuilder = promptBuilder;
         this.geminiService = geminiService;
@@ -49,6 +51,7 @@ public class AIProcessingService {
         this.responseStylePostProcessor = responseStylePostProcessor;
         this.conversationEventService = conversationEventService;
         this.characterPreferenceService = characterPreferenceService;
+        this.conversationMemoryService = conversationMemoryService;
     }
 
     public PreparedAIProcessing prepare(ChatRequest request, boolean compactPrompt) {
@@ -71,7 +74,9 @@ public class AIProcessingService {
         String prompt = buildPrompt(context, userMessage, compactPrompt);
 
         return new PreparedAIProcessing(
+                request.getRequestId(),
                 characterId,
+                request.getChannel(),
                 userMessage,
                 eventAnalysis,
                 emotionUpdateResult,
@@ -221,6 +226,13 @@ public class AIProcessingService {
                 prepared.context().preferenceQuestionPlan()
         );
         contextUpdater.updateMemoryAfterResponse(prepared.characterId(), prepared.userMessage(), reply);
+        conversationMemoryService.saveTurn(
+                prepared.requestId(),
+                prepared.characterId(),
+                prepared.channel(),
+                prepared.userMessage(),
+                reply
+        );
     }
 
     public Long resolveCharacterId(ChatRequest request) {
@@ -238,7 +250,9 @@ public class AIProcessingService {
     }
 
     public record PreparedAIProcessing(
+            String requestId,
             Long characterId,
+            com.example.aidatingagentbackend.entity.MemoryChannel channel,
             String userMessage,
             EventAnalysis eventAnalysis,
             EmotionUpdateService.EmotionUpdateResult emotionUpdateResult,

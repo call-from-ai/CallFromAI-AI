@@ -6,6 +6,7 @@ import com.example.aidatingagentbackend.dto.CharacterTraitSnapshot;
 import com.example.aidatingagentbackend.entity.Memory;
 import com.example.aidatingagentbackend.entity.AgentSelfState;
 import com.example.aidatingagentbackend.entity.RelationshipStage;
+import com.example.aidatingagentbackend.entity.MemoryType;
 import com.example.aidatingagentbackend.repository.MemoryRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -52,8 +53,8 @@ public class MemoryRetrievalService {
         double[] queryEmbedding = memoryEmbeddingService.embed(userMessage);
 
         List<Memory> source = characterId == null
-                ? memoryRepository.findAll()
-                : memoryRepository.findByCharacterId(characterId);
+                ? memoryRepository.findByTypeNot(MemoryType.CONVERSATION_TURN)
+                : memoryRepository.findByCharacterIdAndTypeNot(characterId, MemoryType.CONVERSATION_TURN);
 
         List<Memory> retrieved = source
                 .stream()
