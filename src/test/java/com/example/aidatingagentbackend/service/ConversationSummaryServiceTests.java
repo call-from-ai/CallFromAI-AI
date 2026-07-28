@@ -45,6 +45,7 @@ class ConversationSummaryServiceTests {
                         prompt.contains("일반 호칭을 절대 사용하지 말 것") &&
                         prompt.contains("사용자는 반드시 '민준'") &&
                         prompt.contains("AI 캐릭터는 반드시 '하나'") &&
+                        prompt.contains("참여자 이름 자체를 제외하고 영어 단어나 로마자 표현을 사용하지 말 것") &&
                         prompt.indexOf("민준: 첫 메시지") < prompt.indexOf("하나: 두 번째 메시지") &&
                         !prompt.contains("user: 첫 메시지") &&
                         !prompt.contains("assistant: 두 번째 메시지")));
@@ -58,6 +59,16 @@ class ConversationSummaryServiceTests {
         ConversationSummaryResponse response = service.summarize(request(200));
 
         assertEquals("하나는 민준에게 연락했고, 민준은 AI 과제를 궁금해했습니다.", response.summary());
+    }
+
+    @Test
+    void normalizesJsonEscapedDoubleQuotesToKoreanQuotationMarks() {
+        when(geminiService.generate(anyString())).thenReturn(
+                "민준은 \\\"대충\\\"이라며 상황을 넘겼습니다.");
+
+        ConversationSummaryResponse response = service.summarize(request(200));
+
+        assertEquals("민준은 ‘대충’이라며 상황을 넘겼습니다.", response.summary());
     }
 
     @Test
