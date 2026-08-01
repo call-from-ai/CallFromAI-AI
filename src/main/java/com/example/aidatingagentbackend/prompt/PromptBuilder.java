@@ -26,13 +26,16 @@ import java.util.List;
 public class PromptBuilder {
 
     private final TraitInstructionResolver traitInstructionResolver;
+    private final RomanceStylePromptResolver romanceStylePromptResolver;
 
-    public PromptBuilder(TraitInstructionResolver traitInstructionResolver) {
+    public PromptBuilder(TraitInstructionResolver traitInstructionResolver,
+                         RomanceStylePromptResolver romanceStylePromptResolver) {
         this.traitInstructionResolver = traitInstructionResolver;
+        this.romanceStylePromptResolver = romanceStylePromptResolver;
     }
 
     public Builder builder() {
-        return new Builder(traitInstructionResolver);
+        return new Builder(traitInstructionResolver, romanceStylePromptResolver);
     }
 
     public String buildRegenerationPrompt(
@@ -70,6 +73,7 @@ public class PromptBuilder {
     public static class Builder {
 
         private final TraitInstructionResolver traitInstructionResolver;
+        private final RomanceStylePromptResolver romanceStylePromptResolver;
         private CharacterSnapshot character;
         private RelationshipSnapshot relationship;
         private CharacterTraitSnapshot characterTraitProfile;
@@ -91,8 +95,10 @@ public class PromptBuilder {
         private String userMessage;
         private boolean compactMode;
 
-        private Builder(TraitInstructionResolver traitInstructionResolver) {
+        private Builder(TraitInstructionResolver traitInstructionResolver,
+                        RomanceStylePromptResolver romanceStylePromptResolver) {
             this.traitInstructionResolver = traitInstructionResolver;
+            this.romanceStylePromptResolver = romanceStylePromptResolver;
         }
 
         public Builder character(CharacterSnapshot character) {
@@ -273,24 +279,10 @@ public class PromptBuilder {
         }
 
         private void appendTemperatureBehavior(StringBuilder prompt) {
-            prompt.append("[Romance Expression Style]\n");
-            int score = romanceStyleScore == null ? 50 : romanceStyleScore;
-            if (score <= 20) {
-                prompt.append("- 차분하고 안정적인 말투를 유지한다.\n");
-                prompt.append("- 짧은 배려를 사용하고 과한 플러팅은 제한한다.\n");
-            } else if (score <= 40) {
-                prompt.append("- 다정하고 부드러운 애정 표현을 사용한다.\n");
-            } else if (score <= 60) {
-                prompt.append("- 자연스러운 장난과 플러팅은 가능하지만 과도한 집착은 피한다.\n");
-            } else if (score <= 80) {
-                prompt.append("- 적극적인 애정 표현과 강한 장난을 사용할 수 있다.\n");
-                prompt.append("- 현재 사건이 뒷받침할 때만 질투를 더 직접적으로 표현한다.\n");
-            } else {
-                prompt.append("- 짧고 자신감 있는 문장, 도발, 밀당, 리드하는 태도를 사용할 수 있다.\n");
-                prompt.append("- 현재 실제 hurt가 높으면 바로 쉽게 풀리지 않을 수 있다.\n");
-            }
-            prompt.append("- 높은 romance style이라도 매 응답을 도발적으로 만들지 말고 현재 관계 거리와 감정 상태를 우선한다.\n");
-            prompt.append("- 모욕, 협박, 강압, 통제, 자해 협박, 과도한 죄책감 유발, 현실의 고립 유도는 금지한다.\n\n");
+            prompt.append(romanceStylePromptResolver.resolve(romanceStyleScore));
+            prompt.append("\n공통 안전 경계:\n");
+            prompt.append("- 모욕, 협박, 강압, 통제, 자해 협박, 과도한 죄책감 유발, 현실의 고립 유도는 금지한다.\n");
+            prompt.append("- RomanceStyle은 표현 강도를 조절할 뿐이며, 현재 사건·감정 상태·관계 단계의 제한을 넘지 않는다.\n\n");
         }
 
         private void appendTraitBehavior(StringBuilder prompt) {
@@ -445,6 +437,7 @@ public class PromptBuilder {
             }
             prompt.append("[Recent Chat]\n");
             chatHistory.stream()
+                    .skip(Math.max(0, chatHistory.size() - limit))
                     .limit(limit)
                     .forEach(message -> prompt.append(message.getRole())
                             .append(": ")

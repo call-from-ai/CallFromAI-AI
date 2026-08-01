@@ -22,13 +22,15 @@ public class ContextLoader {
     private final ConversationEventService conversationEventService;
     private final CharacterPreferenceService characterPreferenceService;
     private final ConversationTopicService conversationTopicService;
+    private final ConversationMemoryService conversationMemoryService;
 
     public ContextLoader(AgentSelfStateRepository agentSelfStateRepository,
             MemoryRetrievalService memoryRetrievalService, CharacterExampleService characterExampleService,
             AgentWorldStateService agentWorldStateService, AgentGoalService agentGoalService,
             AgentInitiativeService agentInitiativeService, AgentLifeEventService agentLifeEventService,
             ConversationEventService conversationEventService, CharacterPreferenceService characterPreferenceService,
-            ConversationTopicService conversationTopicService) {
+            ConversationTopicService conversationTopicService,
+            ConversationMemoryService conversationMemoryService) {
         this.agentSelfStateRepository = agentSelfStateRepository;
         this.memoryRetrievalService = memoryRetrievalService;
         this.characterExampleService = characterExampleService;
@@ -39,6 +41,7 @@ public class ContextLoader {
         this.conversationEventService = conversationEventService;
         this.characterPreferenceService = characterPreferenceService;
         this.conversationTopicService = conversationTopicService;
+        this.conversationMemoryService = conversationMemoryService;
     }
 
     public Context load(ChatRequest request, EventAnalysis analysis, ContextUpdater.RelationshipUpdate relationshipUpdate) {
@@ -52,6 +55,10 @@ public class ContextLoader {
         PreferenceQuestionPlan preferencePlan = characterPreferenceService.plan(characterId, request.getMessage());
         EventAnalysis resolved = analysis == null ? EventAnalysis.fallback(AgentEventType.NORMAL) : analysis;
         CharacterTraitSnapshot traits = character.traits();
+        List<ChatHistoryItem> unifiedHistory = conversationMemoryService.findRecentHistory(characterId);
+        List<ChatHistoryItem> promptHistory = unifiedHistory.isEmpty()
+                ? (request.getHistory() == null ? List.of() : request.getHistory())
+                : unifiedHistory;
 
         return new Context(character, relationship, traits,
                 relationship.relationshipStage(), relationship.relationshipTemperatureScore(), character.romanceStyleScore(),
@@ -64,7 +71,7 @@ public class ContextLoader {
                         relationship.relationshipStage(), relationship.relationshipTemperatureScore(), character.romanceStyleScore(), traits),
                 preferencePlan.active() ? List.of() : memoryRetrievalService.retrieve(characterId, request.getMessage(), selfState,
                         traits, relationship.relationshipStage(), relationship.relationshipTemperatureScore(), resolved),
-                request.getHistory() == null ? List.of() : request.getHistory());
+                promptHistory);
     }
 
     private CharacterSnapshot requireCharacter(ChatRequest request) {
