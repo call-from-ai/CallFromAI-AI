@@ -39,7 +39,8 @@ public class ConversationSummaryService {
                 request.userName().strip(),
                 request.characterName().strip()
         );
-        return new ConversationSummaryResponse(truncateByCodePoint(namedSummary, limit));
+        String normalizedSummary = normalizeQuotationMarks(namedSummary);
+        return new ConversationSummaryResponse(truncateByCodePoint(normalizedSummary, limit));
     }
 
     String buildPrompt(ConversationSummaryRequest request, int limit) {
@@ -55,6 +56,9 @@ public class ConversationSummaryService {
                 - 인물을 지칭할 때 '사용자', '유저', 'AI', 'AI 캐릭터', '캐릭터', 'assistant'라는 일반 호칭을 절대 사용하지 말 것
                 - 사용자는 반드시 '%s', AI 캐릭터는 반드시 '%s'라는 이름으로 지칭할 것
                 - 기존 요약에 일반 호칭이 있더라도 새 요약에서는 반드시 위 이름으로 바꿀 것
+                - 참여자 이름 자체를 제외하고 영어 단어나 로마자 표현을 사용하지 말 것
+                - 영어 부사나 감정 표현도 반드시 자연스러운 한국어로 번역할 것
+                - 큰따옴표(")를 사용하지 말고 필요한 경우 한국어 인용부호(‘ ’)를 사용할 것
                 - 대화에 없는 내용을 추측하지 말 것
                 - 비밀번호, 연락처 등 민감정보는 제외
                 - 자연스러운 한국어 문장으로 작성
@@ -126,6 +130,22 @@ public class ConversationSummaryService {
         result = replaceParticipantLabel(result, "캐릭터", characterName);
         result = replaceParticipantLabel(result, "assistant", characterName);
         return replaceParticipantLabel(result, "AI", characterName);
+    }
+
+    private String normalizeQuotationMarks(String value) {
+        String unescaped = value.replace("\\\"", "\"");
+        StringBuilder normalized = new StringBuilder(unescaped.length());
+        boolean opening = true;
+        for (int index = 0; index < unescaped.length(); index++) {
+            char current = unescaped.charAt(index);
+            if (current == '"') {
+                normalized.append(opening ? '‘' : '’');
+                opening = !opening;
+            } else {
+                normalized.append(current);
+            }
+        }
+        return normalized.toString();
     }
 
     private String replaceParticipantLabel(String value, String genericLabel, String name) {

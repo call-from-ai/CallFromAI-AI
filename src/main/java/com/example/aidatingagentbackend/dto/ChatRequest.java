@@ -1,5 +1,6 @@
 package com.example.aidatingagentbackend.dto;
 
+import com.example.aidatingagentbackend.entity.MemoryChannel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -13,6 +14,7 @@ public class ChatRequest {
 
     private String requestId;
     private Long characterId;
+    private MemoryChannel channel;
     private ProactiveContactReason contactReason;
     private ProactiveRelationshipState relationshipState;
     private RecentResponse recentResponse;
@@ -35,6 +37,7 @@ public class ChatRequest {
         if (message == null || message.isBlank()) {
             throw new IllegalArgumentException("message is required");
         }
+        validateChannel();
     }
 
     public void validateForChat(boolean hasImage) {
@@ -42,6 +45,7 @@ public class ChatRequest {
         if ((message == null || message.isBlank()) && !hasImage) {
             throw new IllegalArgumentException("message or image is required");
         }
+        validateChannel();
     }
 
     public void validateForProactive() {
@@ -52,6 +56,7 @@ public class ChatRequest {
         ChatRequest copy = new ChatRequest();
         copy.setRequestId(requestId);
         copy.setCharacterId(characterId);
+        copy.setChannel(channel);
         copy.setContactReason(contactReason);
         copy.setRelationshipState(relationshipState);
         copy.setRecentResponse(recentResponse);
@@ -68,6 +73,12 @@ public class ChatRequest {
         }
         if (relationship == null) {
             throw new IllegalArgumentException("relationship snapshot is required");
+        }
+    }
+
+    private void validateChannel() {
+        if (channel == null) {
+            throw new IllegalArgumentException("channel is required");
         }
     }
 }

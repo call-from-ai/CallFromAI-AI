@@ -7,6 +7,7 @@ import com.example.aidatingagentbackend.engine.AgentEventType;
 import com.example.aidatingagentbackend.engine.EventAnalysis;
 import com.example.aidatingagentbackend.engine.RelationshipEngine;
 import com.example.aidatingagentbackend.entity.RelationshipStage;
+import com.example.aidatingagentbackend.entity.MemoryChannel;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -67,12 +68,13 @@ class SnapshotBoundaryTests {
         request.setCharacter(character());
         request.setRelationship(relationship());
         request.setMessage("안녕");
+        request.setChannel(MemoryChannel.CHAT);
         RelationshipDelta delta = new RelationshipDelta(8, 4, -8, 20, -10);
         ContextUpdater.RelationshipUpdate update = new ContextUpdater.RelationshipUpdate(delta, relationship());
         EventAnalysis analysis = EventAnalysis.fallback(AgentEventType.NORMAL);
         EmotionUpdateService.EmotionUpdateResult emotion = new EmotionUpdateService.EmotionUpdateResult(null, null, analysis);
         AIProcessingService.PreparedAIProcessing prepared = new AIProcessingService.PreparedAIProcessing(
-                10L, "안녕", analysis, emotion, update, null, "prompt");
+                "req-77", 10L, MemoryChannel.CHAT, "안녕", analysis, emotion, update, null, "prompt");
         when(processing.process(request)).thenReturn(new AIProcessingService.CompletedAIProcessing(prepared, "reply"));
 
         RequestIdempotencyService idempotencyService = mock(RequestIdempotencyService.class);
@@ -110,6 +112,7 @@ class SnapshotBoundaryTests {
         request.setRelationship(relationship);
         request.setHistory(List.of());
         request.setMessage(message);
+        request.setChannel(MemoryChannel.CHAT);
         return request;
     }
 }
