@@ -136,6 +136,7 @@ public class EventAnalyzer {
         }
 
         recentHistory.stream()
+                .skip(Math.max(0, recentHistory.size() - 10))
                 .limit(10)
                 .forEach(message -> prompt.append(message.getRole())
                         .append(": ")
