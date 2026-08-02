@@ -7,6 +7,7 @@ import com.example.aidatingagentbackend.dto.Context;
 import com.example.aidatingagentbackend.dto.GeminiImage;
 import com.example.aidatingagentbackend.engine.EventAnalysis;
 import com.example.aidatingagentbackend.entity.ResponseQualityEvaluation;
+import com.example.aidatingagentbackend.entity.MemoryChannel;
 import com.example.aidatingagentbackend.prompt.PromptBuilder;
 import org.springframework.stereotype.Service;
 
@@ -88,14 +89,14 @@ public class AIProcessingService {
 
     public CompletedAIProcessing process(ChatRequest request) {
         PreparedAIProcessing prepared = prepare(request, false);
-        String reply = geminiService.generate(prepared.prompt());
+        String reply = geminiService.generate(prepared.prompt(), prepared.channel());
         reply = finishGeneratedReply(prepared, reply, true);
         return new CompletedAIProcessing(prepared, reply);
     }
 
     public CompletedAIProcessing process(ChatRequest request, GeminiImage image) {
         PreparedAIProcessing prepared = prepare(request, false);
-        String reply = geminiService.generate(prepared.prompt(), image);
+        String reply = geminiService.generate(prepared.prompt(), image, prepared.channel());
         reply = finishGeneratedReply(prepared, reply, true, image);
         return new CompletedAIProcessing(prepared, reply);
     }
@@ -115,6 +116,10 @@ public class AIProcessingService {
             GeminiImage image
     ) {
         String reply = postProcess(prepared.context(), generatedReply);
+        if (shouldSkipQualityEvaluation(prepared.channel())) {
+            persistAfterResponse(prepared, reply);
+            return reply;
+        }
         if (allowRegeneration) {
             reply = evaluateAndRegenerateIfNeeded(prepared, reply, image);
         } else {
@@ -179,7 +184,7 @@ public class AIProcessingService {
                 reply,
                 evaluation
         );
-        String regeneratedReply = geminiService.generate(regenerationPrompt, image);
+        String regeneratedReply = geminiService.generate(regenerationPrompt, image, prepared.channel());
         regeneratedReply = postProcess(context, regeneratedReply);
         responseQualityEvaluatorService.evaluateAndSave(
                 prepared.characterId(),
@@ -204,6 +209,10 @@ public class AIProcessingService {
                 prepared.eventAnalysis(),
                 false
         );
+    }
+
+    static boolean shouldSkipQualityEvaluation(MemoryChannel channel) {
+        return channel == MemoryChannel.CALL;
     }
 
     private String postProcess(Context context, String reply) {
