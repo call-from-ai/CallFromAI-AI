@@ -38,7 +38,7 @@ public class ProactiveChatService {
             throw new ProactivePolicyRejectedException("Proactive contact policy rejected this request.");
         }
 
-        String generated = geminiService.generate(prepared.prompt());
+        String generated = geminiService.generate(prepared.prompt(), prepared.channel());
         String reply = aiProcessingService.finishGeneratedReply(prepared, generated, true);
         ChatResponse response = new ChatResponse(reply);
         response.setRequestId(request.getRequestId());
