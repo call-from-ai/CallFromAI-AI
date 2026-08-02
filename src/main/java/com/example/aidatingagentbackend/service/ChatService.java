@@ -110,7 +110,7 @@ public class ChatService {
                 ));
 
                 final long[] firstTokenHolder = {firstTokenAt};
-                geminiService.generateStream(prepared.prompt(), image, chunk -> {
+                geminiService.generateStream(prepared.prompt(), image, prepared.channel(), chunk -> {
                     if (firstChunkSent.compareAndSet(false, true)) {
                         firstTokenHolder[0] = System.currentTimeMillis();
                     }
