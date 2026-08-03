@@ -46,7 +46,7 @@ public class GeminiService {
     }
 
     public String generate(String prompt) {
-        return generate(prompt, null, null);
+        return generate(prompt, (GeminiImage) null, null);
     }
 
     public String generate(String prompt, GeminiImage image) {
@@ -57,7 +57,20 @@ public class GeminiService {
         return generate(prompt, null, channel);
     }
 
+    public String generate(String prompt, MemoryChannel channel, Integer maxOutputTokens) {
+        return generate(prompt, null, channel, maxOutputTokens);
+    }
+
     public String generate(String prompt, GeminiImage image, MemoryChannel channel) {
+        return generate(prompt, image, channel, null);
+    }
+
+    private String generate(
+            String prompt,
+            GeminiImage image,
+            MemoryChannel channel,
+            Integer maxOutputTokens
+    ) {
 
         if (!StringUtils.hasText(properties.apiKey())) {
             throw new IllegalStateException("Gemini API Key가 없습니다.");
@@ -70,7 +83,7 @@ public class GeminiService {
                                 uriBuilder.path("/models/{model}:generateContent")
                                         .queryParam("key", properties.apiKey())
                                         .build(properties.model()))
-                        .body(buildRequestBody(prompt, image, channel))
+                        .body(buildRequestBody(prompt, image, channel, maxOutputTokens))
                         .retrieve()
                     .body(JsonNode.class);
 
@@ -163,6 +176,15 @@ public class GeminiService {
     }
 
     Map<String, Object> buildRequestBody(String prompt, GeminiImage image, MemoryChannel channel) {
+        return buildRequestBody(prompt, image, channel, null);
+    }
+
+    Map<String, Object> buildRequestBody(
+            String prompt,
+            GeminiImage image,
+            MemoryChannel channel,
+            Integer maxOutputTokens
+    ) {
         List<Map<String, Object>> parts = new ArrayList<>();
         if (image != null) {
             parts.add(Map.of(
@@ -181,10 +203,15 @@ public class GeminiService {
                         "parts", parts
                 )
         });
-        if (channel == MemoryChannel.CALL) {
-            requestBody.put("generationConfig", Map.of(
-                    "thinkingConfig", Map.of("thinkingBudget", 0)
-            ));
+        if (channel == MemoryChannel.CALL || maxOutputTokens != null) {
+            Map<String, Object> generationConfig = new LinkedHashMap<>();
+            if (channel == MemoryChannel.CALL) {
+                generationConfig.put("thinkingConfig", Map.of("thinkingBudget", 0));
+            }
+            if (maxOutputTokens != null) {
+                generationConfig.put("maxOutputTokens", maxOutputTokens);
+            }
+            requestBody.put("generationConfig", generationConfig);
         }
         return requestBody;
     }
