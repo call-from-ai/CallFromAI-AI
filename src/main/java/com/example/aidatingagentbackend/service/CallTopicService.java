@@ -36,12 +36,6 @@ public class CallTopicService {
         if (!StringUtils.hasText(topic)) {
             throw new GeminiCallException("Gemini returned an empty call topic.", null);
         }
-        if (topic.contains("\n") || topic.contains("\r")) {
-            throw new GeminiCallException("Gemini returned a multi-line call topic.", null);
-        }
-        if (topic.codePointCount(0, topic.length()) > limit) {
-            throw new GeminiCallException("Gemini returned a call topic over the character limit.", null);
-        }
         return new CallTopicResponse(topic);
     }
 
@@ -56,6 +50,7 @@ public class CallTopicService {
                 - '사용자', '유저', 'AI', 'AI 캐릭터', '캐릭터', 'assistant' 등 화자 호칭을 쓰지 말 것
                 - 누가 말했는지가 아니라 무엇을 이야기했는지만 표현할 것
                 - 문장 종결어미 없이 명사형 한 줄로 작성할 것
+                - 줄바꿈을 절대 사용하지 말고 반드시 한 줄로만 출력할 것
                 - 대화에 없는 내용을 추측하지 말 것
                 - 따옴표, 마침표, 접두 설명 없이 라벨만 출력할 것
 

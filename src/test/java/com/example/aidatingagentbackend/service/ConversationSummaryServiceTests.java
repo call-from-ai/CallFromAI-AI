@@ -54,30 +54,30 @@ class ConversationSummaryServiceTests {
     @Test
     void replacesGenericParticipantLabelsButKeepsAiUsedAsContent() {
         when(geminiService.generate(anyString())).thenReturn(
-                "AI는 사용자에게 연락했고, 사용자는 AI 과제를 궁금해했습니다.");
+                "AI는 사용자의 AI 과제");
 
         ConversationSummaryResponse response = service.summarize(request(200));
 
-        assertEquals("하나는 민준에게 연락했고, 민준은 AI 과제를 궁금해했습니다.", response.summary());
+        assertEquals("하나는 민준의 AI 과제", response.summary());
     }
 
     @Test
     void normalizesJsonEscapedDoubleQuotesToKoreanQuotationMarks() {
         when(geminiService.generate(anyString())).thenReturn(
-                "민준은 \\\"대충\\\"이라며 상황을 넘겼습니다.");
+                "민준은 \\\"대충\\\"이라고 말함");
 
         ConversationSummaryResponse response = service.summarize(request(200));
 
-        assertEquals("민준은 ‘대충’이라며 상황을 넘겼습니다.", response.summary());
+        assertEquals("민준은 ‘대충’이라고 말함", response.summary());
     }
 
     @Test
-    void neverReturnsMoreThanTwoHundredUnicodeCharacters() {
-        when(geminiService.generate(anyString())).thenReturn("가".repeat(199) + "😀😀");
+    void neverReturnsMoreThanFifteenUnicodeCharacters() {
+        when(geminiService.generate(anyString())).thenReturn("가".repeat(14) + "😀😀");
 
         ConversationSummaryResponse response = service.summarize(request(500));
 
-        assertEquals(200, response.summary().codePointCount(0, response.summary().length()));
+        assertEquals(15, response.summary().codePointCount(0, response.summary().length()));
         assertTrue(response.summary().endsWith("😀"));
     }
 
