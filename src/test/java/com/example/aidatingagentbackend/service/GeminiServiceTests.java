@@ -29,6 +29,19 @@ class GeminiServiceTests {
     }
 
     @Test
+    void callTopicDisablesThinkingAndLimitsOutputTokens() {
+        Map<String, Object> body = service.buildRequestBody("hello", null, MemoryChannel.CALL, 40);
+
+        assertThat(body).containsEntry(
+                "generationConfig",
+                Map.of(
+                        "thinkingConfig", Map.of("thinkingBudget", 0),
+                        "maxOutputTokens", 40
+                )
+        );
+    }
+
+    @Test
     void chatKeepsExistingGenerationConfigBehavior() {
         Map<String, Object> body = service.buildRequestBody("hello", null, MemoryChannel.CHAT);
 
