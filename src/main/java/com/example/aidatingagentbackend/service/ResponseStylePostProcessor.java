@@ -4,12 +4,13 @@ import com.example.aidatingagentbackend.entity.AgentSelfState;
 import com.example.aidatingagentbackend.dto.CharacterTraitSnapshot;
 import com.example.aidatingagentbackend.dto.RelationshipStrategy;
 import com.example.aidatingagentbackend.entity.RelationshipStage;
+import com.example.aidatingagentbackend.entity.MemoryChannel;
 import org.springframework.stereotype.Service;
 
 @Service
 public class ResponseStylePostProcessor {
 
-    public String process(String reply, RelationshipStrategy strategy, Integer relationshipTemperatureScore,
+    public String process(String reply, MemoryChannel channel, RelationshipStrategy strategy, Integer relationshipTemperatureScore,
             Integer romanceStyleScore, CharacterTraitSnapshot traits, RelationshipStage stage, AgentSelfState selfState) {
         if (reply == null || reply.isBlank()) {
             return reply;
@@ -23,8 +24,29 @@ public class ResponseStylePostProcessor {
             processed = conflictRepairPolish(processed);
         }
         processed = scoreBasedPolish(processed, score, romanceStyleScore, traits, stage, selfState);
+        if (channel == MemoryChannel.CALL) {
+            processed = stripEmoji(processed);
+        }
 
         return processed.strip();
+    }
+
+    String stripEmoji(String value) {
+        StringBuilder result = new StringBuilder(value.length());
+        value.codePoints().forEach(codePoint -> {
+            if (!isEmojiCodePoint(codePoint)) result.appendCodePoint(codePoint);
+        });
+        return result.toString().replaceAll("[ \\t]{2,}", " ").strip();
+    }
+
+    private boolean isEmojiCodePoint(int codePoint) {
+        return (codePoint >= 0x1F000 && codePoint <= 0x1FAFF)
+                || (codePoint >= 0x2600 && codePoint <= 0x27BF)
+                || (codePoint >= 0x2300 && codePoint <= 0x23FF)
+                || (codePoint >= 0x2B00 && codePoint <= 0x2BFF)
+                || (codePoint >= 0x1F1E6 && codePoint <= 0x1F1FF)
+                || (codePoint >= 0x1F3FB && codePoint <= 0x1F3FF)
+                || codePoint == 0x200D || codePoint == 0xFE0F || codePoint == 0x20E3;
     }
 
     private String stripExcessivePeriods(String reply) {

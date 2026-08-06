@@ -17,8 +17,10 @@ import com.example.aidatingagentbackend.entity.Memory;
 import com.example.aidatingagentbackend.dto.RelationshipSnapshot;
 import com.example.aidatingagentbackend.entity.RelationshipStage;
 import com.example.aidatingagentbackend.entity.ResponseQualityEvaluation;
+import com.example.aidatingagentbackend.entity.MemoryChannel;
 import org.springframework.stereotype.Component;
 
+import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -93,6 +95,10 @@ public class PromptBuilder {
         private final List<Memory> memories = new ArrayList<>();
         private final List<ChatHistoryItem> chatHistory = new ArrayList<>();
         private String userMessage;
+        private String userName;
+        private String userTimeZone;
+        private OffsetDateTime localDateTime;
+        private MemoryChannel channel = MemoryChannel.CHAT;
         private boolean compactMode;
 
         private Builder(TraitInstructionResolver traitInstructionResolver,
@@ -198,6 +204,26 @@ public class PromptBuilder {
             return this;
         }
 
+        public Builder userName(String userName) {
+            this.userName = userName;
+            return this;
+        }
+
+        public Builder userTimeZone(String userTimeZone) {
+            this.userTimeZone = userTimeZone;
+            return this;
+        }
+
+        public Builder localDateTime(OffsetDateTime localDateTime) {
+            this.localDateTime = localDateTime;
+            return this;
+        }
+
+        public Builder channel(MemoryChannel channel) {
+            this.channel = channel == null ? MemoryChannel.CHAT : channel;
+            return this;
+        }
+
         public Builder compactMode(boolean compactMode) {
             this.compactMode = compactMode;
             return this;
@@ -205,10 +231,13 @@ public class PromptBuilder {
 
         public String build() {
             StringBuilder prompt = new StringBuilder();
-            prompt.append("You are the user's romantic chat partner. Reply in natural Korean messenger style.\n");
+            prompt.append("You are the user's romantic partner. Reply in natural Korean.\n");
             prompt.append("Rules: answer first; max one follow-up question; stay on current topic; use memories only when directly relevant; keep boundaries; no threats/coercion.\n");
             prompt.append("If hurt is high, do not instantly forgive, but emotion may soften when the user shows care.\n\n");
 
+            appendParticipants(prompt);
+            appendConversationChannel(prompt);
+            appendCurrentUserTime(prompt);
             appendCharacter(prompt);
             appendRelationshipContext(prompt);
             appendRelationshipStage(prompt);
@@ -226,6 +255,41 @@ public class PromptBuilder {
             appendUserMessage(prompt);
 
             return prompt.toString().trim();
+        }
+
+        private void appendParticipants(StringBuilder prompt) {
+            if (isBlank(userName) && character == null) return;
+            prompt.append("[Participants]\n");
+            appendInline(prompt, "UserName", userName);
+            appendInline(prompt, "CharacterName", character == null ? null : character.getName());
+            prompt.append("\nThe user's name and the character's name are different identities. Use the user's name naturally when relevant, but do not repeat it awkwardly in every reply.\n\n");
+        }
+
+        private void appendConversationChannel(StringBuilder prompt) {
+            prompt.append("[Conversation Channel]\n");
+            if (channel == MemoryChannel.CALL) {
+                prompt.append("This is an ongoing real-time voice call, not a text chat. The reply will be spoken aloud immediately.\n");
+                prompt.append("Use concise, naturally speakable Korean. Do not use emoji, emoticons, kaomoji, markdown, bullets, stage directions, or messenger-only expressions.\n\n");
+            } else {
+                prompt.append("This is an asynchronous text chat. Reply in natural Korean messenger style.\n\n");
+            }
+        }
+
+        private void appendCurrentUserTime(StringBuilder prompt) {
+            if (localDateTime == null) return;
+            prompt.append("[Current User Time]\n");
+            appendInline(prompt, "TimeZone", userTimeZone);
+            appendInline(prompt, "LocalDateTime", localDateTime);
+            appendInline(prompt, "TimePeriod", timePeriod(localDateTime.getHour()));
+            prompt.append("\nReflect the user's local time naturally only when relevant. Do not invent a different time of day or repeat the exact time unnecessarily.\n\n");
+        }
+
+        private String timePeriod(int hour) {
+            if (hour < 6) return "DAWN (새벽)";
+            if (hour < 12) return "MORNING (아침)";
+            if (hour < 18) return "AFTERNOON (낮/오후)";
+            if (hour < 22) return "EVENING (저녁)";
+            return "NIGHT (밤)";
         }
 
         private void appendCharacter(StringBuilder prompt) {

@@ -5,6 +5,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.time.OffsetDateTime;
 import java.util.List;
 
 @Getter
@@ -18,6 +19,9 @@ public class ChatRequest {
     private ProactiveContactReason contactReason;
     private ProactiveRelationshipState relationshipState;
     private RecentResponse recentResponse;
+    private String userName;
+    private String userTimeZone;
+    private OffsetDateTime localDateTime;
     private CharacterSnapshot character;
     private RelationshipSnapshot relationship;
     private List<ChatHistoryItem> history = List.of();
@@ -60,6 +64,9 @@ public class ChatRequest {
         copy.setContactReason(contactReason);
         copy.setRelationshipState(relationshipState);
         copy.setRecentResponse(recentResponse);
+        copy.setUserName(userName);
+        copy.setUserTimeZone(userTimeZone);
+        copy.setLocalDateTime(localDateTime);
         copy.setCharacter(character);
         copy.setRelationship(relationship);
         copy.setHistory(history == null ? List.of() : List.copyOf(history));
