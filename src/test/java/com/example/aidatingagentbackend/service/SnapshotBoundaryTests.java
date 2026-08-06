@@ -11,6 +11,7 @@ import com.example.aidatingagentbackend.entity.MemoryChannel;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
+import java.time.OffsetDateTime;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -48,6 +49,20 @@ class SnapshotBoundaryTests {
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("message is required");
         request.validateForProactive();
+    }
+
+    @Test
+    void timeZoneAndLocalDateTimeMustBeValidAndProvidedTogether() {
+        ChatRequest missingTime = request(character(), relationship(), "안녕");
+        missingTime.setUserTimeZone("Asia/Seoul");
+        assertThatThrownBy(missingTime::validateForChat)
+                .hasMessage("userTimeZone and localDateTime must be provided together");
+
+        ChatRequest invalidZone = request(character(), relationship(), "안녕");
+        invalidZone.setUserTimeZone("Not/A_Zone");
+        invalidZone.setLocalDateTime(OffsetDateTime.parse("2026-08-07T15:00:00Z"));
+        assertThatThrownBy(invalidZone::validateForChat)
+                .hasMessage("userTimeZone must be a valid IANA time zone");
     }
 
     @Test

@@ -72,7 +72,7 @@ public class AIProcessingService {
         agentGoalService.selectCurrentGoal(characterId, relationshipUpdate.nextRelationship());
 
         Context context = contextLoader.load(request, eventAnalysis, relationshipUpdate);
-        String prompt = buildPrompt(context, userMessage, compactPrompt);
+        String prompt = buildPrompt(context, request, compactPrompt);
 
         return new PreparedAIProcessing(
                 request.getRequestId(),
@@ -115,7 +115,7 @@ public class AIProcessingService {
             boolean allowRegeneration,
             GeminiImage image
     ) {
-        String reply = postProcess(prepared.context(), generatedReply);
+        String reply = postProcess(prepared.context(), prepared.channel(), generatedReply);
         if (shouldSkipQualityEvaluation(prepared.channel())) {
             persistAfterResponse(prepared, reply);
             return reply;
@@ -130,6 +130,12 @@ public class AIProcessingService {
     }
 
     public String buildPrompt(Context context, String userMessage, boolean compactMode) {
+        ChatRequest request = new ChatRequest();
+        request.setMessage(userMessage);
+        return buildPrompt(context, request, compactMode);
+    }
+
+    public String buildPrompt(Context context, ChatRequest request, boolean compactMode) {
         return promptBuilder.builder()
                 .character(context.character())
                 .relationship(context.relationship())
@@ -149,7 +155,11 @@ public class AIProcessingService {
                 .characterExamples(context.characterExamples())
                 .memories(context.memories())
                 .chatHistory(context.history())
-                .userMessage(userMessage)
+                .userMessage(request.getMessage())
+                .userName(request.getUserName())
+                .userTimeZone(request.getUserTimeZone())
+                .localDateTime(request.getLocalDateTime())
+                .channel(request.getChannel())
                 .compactMode(compactMode)
                 .build();
     }
@@ -185,7 +195,7 @@ public class AIProcessingService {
                 evaluation
         );
         String regeneratedReply = geminiService.generate(regenerationPrompt, image, prepared.channel());
-        regeneratedReply = postProcess(context, regeneratedReply);
+        regeneratedReply = postProcess(context, prepared.channel(), regeneratedReply);
         responseQualityEvaluatorService.evaluateAndSave(
                 prepared.characterId(),
                 prepared.userMessage(),
@@ -215,9 +225,10 @@ public class AIProcessingService {
         return channel == MemoryChannel.CALL;
     }
 
-    private String postProcess(Context context, String reply) {
+    private String postProcess(Context context, MemoryChannel channel, String reply) {
         return responseStylePostProcessor.process(
                 reply,
+                channel,
                 context.relationshipStrategy(),
                 context.relationshipTemperatureScore(),
                 context.romanceStyleScore(),
