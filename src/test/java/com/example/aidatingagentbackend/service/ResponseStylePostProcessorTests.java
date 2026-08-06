@@ -20,4 +20,12 @@ class ResponseStylePostProcessorTests {
         assertThat(call).isEqualTo("안녕 반가워");
         assertThat(chat).contains("😊", "❤");
     }
+
+    @Test
+    void usesSpeakableFallbackForEmojiOnlyCallReply() {
+        String call = processor.process("😊❤️", MemoryChannel.CALL,
+                RelationshipStrategy.NORMAL, 50, 50, null, RelationshipStage.DATING, null);
+
+        assertThat(call).isEqualTo("응, 듣고 있어");
+    }
 }

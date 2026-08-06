@@ -21,6 +21,8 @@ import com.example.aidatingagentbackend.entity.MemoryChannel;
 import org.springframework.stereotype.Component;
 
 import java.time.OffsetDateTime;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -277,10 +279,13 @@ public class PromptBuilder {
 
         private void appendCurrentUserTime(StringBuilder prompt) {
             if (localDateTime == null) return;
+            ZonedDateTime userLocalDateTime = isBlank(userTimeZone)
+                    ? localDateTime.toZonedDateTime()
+                    : localDateTime.atZoneSameInstant(ZoneId.of(userTimeZone.strip()));
             prompt.append("[Current User Time]\n");
             appendInline(prompt, "TimeZone", userTimeZone);
-            appendInline(prompt, "LocalDateTime", localDateTime);
-            appendInline(prompt, "TimePeriod", timePeriod(localDateTime.getHour()));
+            appendInline(prompt, "LocalDateTime", userLocalDateTime.toOffsetDateTime());
+            appendInline(prompt, "TimePeriod", timePeriod(userLocalDateTime.getHour()));
             prompt.append("\nReflect the user's local time naturally only when relevant. Do not invent a different time of day or repeat the exact time unnecessarily.\n\n");
         }
 

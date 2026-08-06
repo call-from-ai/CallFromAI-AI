@@ -6,6 +6,8 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.time.OffsetDateTime;
+import java.time.DateTimeException;
+import java.time.ZoneId;
 import java.util.List;
 
 @Getter
@@ -80,6 +82,22 @@ public class ChatRequest {
         }
         if (relationship == null) {
             throw new IllegalArgumentException("relationship snapshot is required");
+        }
+        validateTemporalContext();
+    }
+
+    private void validateTemporalContext() {
+        boolean hasTimeZone = userTimeZone != null && !userTimeZone.isBlank();
+        boolean hasLocalDateTime = localDateTime != null;
+        if (hasTimeZone != hasLocalDateTime) {
+            throw new IllegalArgumentException("userTimeZone and localDateTime must be provided together");
+        }
+        if (hasTimeZone) {
+            try {
+                ZoneId.of(userTimeZone.strip());
+            } catch (DateTimeException exception) {
+                throw new IllegalArgumentException("userTimeZone must be a valid IANA time zone", exception);
+            }
         }
     }
 

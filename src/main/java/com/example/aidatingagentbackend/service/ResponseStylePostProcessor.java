@@ -10,6 +10,8 @@ import org.springframework.stereotype.Service;
 @Service
 public class ResponseStylePostProcessor {
 
+    private static final String CALL_FALLBACK_REPLY = "응, 듣고 있어";
+
     public String process(String reply, MemoryChannel channel, RelationshipStrategy strategy, Integer relationshipTemperatureScore,
             Integer romanceStyleScore, CharacterTraitSnapshot traits, RelationshipStage stage, AgentSelfState selfState) {
         if (reply == null || reply.isBlank()) {
@@ -26,6 +28,9 @@ public class ResponseStylePostProcessor {
         processed = scoreBasedPolish(processed, score, romanceStyleScore, traits, stage, selfState);
         if (channel == MemoryChannel.CALL) {
             processed = stripEmoji(processed);
+            if (processed.isBlank()) {
+                processed = CALL_FALLBACK_REPLY;
+            }
         }
 
         return processed.strip();

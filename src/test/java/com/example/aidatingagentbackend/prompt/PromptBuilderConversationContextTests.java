@@ -36,6 +36,18 @@ class PromptBuilderConversationContextTests {
                 .contains("asynchronous text chat");
     }
 
+    @Test
+    void normalizesOffsetDateTimeToUserTimeZoneBeforeResolvingPeriod() {
+        String prompt = promptBuilder.builder()
+                .userTimeZone("Asia/Seoul")
+                .localDateTime(OffsetDateTime.parse("2026-08-07T15:00:00Z"))
+                .build();
+
+        assertThat(prompt)
+                .contains("LocalDateTime=2026-08-08T00:00+09:00")
+                .contains("TimePeriod=DAWN (새벽)");
+    }
+
     private CharacterSnapshot character() {
         return new CharacterSnapshot(10L, "하나", "따뜻함", "짧게", "개발자", null, 90,
                 new CharacterTraitSnapshot(5, 5, 6, 7, 5, 2, 4, 6, 7, 8, 1));
