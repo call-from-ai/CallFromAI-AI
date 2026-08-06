@@ -51,11 +51,27 @@ class CallTopicServiceTests {
     }
 
     @Test
-    void rejectsOverLimitResultInsteadOfTruncatingIt() {
+    void returnsOverLimitResultWithoutTruncatingIt() {
         when(geminiService.generate(anyString(), org.mockito.ArgumentMatchers.eq(MemoryChannel.CALL),
                 org.mockito.ArgumentMatchers.eq(40))).thenReturn("가".repeat(21));
 
-        assertThrows(GeminiCallException.class, () -> service.createTopic(request(20)));
+        CallTopicResponse response = service.createTopic(request(20));
+
+        assertEquals("가".repeat(21), response.topic());
+    }
+
+    @Test
+    void returnsMultiLineResultWithoutRejectingIt() {
+        when(geminiService.generate(anyString(), org.mockito.ArgumentMatchers.eq(MemoryChannel.CALL),
+                org.mockito.ArgumentMatchers.eq(40))).thenReturn("퇴근 후 일상\n저녁 메뉴");
+
+        CallTopicResponse response = service.createTopic(request(20));
+
+        assertEquals("퇴근 후 일상\n저녁 메뉴", response.topic());
+        verify(geminiService).generate(org.mockito.ArgumentMatchers.argThat(prompt ->
+                        prompt.contains("줄바꿈을 절대 사용하지 말고 반드시 한 줄로만 출력할 것")),
+                org.mockito.ArgumentMatchers.eq(MemoryChannel.CALL),
+                org.mockito.ArgumentMatchers.eq(40));
     }
 
     @Test

@@ -15,7 +15,7 @@ import java.util.regex.Pattern;
 @Service
 public class ConversationSummaryService {
 
-    static final int MAX_CHARACTERS = 200;
+    static final int MAX_CHARACTERS = 15;
     private static final Set<String> ALLOWED_ROLES = Set.of("user", "assistant");
     private static final String PARTICIPANT_PARTICLES = "에게|은|는|이|가|을|를|의|와|과|도|만";
 
