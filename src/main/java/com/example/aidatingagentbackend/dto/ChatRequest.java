@@ -5,6 +5,9 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.time.OffsetDateTime;
+import java.time.DateTimeException;
+import java.time.ZoneId;
 import java.util.List;
 
 @Getter
@@ -18,6 +21,9 @@ public class ChatRequest {
     private ProactiveContactReason contactReason;
     private ProactiveRelationshipState relationshipState;
     private RecentResponse recentResponse;
+    private String userName;
+    private String userTimeZone;
+    private OffsetDateTime localDateTime;
     private CharacterSnapshot character;
     private RelationshipSnapshot relationship;
     private List<ChatHistoryItem> history = List.of();
@@ -60,6 +66,9 @@ public class ChatRequest {
         copy.setContactReason(contactReason);
         copy.setRelationshipState(relationshipState);
         copy.setRecentResponse(recentResponse);
+        copy.setUserName(userName);
+        copy.setUserTimeZone(userTimeZone);
+        copy.setLocalDateTime(localDateTime);
         copy.setCharacter(character);
         copy.setRelationship(relationship);
         copy.setHistory(history == null ? List.of() : List.copyOf(history));
@@ -73,6 +82,22 @@ public class ChatRequest {
         }
         if (relationship == null) {
             throw new IllegalArgumentException("relationship snapshot is required");
+        }
+        validateTemporalContext();
+    }
+
+    private void validateTemporalContext() {
+        boolean hasTimeZone = userTimeZone != null && !userTimeZone.isBlank();
+        boolean hasLocalDateTime = localDateTime != null;
+        if (hasTimeZone != hasLocalDateTime) {
+            throw new IllegalArgumentException("userTimeZone and localDateTime must be provided together");
+        }
+        if (hasTimeZone) {
+            try {
+                ZoneId.of(userTimeZone.strip());
+            } catch (DateTimeException exception) {
+                throw new IllegalArgumentException("userTimeZone must be a valid IANA time zone", exception);
+            }
         }
     }
 

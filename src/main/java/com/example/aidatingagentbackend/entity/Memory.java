@@ -44,6 +44,7 @@ public class Memory {
     private Long characterId;
 
     @Enumerated(EnumType.STRING)
+    @Column(name = "type", length = 32, columnDefinition = "VARCHAR(32)")
     private MemoryType type;
 
     @Column(name = "request_id", length = 100)
