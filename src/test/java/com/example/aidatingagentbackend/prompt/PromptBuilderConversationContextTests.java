@@ -27,6 +27,7 @@ class PromptBuilderConversationContextTests {
         assertThat(prompt)
                 .contains("UserName=민준", "CharacterName=하나")
                 .contains("ongoing real-time voice call", "Do not use emoji")
+                .contains("Length=AROUND_20_CHARACTERS", "must never exceed 20 characters")
                 .contains("TimeZone=Asia/Seoul", "TimePeriod=DAWN (새벽)");
     }
 
@@ -39,13 +40,27 @@ class PromptBuilderConversationContextTests {
     @Test
     void normalizesOffsetDateTimeToUserTimeZoneBeforeResolvingPeriod() {
         String prompt = promptBuilder.builder()
+                .character(character())
                 .userTimeZone("Asia/Seoul")
                 .localDateTime(OffsetDateTime.parse("2026-08-07T15:00:00Z"))
                 .build();
 
         assertThat(prompt)
                 .contains("LocalDateTime=2026-08-08T00:00+09:00")
+                .contains("DayOfWeek=SATURDAY", "DayType=WEEKEND")
+                .contains("Weekend Character Behavior", "Job=개발자")
                 .contains("TimePeriod=DAWN (새벽)");
+    }
+
+    @Test
+    void limitsEveryChatReplyToThirtyCharactersAndOneEmoji() {
+        String shortPrompt = promptBuilder.builder().channel(MemoryChannel.CHAT).userMessage("뭐 해?").build();
+        String longPrompt = promptBuilder.builder().channel(MemoryChannel.CHAT)
+                .userMessage("오늘 있었던 일을 차근차근 길게 이야기해 줄게. 먼저 아침에는 회의가 있었고 점심 이후에는 새로운 프로젝트를 시작했어. 네 생각도 자세히 듣고 싶어.")
+                .build();
+
+        assertThat(shortPrompt).contains("Length=MAX_30_CHARACTERS", "one complete, natural Korean sentence", "Emoji=AT_MOST_ONE");
+        assertThat(longPrompt).contains("Length=MAX_30_CHARACTERS", "must never exceed 30 characters");
     }
 
     private CharacterSnapshot character() {

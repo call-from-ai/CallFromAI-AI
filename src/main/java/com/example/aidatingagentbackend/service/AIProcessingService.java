@@ -115,7 +115,7 @@ public class AIProcessingService {
             boolean allowRegeneration,
             GeminiImage image
     ) {
-        String reply = postProcess(prepared.context(), prepared.channel(), generatedReply);
+        String reply = postProcess(prepared.context(), prepared.channel(), generatedReply, prepared.userMessage());
         if (shouldSkipQualityEvaluation(prepared.channel())) {
             persistAfterResponse(prepared, reply);
             return reply;
@@ -195,7 +195,7 @@ public class AIProcessingService {
                 evaluation
         );
         String regeneratedReply = geminiService.generate(regenerationPrompt, image, prepared.channel());
-        regeneratedReply = postProcess(context, prepared.channel(), regeneratedReply);
+        regeneratedReply = postProcess(context, prepared.channel(), regeneratedReply, prepared.userMessage());
         responseQualityEvaluatorService.evaluateAndSave(
                 prepared.characterId(),
                 prepared.userMessage(),
@@ -225,7 +225,7 @@ public class AIProcessingService {
         return channel == MemoryChannel.CALL;
     }
 
-    private String postProcess(Context context, MemoryChannel channel, String reply) {
+    private String postProcess(Context context, MemoryChannel channel, String reply, String userMessage) {
         return responseStylePostProcessor.process(
                 reply,
                 channel,
@@ -234,7 +234,8 @@ public class AIProcessingService {
                 context.romanceStyleScore(),
                 context.characterTraitProfile(),
                 context.relationshipStage(),
-                context.agentSelfState()
+                context.agentSelfState(),
+                userMessage
         );
     }
 

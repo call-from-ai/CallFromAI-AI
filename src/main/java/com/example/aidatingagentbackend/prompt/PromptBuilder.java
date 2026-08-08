@@ -21,6 +21,7 @@ import com.example.aidatingagentbackend.entity.MemoryChannel;
 import org.springframework.stereotype.Component;
 
 import java.time.OffsetDateTime;
+import java.time.DayOfWeek;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
@@ -239,6 +240,7 @@ public class PromptBuilder {
 
             appendParticipants(prompt);
             appendConversationChannel(prompt);
+            appendReplyStyle(prompt);
             appendCurrentUserTime(prompt);
             appendCharacter(prompt);
             appendRelationshipContext(prompt);
@@ -277,6 +279,20 @@ public class PromptBuilder {
             }
         }
 
+        private void appendReplyStyle(StringBuilder prompt) {
+            prompt.append("[Reply Style]\n");
+            if (channel == MemoryChannel.CALL) {
+                prompt.append("Length=AROUND_20_CHARACTERS (maximum 20 characters including spaces and punctuation)\n");
+                prompt.append("Write one complete, naturally speakable Korean utterance. The final reply must never exceed 20 characters.\n");
+                prompt.append("Emoji=NONE\n");
+            } else {
+                prompt.append("Length=MAX_30_CHARACTERS (including spaces, punctuation, and emoji)\n");
+                prompt.append("Write one complete, natural Korean sentence. The final reply must never exceed 30 characters.\n");
+                prompt.append("Emoji=AT_MOST_ONE, only when it fits the character naturally\n");
+            }
+            prompt.append("Do not stack or repeat emoji, emoticons, hearts, or decorative symbols. Do not pad the reply.\n\n");
+        }
+
         private void appendCurrentUserTime(StringBuilder prompt) {
             if (localDateTime == null) return;
             ZonedDateTime userLocalDateTime = isBlank(userTimeZone)
@@ -285,8 +301,29 @@ public class PromptBuilder {
             prompt.append("[Current User Time]\n");
             appendInline(prompt, "TimeZone", userTimeZone);
             appendInline(prompt, "LocalDateTime", userLocalDateTime.toOffsetDateTime());
+            appendInline(prompt, "DayOfWeek", userLocalDateTime.getDayOfWeek());
+            appendInline(prompt, "DayType", isWeekend(userLocalDateTime.getDayOfWeek()) ? "WEEKEND" : "WEEKDAY");
             appendInline(prompt, "TimePeriod", timePeriod(userLocalDateTime.getHour()));
             prompt.append("\nReflect the user's local time naturally only when relevant. Do not invent a different time of day or repeat the exact time unnecessarily.\n\n");
+            if (isWeekend(userLocalDateTime.getDayOfWeek()) && character != null) {
+                appendWeekendBehavior(prompt);
+            }
+        }
+
+        private boolean isWeekend(DayOfWeek dayOfWeek) {
+            return dayOfWeek == DayOfWeek.SATURDAY || dayOfWeek == DayOfWeek.SUNDAY;
+        }
+
+        private void appendWeekendBehavior(StringBuilder prompt) {
+            prompt.append("[Weekend Character Behavior]\n");
+            appendInline(prompt, "Job", character.getJob());
+            appendInline(prompt, "LifeType", character.getLifeType());
+            switch (character.getLifeType() == null ? com.example.aidatingagentbackend.entity.AgentLifeType.FLEXIBLE : character.getLifeType()) {
+                case WORKER -> prompt.append("\nTreat the weekend as possible time off: the character may rest, do errands, enjoy a hobby, or make a casual plan related to their job and personality. Some jobs have weekend shifts, so never assert they are off work without context.\n");
+                case STUDENT -> prompt.append("\nThe character may sleep in, meet friends, enjoy a hobby, study, or work on an assignment/project. Do not assume a regular weekday class schedule.\n");
+                case FLEXIBLE, UNEMPLOYED -> prompt.append("\nChoose a plausible weekend activity that fits the character's job and personality, without assuming a fixed weekday work schedule.\n");
+            }
+            prompt.append("Mention or enact a weekend activity only when it helps the current conversation; do not force a schedule update into every reply.\n\n");
         }
 
         private String timePeriod(int hour) {
@@ -305,6 +342,8 @@ public class PromptBuilder {
             appendInline(prompt, "Name", character.getName());
             appendInline(prompt, "Core", firstText(character.getMind(), 140));
             appendInline(prompt, "Style", firstText(character.getResponseStyle(), 140));
+            appendInline(prompt, "Job", character.getJob());
+            appendInline(prompt, "LifeType", character.getLifeType());
             prompt.append("\n\n");
         }
 
