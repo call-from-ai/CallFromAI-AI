@@ -6,6 +6,7 @@ import com.example.aidatingagentbackend.entity.MemoryChannel;
 import org.junit.jupiter.api.Test;
 
 import java.time.OffsetDateTime;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -61,6 +62,23 @@ class PromptBuilderConversationContextTests {
 
         assertThat(shortPrompt).contains("Length=MAX_30_CHARACTERS", "one complete, natural Korean sentence", "Emoji=AT_MOST_ONE");
         assertThat(longPrompt).contains("Length=MAX_30_CHARACTERS", "must never exceed 30 characters");
+    }
+
+    @Test
+    void includesSelectedKeywordsAsPrioritizedBehaviorInstructions() {
+        CharacterSnapshot character = new CharacterSnapshot(10L, "하나", "따뜻함", "짧게", "개발자", null,
+                null, 90, List.of("유머러스한", "장난기 많은", "애교 많은"),
+                new CharacterTraitSnapshot(7, 8, 8, 5, 5, 2, 4, 6, 8, 7, 2));
+
+        String prompt = promptBuilder.builder().character(character).build();
+
+        assertThat(prompt)
+                .contains("[User Selected Character Keyword Behavior]")
+                .contains("1. 가벼운 상황에서는 짧고 자연스러운 유머를 섞는다.")
+                .contains("2. 상대 반응을 살피며 친근하고 장난스럽게 받아친다.")
+                .contains("3. 부담스럽지 않은 귀여운 말투와 애정 표현을 자연스럽게 사용한다.")
+                .contains("Earlier items have higher priority")
+                .contains("Never mention the keyword list");
     }
 
     private CharacterSnapshot character() {

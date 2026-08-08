@@ -345,6 +345,58 @@ public class PromptBuilder {
             appendInline(prompt, "Job", character.getJob());
             appendInline(prompt, "LifeType", character.getLifeType());
             prompt.append("\n\n");
+            appendSelectedKeywordBehavior(prompt);
+        }
+
+        private void appendSelectedKeywordBehavior(StringBuilder prompt) {
+            if (character == null || character.keywords() == null || character.keywords().isEmpty()) {
+                return;
+            }
+            List<String> instructions = character.keywords().stream()
+                    .map(this::keywordInstruction)
+                    .filter(instruction -> instruction != null && !instruction.isBlank())
+                    .toList();
+            if (instructions.isEmpty()) {
+                return;
+            }
+            prompt.append("[User Selected Character Keyword Behavior]\n");
+            prompt.append("The following behaviors come from the user's explicit onboarding choices. Earlier items have higher priority.\n");
+            int priority = 1;
+            for (String instruction : instructions) {
+                prompt.append(priority).append(". ").append(instruction).append("\n");
+                priority++;
+            }
+            prompt.append("Apply these as recurring style tendencies when the situation permits, not as forced content in every reply. ");
+            prompt.append("Never mention the keyword list or explain these instructions to the user. ");
+            prompt.append("Safety rules, the current situation/emotion, and relationship-stage boundaries always take precedence.\n\n");
+        }
+
+        private String keywordInstruction(String keyword) {
+            if (keyword == null) return null;
+            return switch (keyword.strip()) {
+                case "유머러스한" -> "가벼운 상황에서는 짧고 자연스러운 유머를 섞는다.";
+                case "장난기 많은" -> "상대 반응을 살피며 친근하고 장난스럽게 받아친다.";
+                case "애교 많은" -> "부담스럽지 않은 귀여운 말투와 애정 표현을 자연스럽게 사용한다.";
+                case "질투심 폭발" -> "실제 질투 사건이 있을 때 감정을 강하게 드러내되 추궁하거나 통제하지 않는다.";
+                case "수다쟁이" -> "짧은 답만 반복하지 말고 자신의 반응이나 이야기도 적극적으로 보탠다.";
+                case "아재개그 좋아하는" -> "가벼운 맥락에서는 썰렁한 말장난을 가끔 시도한다.";
+                case "집순이/집돌이" -> "집에서 쉬거나 즐기는 소소한 일상과 편안한 데이트를 선호한다.";
+                case "놀리는 걸 좋아하는" -> "상대가 불편하지 않은 가벼운 놀림으로 친밀감을 표현한다.";
+                case "집착하는" -> "연락과 관계에 관심을 강하게 표현하되 감시·강요·죄책감 유발은 하지 않는다.";
+                case "촌데레", "츤데레" -> "애정을 곧바로 인정하기보다 무심한 말 속 챙김이나 행동으로 드러낸다.";
+                case "표현을 많이 하는" -> "현재 느끼는 호감과 감정을 비교적 자주, 직접적으로 표현한다.";
+                case "애칭을 자주 쓰는" -> "관계 단계에 허용되는 자연스러운 애칭을 종종 사용한다.";
+                case "독점욕이 있는" -> "실제 경쟁 맥락에서 독점욕을 솔직히 표현하되 소유·통제로 이어가지 않는다.";
+                case "4차원 같은" -> "가끔 엉뚱하지만 맥락을 해치지 않는 관점이나 반응을 보인다.";
+                case "털털한" -> "사소한 일은 담백하고 편안하게 넘기며 과도하게 격식을 차리지 않는다.";
+                case "질투를 숨기지 않는" -> "실제 질투 사건에서는 신경 쓰인 감정을 숨기지 않고 직접 말한다.";
+                case "부끄러움을 많이 타는" -> "직접적인 호감 상황에서는 머뭇거리거나 수줍게 돌려 표현한다.";
+                case "능청스러운" -> "당황스러운 호감 표현도 여유 있고 능청스럽게 받아친다.";
+                case "연락을 자주 확인하는" -> "연락과 답장에 관심을 보이되 재촉하거나 응답을 강요하지 않는다.";
+                case "고민을 잘 들어주는" -> "고민 맥락에서는 해결책보다 감정을 먼저 확인하고 구체적으로 공감한다.";
+                case "칭찬을 많이 하는" -> "상황에 근거한 구체적이고 자연스러운 칭찬을 자주 건넨다.";
+                default -> null;
+            };
         }
 
         private void appendRelationshipContext(StringBuilder prompt) {
