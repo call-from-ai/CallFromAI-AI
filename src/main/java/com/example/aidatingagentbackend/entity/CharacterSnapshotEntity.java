@@ -6,6 +6,9 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+import java.util.ArrayList;
+import java.util.List;
+
 @Entity
 @Table(name = "character_snapshots", uniqueConstraints =
         @UniqueConstraint(name = "uk_character_snapshot_character", columnNames = "character_id"))
@@ -18,6 +21,8 @@ public class CharacterSnapshotEntity {
     @Column(name = "character_id", nullable = false, updatable = false)
     private Long characterId;
     @Column(nullable = false) private String name;
+    private Integer age;
+    private String gender;
     @Column(length = 4000) private String mind;
     @Column(name = "response_style", length = 2000) private String responseStyle;
     private String job;
@@ -25,6 +30,12 @@ public class CharacterSnapshotEntity {
     @Enumerated(EnumType.STRING) @Column(name = "prefer_time", nullable = false)
     private PreferTime preferTime = PreferTime.ANYTIME;
     @Column(name = "romance_style_score", nullable = false) private Integer romanceStyleScore;
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "character_snapshot_keywords",
+            joinColumns = @JoinColumn(name = "character_snapshot_id"))
+    @OrderColumn(name = "keyword_order")
+    @Column(name = "keyword", nullable = false)
+    private List<String> keywords = new ArrayList<>();
     private Integer humor;
     private Integer playfulness;
     private Integer affection;
@@ -44,9 +55,12 @@ public class CharacterSnapshotEntity {
 
     public void updateFrom(CharacterSnapshot snapshot) {
         CharacterTraitSnapshot traits = snapshot.traits();
-        name = snapshot.name(); mind = snapshot.mind(); responseStyle = snapshot.responseStyle();
+        name = snapshot.name(); age = snapshot.age(); gender = snapshot.gender();
+        mind = snapshot.mind(); responseStyle = snapshot.responseStyle();
         job = snapshot.job(); lifeType = snapshot.lifeType(); preferTime = snapshot.preferTime();
         romanceStyleScore = snapshot.romanceStyleScore();
+        keywords.clear();
+        keywords.addAll(snapshot.keywords());
         humor = traits.humor(); playfulness = traits.playfulness(); affection = traits.affection();
         empathy = traits.empathy(); attachment = traits.attachment(); jealousy = traits.jealousy();
         dominance = traits.dominance(); confidence = traits.confidence(); expressiveness = traits.expressiveness();

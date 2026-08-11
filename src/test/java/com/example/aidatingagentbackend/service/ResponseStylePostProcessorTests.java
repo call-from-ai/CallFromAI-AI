@@ -30,20 +30,22 @@ class ResponseStylePostProcessorTests {
     }
 
     @Test
-    void limitsCallReplyToTwentyCharacters() {
-        String call = processor.process("오늘 하루도 정말 고생 많았어 이제 편하게 쉬면서 나랑 이야기하자",
+    void doesNotCutCallReplyInTheMiddleOfAKoreanSentence() {
+        String original = "오늘 하루도 정말 고생 많았어 이제 편하게 쉬면서 나랑 이야기하자";
+        String call = processor.process(original,
                 MemoryChannel.CALL, RelationshipStrategy.NORMAL, 50, 50, null,
                 RelationshipStage.DATING, null);
 
-        assertThat(call.length()).isLessThanOrEqualTo(20);
+        assertThat(call).isEqualTo(original);
     }
 
     @Test
-    void limitsChatReplyToThirtyCharacters() {
-        String reply = "가".repeat(150);
+    void trimsLongChatOnlyAtACompleteSentenceBoundary() {
+        String firstSentence = "오늘은 정말 바쁜 하루였지만 그래도 네 생각 덕분에 잘 버텼어.";
+        String reply = firstSentence + " 이제는 편하게 쉬면서 오늘 있었던 이야기를 천천히 더 나누고 싶어.";
         String processed = processor.process(reply, MemoryChannel.CHAT,
                 RelationshipStrategy.NORMAL, 50, 50, null, RelationshipStage.DATING, null, "응");
 
-        assertThat(processed).hasSize(30);
+        assertThat(processed).isEqualTo(firstSentence);
     }
 }

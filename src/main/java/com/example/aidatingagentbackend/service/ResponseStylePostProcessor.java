@@ -41,7 +41,7 @@ public class ResponseStylePostProcessor {
             processed = limitEmoji(processed, 1);
         }
 
-        processed = limitLength(processed, replyLengthLimit(channel, userMessage));
+        processed = limitAtSentenceBoundary(processed, replyLengthLimit(channel, userMessage));
 
         return processed.strip();
     }
@@ -82,11 +82,11 @@ public class ResponseStylePostProcessor {
     }
 
     private int replyLengthLimit(MemoryChannel channel, String userMessage) {
-        if (channel == MemoryChannel.CALL) return 20;
-        return 30;
+        if (channel == MemoryChannel.CALL) return 40;
+        return 60;
     }
 
-    String limitLength(String value, int maxLength) {
+    String limitAtSentenceBoundary(String value, int maxLength) {
         if (value.length() <= maxLength) return value;
         int boundary = -1;
         for (int i = 0; i < maxLength; i++) {
@@ -95,13 +95,10 @@ public class ResponseStylePostProcessor {
         }
         if (boundary > 0) return value.substring(0, boundary).stripTrailing();
 
-        int contentLimit = Math.max(1, maxLength - 1);
-        int floor = maxLength * 3 / 5;
-        int lastSpace = value.lastIndexOf(' ', contentLimit);
-        if (boundary < 0) {
-            boundary = lastSpace >= floor ? lastSpace : contentLimit;
-        }
-        return value.substring(0, boundary).stripTrailing() + "…";
+        // Cutting Korean at an arbitrary character or whitespace frequently leaves
+        // a broken ending. If there is no complete sentence to keep, preserve the
+        // model output instead of manufacturing an ungrammatical fragment.
+        return value;
     }
 
     String stripEmoji(String value) {
