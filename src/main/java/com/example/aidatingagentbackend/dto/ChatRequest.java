@@ -7,6 +7,8 @@ import lombok.Setter;
 
 import java.time.OffsetDateTime;
 import java.time.DateTimeException;
+import java.time.LocalDate;
+import java.time.Period;
 import java.time.ZoneId;
 import java.util.List;
 
@@ -22,6 +24,10 @@ public class ChatRequest {
     private ProactiveRelationshipState relationshipState;
     private RecentResponse recentResponse;
     private String userName;
+    private UserSnapshot user;
+    // Legacy top-level fields remain supported during contract migration.
+    private Integer userAge;
+    private String userGender;
     private String userTimeZone;
     private OffsetDateTime localDateTime;
     private CharacterSnapshot character;
@@ -67,6 +73,9 @@ public class ChatRequest {
         copy.setRelationshipState(relationshipState);
         copy.setRecentResponse(recentResponse);
         copy.setUserName(userName);
+        copy.setUser(user);
+        copy.setUserAge(userAge);
+        copy.setUserGender(userGender);
         copy.setUserTimeZone(userTimeZone);
         copy.setLocalDateTime(localDateTime);
         copy.setCharacter(character);
@@ -82,6 +91,10 @@ public class ChatRequest {
         }
         if (relationship == null) {
             throw new IllegalArgumentException("relationship snapshot is required");
+        }
+        Integer resolvedUserAge = getUserAge();
+        if (resolvedUserAge != null && (resolvedUserAge < 1 || resolvedUserAge > 120)) {
+            throw new IllegalArgumentException("userAge must be between 1 and 120");
         }
         validateTemporalContext();
     }
@@ -105,5 +118,20 @@ public class ChatRequest {
         if (channel == null) {
             throw new IllegalArgumentException("channel is required");
         }
+    }
+
+    public Integer getUserAge() {
+        if (userAge != null) return userAge;
+        if (user == null || user.birth() == null) return null;
+
+        LocalDate referenceDate = localDateTime == null
+                ? LocalDate.now()
+                : localDateTime.toLocalDate();
+        return Period.between(user.birth(), referenceDate).getYears();
+    }
+
+    public String getUserGender() {
+        if (userGender != null && !userGender.isBlank()) return userGender;
+        return user == null ? null : user.gender();
     }
 }

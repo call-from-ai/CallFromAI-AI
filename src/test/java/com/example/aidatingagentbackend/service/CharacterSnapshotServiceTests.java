@@ -12,6 +12,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.Optional;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -79,6 +80,20 @@ class CharacterSnapshotServiceTests {
 
         assertEquals("최신", existing.getName());
         verify(repository, never()).save(any());
+    }
+
+    @Test
+    void emptyKeywordsReplacePreviouslyStoredKeywords() {
+        CharacterSnapshot withKeyword = new CharacterSnapshot(10L, "하나", "mind", "style", "DEVELOPER",
+                AgentLifeType.WORKER, PreferTime.MORNING, 72, List.of("장난기 많은"),
+                new CharacterTraitSnapshot(6, 7, 8, 9, 5, 2, 4, 7, 8, 7, 1));
+        CharacterSnapshotEntity existing = new CharacterSnapshotEntity(withKeyword);
+        when(repository.findByCharacterId(10L)).thenReturn(Optional.of(existing));
+
+        new CharacterSnapshotService(repository).upsert(10L, snapshot("하나", 1));
+
+        assertEquals(List.of(), existing.getKeywords());
+        verify(repository).save(existing);
     }
 
     private CharacterSnapshot snapshot(String name, int version) {

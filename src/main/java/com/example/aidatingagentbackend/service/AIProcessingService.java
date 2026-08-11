@@ -157,6 +157,8 @@ public class AIProcessingService {
                 .chatHistory(context.history())
                 .userMessage(request.getMessage())
                 .userName(request.getUserName())
+                .userAge(request.getUserAge())
+                .userGender(request.getUserGender())
                 .userTimeZone(request.getUserTimeZone())
                 .localDateTime(request.getLocalDateTime())
                 .channel(request.getChannel())
