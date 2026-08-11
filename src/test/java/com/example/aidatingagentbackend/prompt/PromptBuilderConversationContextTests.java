@@ -16,7 +16,24 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class PromptBuilderConversationContextTests {
     private final PromptBuilder promptBuilder = new PromptBuilder(
-            new TraitInstructionResolver(), new RomanceStylePromptResolver());
+            new TraitInstructionResolver(), new RomanceStylePromptResolver(), new KoreanAddressResolver());
+
+    @Test
+    void youngerFemaleCharacterCallsOlderMaleUserOppa() {
+        CharacterSnapshot youngerCharacter = new CharacterSnapshot(10L, "하나", "따뜻함", "CASUAL", "개발자", null,
+                null, 90, List.of(), 24, "FEMALE", character().traits());
+
+        String prompt = promptBuilder.builder()
+                .character(youngerCharacter)
+                .userName("민준")
+                .userAge(29)
+                .userGender("MALE")
+                .build();
+
+        assertThat(prompt)
+                .contains("UserAge=29", "CharacterAge=24", "PreferredUserAddress=오빠")
+                .contains("Address the user naturally as '오빠'");
+    }
 
     @Test
     void callPromptIncludesNamesCallContextAndDawn() {
@@ -32,7 +49,7 @@ class PromptBuilderConversationContextTests {
         assertThat(prompt)
                 .contains("UserName=민준", "CharacterName=하나")
                 .contains("ongoing real-time voice call", "Do not use emoji")
-                .contains("Length=AROUND_20_CHARACTERS", "must never exceed 20 characters")
+                .contains("Length=CONCISE_CALL", "complete and grammatical utterance")
                 .contains("TimeZone=Asia/Seoul", "TimePeriod=DAWN (새벽)");
     }
 
@@ -64,8 +81,8 @@ class PromptBuilderConversationContextTests {
                 .userMessage("오늘 있었던 일을 차근차근 길게 이야기해 줄게. 먼저 아침에는 회의가 있었고 점심 이후에는 새로운 프로젝트를 시작했어. 네 생각도 자세히 듣고 싶어.")
                 .build();
 
-        assertThat(shortPrompt).contains("Length=MAX_30_CHARACTERS", "one complete, natural Korean sentence", "Emoji=AT_MOST_ONE");
-        assertThat(longPrompt).contains("Length=MAX_30_CHARACTERS", "must never exceed 30 characters");
+        assertThat(shortPrompt).contains("Length=CONCISE_CHAT", "complete and grammatical sentence", "Emoji=AT_MOST_ONE");
+        assertThat(longPrompt).contains("Length=CONCISE_CHAT", "usually about 20-50 Korean characters");
     }
 
     @Test
@@ -78,11 +95,12 @@ class PromptBuilderConversationContextTests {
 
         assertThat(prompt)
                 .contains("[User Selected Character Keyword Behavior]")
-                .contains("1. 가벼운 상황에서는 짧고 자연스러운 유머를 섞는다.")
-                .contains("2. 상대 반응을 살피며 친근하고 장난스럽게 받아친다.")
-                .contains("3. 부담스럽지 않은 귀여운 말투와 애정 표현을 자연스럽게 사용한다.")
+                .contains("1. 상황에 맞는 짧고 자연스러운 유머를 사용한다.")
+                .contains("2. 가벼운 상황에서 친근한 장난을 사용하되 상대가 불편해하면 즉시 멈춘다.")
+                .contains("3. 부담스럽지 않은 범위에서 귀엽고 친근한 표현을 사용한다.")
                 .contains("Earlier items have higher priority")
-                .contains("Never mention the keyword list");
+                .contains("Never mention the keyword list")
+                .contains("1. Safety policy", "3. Quantitative trait instructions");
     }
 
     @Test

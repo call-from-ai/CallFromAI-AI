@@ -37,6 +37,9 @@ BE는 `X-Internal-Api-Key`를 포함해 `PUT /internal/characters/{characterId}/
 | `character` | `CharacterSnapshot` | 필수 | 필수 | null이면 400. |
 | `relationship` | `RelationshipSnapshot` | 필수 | 필수 | null이면 400. |
 | `history` | `List<ChatHistoryItem>` | 선택 | 선택 | 생략 시 빈 목록. null도 처리 단계에서 빈 목록으로 취급한다. |
+| `userName` | `String` | 권장 | 권장 | 프롬프트의 사용자 이름. 자연스러운 호칭과 참여자 구분에 사용한다. |
+| `userAge` | `Integer` | 권장 | 권장 | 1~120. 캐릭터와의 연령 비교 및 한국어 호칭 계산에 사용한다. |
+| `userGender` | `String` | 권장 | 권장 | `MALE` 또는 `FEMALE` 권장. 호칭을 확정할 수 없으면 이름을 사용한다. |
 | `message` | `String` | 필수 | 선택/무시 | 일반 채팅은 null·빈 문자열·공백만 있으면 400. proactive는 없어도 되며 값이 있어도 내부 check-in seed로 대체한다. |
 
 ### CharacterSnapshot
@@ -45,6 +48,8 @@ BE는 `X-Internal-Api-Key`를 포함해 `PUT /internal/characters/{characterId}/
 | --- | --- | --- | --- |
 | `characterId` | `Long` | 필수 | null 불가. AI 파생 데이터 조회 key다. |
 | `name` | `String` | 필수 | non-blank |
+| `age` | `Integer` | 선택 | 1~120. 사용자보다 어릴 때 연령 기반 호칭 계산에 사용한다. |
+| `gender` | `String` | 선택 | `MALE` 또는 `FEMALE` 권장 |
 | `mind` | `String` | 선택 | 길이 검증 없음 |
 | `responseStyle` | `String` | 선택 | 길이 검증 없음 |
 | `job` | `String` | 선택 | 길이 검증 없음 |
@@ -102,9 +107,14 @@ AI 서버는 trait fallback을 계산하지 않는다. 10개 중 하나라도 �
 ```json
 {
   "requestId": "chat-01J2Y8P0M6Q7YH2J9W8K5T3N1A",
+  "userName": "민준",
+  "userAge": 29,
+  "userGender": "MALE",
   "character": {
     "characterId": 10,
     "name": "하나",
+    "age": 24,
+    "gender": "FEMALE",
     "mind": "따뜻하지만 솔직하다",
     "responseStyle": "짧고 자연스러운 한국어 메신저 말투",
     "job": "개발자",

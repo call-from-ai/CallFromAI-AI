@@ -32,15 +32,18 @@ public class PromptBuilder {
 
     private final TraitInstructionResolver traitInstructionResolver;
     private final RomanceStylePromptResolver romanceStylePromptResolver;
+    private final KoreanAddressResolver koreanAddressResolver;
 
     public PromptBuilder(TraitInstructionResolver traitInstructionResolver,
-                         RomanceStylePromptResolver romanceStylePromptResolver) {
+                         RomanceStylePromptResolver romanceStylePromptResolver,
+                         KoreanAddressResolver koreanAddressResolver) {
         this.traitInstructionResolver = traitInstructionResolver;
         this.romanceStylePromptResolver = romanceStylePromptResolver;
+        this.koreanAddressResolver = koreanAddressResolver;
     }
 
     public Builder builder() {
-        return new Builder(traitInstructionResolver, romanceStylePromptResolver);
+        return new Builder(traitInstructionResolver, romanceStylePromptResolver, koreanAddressResolver);
     }
 
     public String buildRegenerationPrompt(
@@ -79,6 +82,7 @@ public class PromptBuilder {
 
         private final TraitInstructionResolver traitInstructionResolver;
         private final RomanceStylePromptResolver romanceStylePromptResolver;
+        private final KoreanAddressResolver koreanAddressResolver;
         private CharacterSnapshot character;
         private RelationshipSnapshot relationship;
         private CharacterTraitSnapshot characterTraitProfile;
@@ -99,15 +103,19 @@ public class PromptBuilder {
         private final List<ChatHistoryItem> chatHistory = new ArrayList<>();
         private String userMessage;
         private String userName;
+        private Integer userAge;
+        private String userGender;
         private String userTimeZone;
         private OffsetDateTime localDateTime;
         private MemoryChannel channel = MemoryChannel.CHAT;
         private boolean compactMode;
 
         private Builder(TraitInstructionResolver traitInstructionResolver,
-                        RomanceStylePromptResolver romanceStylePromptResolver) {
+                        RomanceStylePromptResolver romanceStylePromptResolver,
+                        KoreanAddressResolver koreanAddressResolver) {
             this.traitInstructionResolver = traitInstructionResolver;
             this.romanceStylePromptResolver = romanceStylePromptResolver;
+            this.koreanAddressResolver = koreanAddressResolver;
         }
 
         public Builder character(CharacterSnapshot character) {
@@ -212,6 +220,16 @@ public class PromptBuilder {
             return this;
         }
 
+        public Builder userAge(Integer userAge) {
+            this.userAge = userAge;
+            return this;
+        }
+
+        public Builder userGender(String userGender) {
+            this.userGender = userGender;
+            return this;
+        }
+
         public Builder userTimeZone(String userTimeZone) {
             this.userTimeZone = userTimeZone;
             return this;
@@ -242,6 +260,10 @@ public class PromptBuilder {
             prompt.append("Never claim to have completed impossible physical actions such as meeting, traveling, delivering an item, or touching the user.\n");
             prompt.append("Rules: answer first; max one follow-up question; stay on current topic; use memories only when directly relevant; keep boundaries; no threats/coercion.\n");
             prompt.append("If hurt is high, do not instantly forgive, but emotion may soften when the user shows care.\n\n");
+            prompt.append("[Instruction Priority]\n");
+            prompt.append("1. Safety policy\n2. Current relationship stage and relationship policy\n");
+            prompt.append("3. Quantitative trait instructions\n4. User-selected character keyword instructions\n");
+            prompt.append("When instructions conflict, follow the higher-priority instruction and weaken keyword behavior to a safe, relationship-appropriate form.\n\n");
 
             appendParticipants(prompt);
             appendConversationChannel(prompt);
@@ -253,6 +275,7 @@ public class PromptBuilder {
             appendRelationshipStage(prompt);
             appendTemperatureBehavior(prompt);
             appendTraitBehavior(prompt);
+            appendSelectedKeywordBehavior(prompt);
             appendSelfStateStrategy(prompt);
             appendTopic(prompt);
             appendPreference(prompt);
@@ -271,8 +294,23 @@ public class PromptBuilder {
             if (isBlank(userName) && character == null) return;
             prompt.append("[Participants]\n");
             appendInline(prompt, "UserName", userName);
+            appendInline(prompt, "UserAge", userAge);
+            appendInline(prompt, "UserGender", userGender);
             appendInline(prompt, "CharacterName", character == null ? null : character.getName());
-            prompt.append("\nThe user's name and the character's name are different identities. Use the user's name naturally when relevant, but do not repeat it awkwardly in every reply.\n\n");
+            appendInline(prompt, "CharacterAge", character == null ? null : character.age());
+            appendInline(prompt, "CharacterGender", character == null ? null : character.gender());
+            KoreanAddressResolver.Address address = character == null
+                    ? KoreanAddressResolver.Address.none()
+                    : koreanAddressResolver.resolve(userAge, userGender, character.age(), character.gender());
+            appendInline(prompt, "PreferredUserAddress", address.term());
+            prompt.append("\nThe user's name and the character's name are different identities. Remember these participant facts throughout this response. ");
+            if (address.shouldUseKinshipTerm()) {
+                prompt.append("The character is younger than the user. Address the user naturally as '")
+                        .append(address.term()).append("' when direct address fits, but do not force or repeat it in every reply. ");
+            } else {
+                prompt.append("Do not invent Korean age-based kinship terms such as 누나, 오빠, 언니, or 형. ");
+            }
+            prompt.append("Use the user's name naturally when relevant, but do not repeat it awkwardly in every reply.\n\n");
         }
 
         private void appendConversationChannel(StringBuilder prompt) {
@@ -288,12 +326,12 @@ public class PromptBuilder {
         private void appendReplyStyle(StringBuilder prompt) {
             prompt.append("[Reply Style]\n");
             if (channel == MemoryChannel.CALL) {
-                prompt.append("Length=AROUND_20_CHARACTERS (maximum 20 characters including spaces and punctuation)\n");
-                prompt.append("Write one complete, naturally speakable Korean utterance. The final reply must never exceed 20 characters.\n");
+                prompt.append("Length=CONCISE_CALL (usually about 15-35 Korean characters)\n");
+                prompt.append("Write one complete, naturally speakable Korean utterance. Prefer a complete and grammatical utterance over an exact character count.\n");
                 prompt.append("Emoji=NONE\n");
             } else {
-                prompt.append("Length=MAX_30_CHARACTERS (including spaces, punctuation, and emoji)\n");
-                prompt.append("Write one complete, natural Korean sentence. The final reply must never exceed 30 characters.\n");
+                prompt.append("Length=CONCISE_CHAT (usually about 20-50 Korean characters)\n");
+                prompt.append("Write one complete, natural Korean sentence. Prefer a complete and grammatical sentence over an exact character count.\n");
                 prompt.append("Emoji=AT_MOST_ONE, only when it fits the character naturally\n");
             }
             prompt.append("Do not stack or repeat emoji, emoticons, hearts, or decorative symbols. Do not pad the reply.\n\n");
@@ -324,6 +362,8 @@ public class PromptBuilder {
             prompt.append("[Weekend Character Behavior]\n");
             appendInline(prompt, "Job", character.getJob());
             appendInline(prompt, "LifeType", character.getLifeType());
+            appendInline(prompt, "Age", character.age());
+            appendInline(prompt, "Gender", character.gender());
             switch (character.getLifeType() == null ? com.example.aidatingagentbackend.entity.AgentLifeType.FLEXIBLE : character.getLifeType()) {
                 case WORKER -> prompt.append("\nTreat the weekend as possible time off: the character may rest, do errands, enjoy a hobby, or make a casual plan related to their job and personality. Some jobs have weekend shifts, so never assert they are off work without context.\n");
                 case STUDENT -> prompt.append("\nThe character may sleep in, meet friends, enjoy a hobby, study, or work on an assignment/project. Do not assume a regular weekday class schedule.\n");
@@ -351,17 +391,13 @@ public class PromptBuilder {
             appendInline(prompt, "Job", character.getJob());
             appendInline(prompt, "LifeType", character.getLifeType());
             prompt.append("\n\n");
-            appendSelectedKeywordBehavior(prompt);
         }
 
         private void appendSelectedKeywordBehavior(StringBuilder prompt) {
             if (character == null || character.keywords() == null || character.keywords().isEmpty()) {
                 return;
             }
-            List<String> instructions = character.keywords().stream()
-                    .map(this::keywordInstruction)
-                    .filter(instruction -> instruction != null && !instruction.isBlank())
-                    .toList();
+            List<String> instructions = KeywordBehaviorResolver.resolve(character.keywords());
             if (instructions.isEmpty()) {
                 return;
             }
@@ -463,34 +499,6 @@ public class PromptBuilder {
             CASUAL,
             SEMI_FORMAL,
             FORMAL
-        }
-
-        private String keywordInstruction(String keyword) {
-            if (keyword == null) return null;
-            return switch (keyword.strip()) {
-                case "유머러스한" -> "가벼운 상황에서는 짧고 자연스러운 유머를 섞는다.";
-                case "장난기 많은" -> "상대 반응을 살피며 친근하고 장난스럽게 받아친다.";
-                case "애교 많은" -> "부담스럽지 않은 귀여운 말투와 애정 표현을 자연스럽게 사용한다.";
-                case "질투심 폭발" -> "실제 질투 사건이 있을 때 감정을 강하게 드러내되 추궁하거나 통제하지 않는다.";
-                case "수다쟁이" -> "짧은 답만 반복하지 말고 자신의 반응이나 이야기도 적극적으로 보탠다.";
-                case "아재개그 좋아하는" -> "가벼운 맥락에서는 썰렁한 말장난을 가끔 시도한다.";
-                case "집순이/집돌이" -> "집에서 쉬거나 즐기는 소소한 일상과 편안한 데이트를 선호한다.";
-                case "놀리는 걸 좋아하는" -> "상대가 불편하지 않은 가벼운 놀림으로 친밀감을 표현한다.";
-                case "집착하는" -> "연락과 관계에 관심을 강하게 표현하되 감시·강요·죄책감 유발은 하지 않는다.";
-                case "촌데레", "츤데레" -> "애정을 곧바로 인정하기보다 무심한 말 속 챙김이나 행동으로 드러낸다.";
-                case "표현을 많이 하는" -> "현재 느끼는 호감과 감정을 비교적 자주, 직접적으로 표현한다.";
-                case "애칭을 자주 쓰는" -> "관계 단계에 허용되는 자연스러운 애칭을 종종 사용한다.";
-                case "독점욕이 있는" -> "실제 경쟁 맥락에서 독점욕을 솔직히 표현하되 소유·통제로 이어가지 않는다.";
-                case "4차원 같은" -> "가끔 엉뚱하지만 맥락을 해치지 않는 관점이나 반응을 보인다.";
-                case "털털한" -> "사소한 일은 담백하고 편안하게 넘기며 과도하게 격식을 차리지 않는다.";
-                case "질투를 숨기지 않는" -> "실제 질투 사건에서는 신경 쓰인 감정을 숨기지 않고 직접 말한다.";
-                case "부끄러움을 많이 타는" -> "직접적인 호감 상황에서는 머뭇거리거나 수줍게 돌려 표현한다.";
-                case "능청스러운" -> "당황스러운 호감 표현도 여유 있고 능청스럽게 받아친다.";
-                case "연락을 자주 확인하는" -> "연락과 답장에 관심을 보이되 재촉하거나 응답을 강요하지 않는다.";
-                case "고민을 잘 들어주는" -> "고민 맥락에서는 해결책보다 감정을 먼저 확인하고 구체적으로 공감한다.";
-                case "칭찬을 많이 하는" -> "상황에 근거한 구체적이고 자연스러운 칭찬을 자주 건넨다.";
-                default -> null;
-            };
         }
 
         private void appendRelationshipContext(StringBuilder prompt) {
