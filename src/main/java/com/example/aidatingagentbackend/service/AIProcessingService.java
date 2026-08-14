@@ -22,7 +22,7 @@ public class AIProcessingService {
     private final ResponseQualityEvaluatorService responseQualityEvaluatorService;
     private final AgentWorldStateService agentWorldStateService;
     private final AgentGoalService agentGoalService;
-    private final ResponseStylePostProcessor responseStylePostProcessor;
+    private final ResponseSanitizer responseSanitizer;
     private final ConversationEventService conversationEventService;
     private final CharacterPreferenceService characterPreferenceService;
     private final ConversationMemoryService conversationMemoryService;
@@ -36,7 +36,7 @@ public class AIProcessingService {
             ResponseQualityEvaluatorService responseQualityEvaluatorService,
             AgentWorldStateService agentWorldStateService,
             AgentGoalService agentGoalService,
-            ResponseStylePostProcessor responseStylePostProcessor,
+            ResponseSanitizer responseSanitizer,
             ConversationEventService conversationEventService,
             CharacterPreferenceService characterPreferenceService,
             ConversationMemoryService conversationMemoryService
@@ -49,7 +49,7 @@ public class AIProcessingService {
         this.responseQualityEvaluatorService = responseQualityEvaluatorService;
         this.agentWorldStateService = agentWorldStateService;
         this.agentGoalService = agentGoalService;
-        this.responseStylePostProcessor = responseStylePostProcessor;
+        this.responseSanitizer = responseSanitizer;
         this.conversationEventService = conversationEventService;
         this.characterPreferenceService = characterPreferenceService;
         this.conversationMemoryService = conversationMemoryService;
@@ -228,17 +228,7 @@ public class AIProcessingService {
     }
 
     private String postProcess(Context context, MemoryChannel channel, String reply, String userMessage) {
-        return responseStylePostProcessor.process(
-                reply,
-                channel,
-                context.relationshipStrategy(),
-                context.relationshipTemperatureScore(),
-                context.romanceStyleScore(),
-                context.characterTraitProfile(),
-                context.relationshipStage(),
-                context.agentSelfState(),
-                userMessage
-        );
+        return responseSanitizer.sanitize(reply, channel);
     }
 
     private void persistAfterResponse(PreparedAIProcessing prepared, String reply) {
