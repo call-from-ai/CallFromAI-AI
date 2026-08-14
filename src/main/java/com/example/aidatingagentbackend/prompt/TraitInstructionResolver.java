@@ -1,6 +1,5 @@
 package com.example.aidatingagentbackend.prompt;
 
-import com.example.aidatingagentbackend.entity.AgentSelfState;
 import com.example.aidatingagentbackend.dto.CharacterTraitSnapshot;
 import com.example.aidatingagentbackend.entity.RelationshipStage;
 import org.springframework.stereotype.Component;
@@ -14,7 +13,6 @@ public class TraitInstructionResolver {
     public List<String> resolve(
             CharacterTraitSnapshot traits,
             RelationshipStage relationshipStage,
-            AgentSelfState selfState,
             String userMessage
     ) {
         CharacterTraitSnapshot resolved = traits == null ? defaultTraits() : traits;
@@ -24,7 +22,6 @@ public class TraitInstructionResolver {
         addHighTraitInstructions(instructions, resolved);
         addLowTraitInstructions(instructions, resolved);
         addConflictResolutions(instructions, resolved, stage, userMessage);
-        addEmotionExpressionStrategy(instructions, resolved, selfState);
 
         return instructions.stream()
                 .distinct()
@@ -94,31 +91,6 @@ public class TraitInstructionResolver {
         }
     }
 
-    private void addEmotionExpressionStrategy(
-            List<String> instructions,
-            CharacterTraitSnapshot traits,
-            AgentSelfState selfState
-    ) {
-        double hurt = value(selfState == null ? null : selfState.getHurt());
-        double anger = value(selfState == null ? null : selfState.getAnger());
-        double insecurity = value(selfState == null ? null : selfState.getInsecurity());
-        int expressiveness = traitValue(traits.getExpressiveness());
-        int jealousy = traitValue(traits.getJealousy());
-
-        if (hurt >= 0.6 && expressiveness >= 8) {
-            instructions.add("상처가 큰 상태라면 서운함을 직접 표현한다.");
-        }
-        if (hurt >= 0.6 && expressiveness <= 2) {
-            instructions.add("상처가 큰 상태라도 말수가 줄거나 돌려 표현한다.");
-        }
-        if (anger < 0.3 && expressiveness >= 8) {
-            instructions.add("분노가 낮으므로 화난 척을 과장하지 않는다.");
-        }
-        if (insecurity < 0.3 && jealousy >= 8) {
-            instructions.add("불안정감이 낮으면 실제 질투 사건 없이 질투 발화를 하지 않는다.");
-        }
-    }
-
     private boolean high(Integer value) {
         return traitValue(value) >= 8;
     }
@@ -129,10 +101,6 @@ public class TraitInstructionResolver {
 
     private int traitValue(Integer value) {
         return value == null ? 5 : Math.max(0, Math.min(10, value));
-    }
-
-    private double value(Double value) {
-        return value == null ? 0.0 : Math.max(0.0, Math.min(1.0, value));
     }
 
     private boolean isConcernContext(String userMessage) {

@@ -20,6 +20,16 @@ class CharacterSnapshotKeywordsTests {
         assertThat(snapshot.keywords()).isEmpty();
     }
 
+    @Test
+    void receivesCurrentBackendMbtiWithoutLosingLegacyMindCompatibility() throws Exception {
+        CharacterSnapshot current = mapper.readValue(payload(",\"mbti\":\"ENFP\",\"corePersona\":\"다정하지만 장난기 많은 사람\""), CharacterSnapshot.class);
+        CharacterSnapshot legacy = mapper.readValue(payload(",\"mind\":\"무심한 듯 세심한 사람\""), CharacterSnapshot.class);
+
+        assertThat(current.mbti()).isEqualTo("ENFP");
+        assertThat(current.resolvedCorePersona()).isEqualTo("다정하지만 장난기 많은 사람");
+        assertThat(legacy.resolvedCorePersona()).isEqualTo("무심한 듯 세심한 사람");
+    }
+
     private String payload(String keywords) {
         return "{\"characterId\":10,\"name\":\"하나\",\"romanceStyleScore\":72" + keywords +
                 ",\"traits\":{\"humor\":6,\"playfulness\":7,\"affection\":8,\"empathy\":9," +
