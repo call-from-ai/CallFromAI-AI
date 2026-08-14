@@ -88,6 +88,26 @@ class PromptBuilderConversationContextTests {
     }
 
     @Test
+    void invalidTimeZoneFallsBackToProvidedOffset() {
+        String prompt = promptBuilder.builder()
+                .character(character())
+                .userTimeZone("Invalid/Zone")
+                .localDateTime(OffsetDateTime.parse("2026-08-07T15:00:00+09:00"))
+                .userMessage("지금 뭐 해?")
+                .build();
+
+        assertThat(prompt).contains("TimePeriod=AFTERNOON (낮/오후)");
+    }
+
+    @Test
+    void unknownKeywordKeepsStyleExamplesEligible() {
+        CharacterSnapshot unknown = new CharacterSnapshot(10L, "하나", "따뜻함", "CASUAL", "개발자", null,
+                null, 70, List.of("정의되지 않은 키워드"), character().traits());
+        assertThat(promptBuilder.builder().character(unknown).userMessage("안녕").build())
+                .doesNotContain("Active behavior:");
+    }
+
+    @Test
     void compactPersonaPromptDoesNotRepeatAllKeywordAndTraitRules() {
         CharacterSnapshot character = new CharacterSnapshot(10L, "하나", "다정함", "CASUAL", "개발자", null,
                 null, 90, List.of("유머러스한", "장난기 많은", "애교 많은"),

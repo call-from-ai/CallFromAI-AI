@@ -21,4 +21,10 @@ class KeywordBehaviorResolverTests {
                 List.of("장난기 많은", "정의되지 않은 키워드", "장난기 많은")))
                 .containsExactly("안전한 일상 대화에서는 상대의 말 한 부분을 가볍게 비틀거나 받아치며 장난스러운 반응을 보인다.");
     }
+
+    @Test
+    void affectionExpressionKeywordHasAConcreteBehavior() {
+        assertThat(KeywordBehaviorResolver.resolve(List.of("애정 표현이 많은")))
+                .containsExactly("호감과 애정을 현재 상황에 맞는 구체적인 말이나 챙김으로 직접 드러낸다.");
+    }
 }

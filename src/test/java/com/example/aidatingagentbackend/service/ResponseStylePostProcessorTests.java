@@ -25,6 +25,17 @@ class ResponseSanitizerTests {
     }
 
     @Test
+    void usesSpeakableFallbackForBlankCallReply() {
+        assertThat(processor.sanitize("   ", MemoryChannel.CALL)).isEqualTo("응, 듣고 있어");
+    }
+
+    @Test
+    void preservesCompleteFlagAndKeycapEmojiSequences() {
+        assertThat(processor.sanitize("국기 🇰🇷 다음 😊", MemoryChannel.CHAT)).isEqualTo("국기 🇰🇷 다음");
+        assertThat(processor.sanitize("번호 1️⃣ 다음 😊", MemoryChannel.CHAT)).isEqualTo("번호 1️⃣ 다음");
+    }
+
+    @Test
     void doesNotCutCallReplyInTheMiddleOfAKoreanSentence() {
         String original = "오늘 하루도 정말 고생 많았어 이제 편하게 쉬면서 나랑 이야기하자";
         String call = processor.sanitize(original, MemoryChannel.CALL);

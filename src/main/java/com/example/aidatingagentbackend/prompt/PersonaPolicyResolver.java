@@ -23,6 +23,16 @@ public final class PersonaPolicyResolver {
         String activeBehavior = activeIndex < 0 ? null
                 : KeywordBehaviorResolver.resolve(List.of(character.keywords().get(activeIndex))).stream()
                 .findFirst().orElse(null);
+        if (activeBehavior == null) {
+            for (int i = 0; i < character.keywords().size(); i++) {
+                List<String> resolved = KeywordBehaviorResolver.resolve(List.of(character.keywords().get(i)));
+                if (!resolved.isEmpty()) {
+                    activeIndex = i;
+                    activeBehavior = resolved.get(0);
+                    break;
+                }
+            }
+        }
         List<String> supporting = new ArrayList<>();
         for (int i = 0; i < character.keywords().size() && supporting.size() < 1; i++) {
             if (i == activeIndex) continue;
