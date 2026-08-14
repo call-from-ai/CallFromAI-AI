@@ -7,7 +7,7 @@ import java.util.List;
 
 public record CharacterSnapshot(Long characterId, String name, String mind, String responseStyle, String job,
         AgentLifeType lifeType, PreferTime preferTime, Integer romanceStyleScore, List<String> keywords,
-        Integer age, String gender, CharacterTraitSnapshot traits) {
+        Integer age, String gender, String corePersona, String mbti, CharacterTraitSnapshot traits) {
     public CharacterSnapshot {
         preferTime = preferTime == null ? PreferTime.ANYTIME : preferTime;
         keywords = keywords == null ? List.of() : keywords.stream()
@@ -24,19 +24,30 @@ public record CharacterSnapshot(Long characterId, String name, String mind, Stri
     }
     public CharacterSnapshot(Long characterId, String name, String mind, String responseStyle, String job,
             AgentLifeType lifeType, PreferTime preferTime, Integer romanceStyleScore, List<String> keywords,
+            Integer age, String gender, CharacterTraitSnapshot traits) {
+        this(characterId, name, mind, responseStyle, job, lifeType, preferTime, romanceStyleScore, keywords,
+                age, gender, null, null, traits);
+    }
+    public CharacterSnapshot(Long characterId, String name, String mind, String responseStyle, String job,
+            AgentLifeType lifeType, PreferTime preferTime, Integer romanceStyleScore, List<String> keywords,
             CharacterTraitSnapshot traits) {
         this(characterId, name, mind, responseStyle, job, lifeType, preferTime, romanceStyleScore, keywords,
-                null, null, traits);
+                null, null, null, null, traits);
     }
     public CharacterSnapshot(Long characterId, String name, String mind, String responseStyle, String job,
             AgentLifeType lifeType, PreferTime preferTime, Integer romanceStyleScore, CharacterTraitSnapshot traits) {
         this(characterId, name, mind, responseStyle, job, lifeType, preferTime, romanceStyleScore, List.of(),
-                null, null, traits);
+                null, null, null, null, traits);
     }
     public CharacterSnapshot(Long characterId, String name, String mind, String responseStyle, String job,
             AgentLifeType lifeType, Integer romanceStyleScore, CharacterTraitSnapshot traits) {
         this(characterId, name, mind, responseStyle, job, lifeType, PreferTime.ANYTIME, romanceStyleScore, List.of(),
-                null, null, traits);
+                null, null, null, null, traits);
+    }
+    public String resolvedCorePersona() {
+        if (corePersona != null && !corePersona.isBlank()) return corePersona.strip();
+        if (mind != null && !mind.isBlank()) return mind.strip();
+        return null;
     }
     public Long getId(){return characterId;} public String getName(){return name;} public String getMind(){return mind;}
     public String getResponseStyle(){return responseStyle;} public String getJob(){return job;}
