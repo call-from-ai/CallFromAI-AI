@@ -30,12 +30,15 @@ class GeminiServiceTests {
     );
 
     @Test
-    void callDisablesThinking() {
+    void callUsesMinimalThinkingAndLimitsOutputForLowLatency() {
         Map<String, Object> body = service.buildRequestBody("hello", null, MemoryChannel.CALL);
 
         assertThat(body).containsEntry(
                 "generationConfig",
-                Map.of("thinkingConfig", Map.of("thinkingBudget", 0))
+                Map.of(
+                        "thinkingConfig", Map.of("thinkingLevel", "minimal"),
+                        "maxOutputTokens", 96
+                )
         );
     }
 
@@ -46,7 +49,7 @@ class GeminiServiceTests {
         assertThat(body).containsEntry(
                 "generationConfig",
                 Map.of(
-                        "thinkingConfig", Map.of("thinkingBudget", 0),
+                        "thinkingConfig", Map.of("thinkingLevel", "minimal"),
                         "maxOutputTokens", 40
                 )
         );
