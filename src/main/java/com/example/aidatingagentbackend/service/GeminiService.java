@@ -8,7 +8,10 @@ import com.example.aidatingagentbackend.exception.GeminiTimeoutException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Service;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.util.StringUtils;
+import org.springframework.util.StreamUtils;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 
@@ -25,10 +28,13 @@ import java.util.Base64;
 import java.util.List;
 import java.util.LinkedHashMap;
 import java.util.function.Consumer;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 @Service
 public class GeminiService {
 
+    private static final Logger log = LoggerFactory.getLogger(GeminiService.class);
+    private static final int MAX_ERROR_BODY_LOG_LENGTH = 2_048;
     private static final ThreadLocal<Integer> CALL_COUNT = ThreadLocal.withInitial(() -> 0);
 
     private final RestClient restClient;
@@ -129,20 +135,35 @@ public class GeminiService {
                                 .build(properties.model()))
                 .body(buildRequestBody(prompt, image, channel))
                 .exchange((request, response) -> {
+                    if (response.getStatusCode().isError()) {
+                        String responseBody = StreamUtils.copyToString(
+                                response.getBody(), StandardCharsets.UTF_8);
+                        log.error("Gemini stream request failed. status={}, body={}",
+                                response.getStatusCode(), safeErrorBody(responseBody));
+                        throw new GeminiCallException(
+                                "Gemini request failed with HTTP " + response.getStatusCode().value() + ".", null);
+                    }
+                    AtomicBoolean chunkReceived = new AtomicBoolean(false);
                     try (BufferedReader reader = new BufferedReader(
                             new InputStreamReader(response.getBody(), StandardCharsets.UTF_8))) {
                         String line;
                         while ((line = reader.readLine()) != null) {
                             String chunk = extractSseText(line);
                             if (StringUtils.hasText(chunk)) {
+                                chunkReceived.set(true);
                                 onChunk.accept(chunk);
                             }
                         }
                     } catch (IOException exception) {
                         throw new UncheckedIOException(exception);
                     }
+                    if (!chunkReceived.get()) {
+                        throw new GeminiCallException("Gemini returned an empty response.", null);
+                    }
                     return null;
                     });
+        } catch (GeminiCallException exception) {
+            throw exception;
         } catch (RestClientException | UncheckedIOException exception) {
             throw translate(exception);
         }
@@ -236,6 +257,16 @@ public class GeminiService {
         } catch (IOException exception) {
             return "";
         }
+    }
+
+    private static String safeErrorBody(String body) {
+        if (body == null) {
+            return "";
+        }
+        String singleLine = body.replaceAll("[\\r\\n]+", " ");
+        return singleLine.length() <= MAX_ERROR_BODY_LOG_LENGTH
+                ? singleLine
+                : singleLine.substring(0, MAX_ERROR_BODY_LOG_LENGTH) + "…";
     }
 
 }
