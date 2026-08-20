@@ -7,6 +7,7 @@ import com.example.aidatingagentbackend.dto.ErrorResponse;
 import com.example.aidatingagentbackend.dto.GeminiImage;
 import com.example.aidatingagentbackend.exception.GeminiCallException;
 import com.example.aidatingagentbackend.exception.GeminiTimeoutException;
+import com.example.aidatingagentbackend.entity.MemoryChannel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -27,6 +28,8 @@ public class ChatService {
 
     private static final Logger log = LoggerFactory.getLogger(ChatService.class);
     private static final long STREAM_TIMEOUT_MS = 120_000L;
+    private static final String CALL_FAILURE_FALLBACK =
+            "미안, 지금 통화가 잘 안 되는 것 같아. 잠시 후에 다시 말해 줄래?";
 
     private final AIProcessingService aiProcessingService;
     private final GeminiService geminiService;
@@ -142,6 +145,17 @@ public class ChatService {
                 emitter.complete();
             } catch (Exception exception) {
                 requestIdempotencyService.release(claim.requestId());
+                if (shouldSendCallFallback(normalized, exception, firstChunkSent.get())) {
+                    log.warn("chat.stream Gemini failed before first chunk; sending call fallback characterId={}",
+                            request.resolveCharacterId(), exception);
+                    sendEvent(emitter, "chunk", Map.of("text", CALL_FAILURE_FALLBACK));
+                    sendEvent(emitter, "done", Map.of(
+                            "fallback", true,
+                            "reason", "AI_UNAVAILABLE"
+                    ));
+                    emitter.complete();
+                    return;
+                }
                 log.warn("chat.stream failed characterId={}", request.resolveCharacterId(), exception);
                 sendEvent(emitter, "error", streamError(exception, request.getRequestId()));
                 emitter.complete();
@@ -151,6 +165,16 @@ public class ChatService {
         });
 
         return emitter;
+    }
+
+    static boolean shouldSendCallFallback(ChatRequest request, Exception exception, boolean chunkAlreadySent) {
+        return request.getChannel() == MemoryChannel.CALL
+                && exception instanceof GeminiCallException
+                && !chunkAlreadySent;
+    }
+
+    static String callFailureFallback() {
+        return CALL_FAILURE_FALLBACK;
     }
 
     private ChatRequest normalizeImageOnlyRequest(ChatRequest request, GeminiImage image) {

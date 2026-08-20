@@ -3,6 +3,19 @@
 Gemini를 기반으로 캐릭터의 성격, 관계 단계, 감정 상태와 대화 기억을 반영해 응답을 생성하는 AI 연애 에이전트 백엔드입니다. 일반 채팅과 이미지 입력, SSE 스트리밍, 선제 메시지, 통화 주제 생성 및 대화 요약 API를 제공합니다.
 
 
+## 주요 기능
+
+- 캐릭터 페르소나와 관계 상태를 반영한 대화 생성
+- 대화 이벤트 감지 및 관계·감정 상태 변화 계산
+- 대화 기억 저장과 관련 기억 검색
+- JPEG, PNG, WebP 이미지가 포함된 멀티모달 채팅
+- Server-Sent Events(SSE) 기반 스트리밍 응답
+- 관계 상태와 선호 시간을 고려한 선제 메시지 생성
+- 통화 주제 생성 및 대화 요약
+- `requestId` 기반 중복 요청 방지
+- 내부 API 토큰 인증 및 헬스 체크
+
+
 ## AI/RAG 구현 방식
 
 이 프로젝트의 RAG는 외부 문서를 검색하는 전통적인 지식 베이스 RAG보다 **캐릭터별 장기 기억을 검색해 대화에 주입하는 Memory RAG**에 가깝습니다. MySQL에 대화와 중요 에피소드를 저장하고, 현재 발화와 관련 있는 기억을 점수화해 Gemini 프롬프트에 추가합니다.
@@ -129,6 +142,30 @@ RAG 검색과 대화 문맥은 서로 다른 방식으로 구성합니다.
 - 검색된 장기 기억과 최근 대화
 - 사용자 이름, 나이, 성별, 시간대
 
+
+`PromptBuilder`는 현재 메시지에 필요한 영역만 선택적으로 포함합니다. 검색 기억은 `[Optional Memory]`로 표시하며, **현재 주제와 직접 관련 있을 때만 사용하라**는 지시를 함께 넣습니다. 캐릭터 말투 예시는 사실 정보가 아닌 스타일 참고 자료로 명시하여, 예시 속 사건을 현재 사실처럼 답하는 문제를 방지합니다.
+
+사용자 선호를 새로 묻는 턴에는 기존 기억을 프롬프트에서 제외합니다. 새로운 선호 질문과 과거 기억이 충돌해 답변의 초점이 흐려지는 것을 막기 위한 분기입니다.
+
+### 7. 생성 이후 처리
+
+Gemini가 답변을 생성하면 다음 후처리를 수행합니다.
+
+1. 채널에 맞게 응답을 정제합니다.
+2. 중요한 감정 사건에서는 응답 품질을 평가합니다.
+3. 품질 기준을 통과하지 못하면 평가 결과를 포함한 재생성 프롬프트로 한 번 더 생성합니다. SSE 스트리밍에서는 이미 토큰을 전송했으므로 재생성 없이 평가만 수행합니다.
+4. 새로 파악한 사용자 선호, 중요 에피소드, 관계 전환점을 저장합니다.
+5. 최종 사용자 메시지와 AI 답변을 `CONVERSATION_TURN`으로 저장해 다음 요청의 최근 문맥으로 사용합니다.
+
+### 현재 구현의 한계와 확장 방향
+
+- 해시 임베딩은 동의어와 문맥 이해가 제한적입니다. 규모가 커지면 Gemini Embeddings/OpenAI Embeddings 같은 모델 기반 벡터로 교체할 수 있습니다.
+- 임베딩을 MySQL `TEXT`로 저장하고 애플리케이션 메모리에서 전수 점수화하므로 기억 수가 많아질수록 느려집니다. 운영 규모에서는 pgvector, OpenSearch, Pinecone 등의 ANN 검색으로 이전할 수 있습니다.
+- 현재 검색 후보는 상위 5개지만 프롬프트에는 1개만 들어갑니다. 데이터가 충분해지면 유사도 하한선, 다양성 기반 재정렬(MMR), 토큰 예산 기반 동적 Top-K를 적용할 수 있습니다.
+- 키워드와 의미 별칭이 코드에 고정되어 있습니다. 운영 데이터 기반 평가셋을 만들고 별칭·가중치·임계값을 튜닝하는 것이 다음 개선 지점입니다.
+
+=======
+
 ## 기술 스택
 
 - Java 17
@@ -138,3 +175,186 @@ RAG 검색과 대화 문맥은 서로 다른 방식으로 구성합니다.
 - Google Gemini API
 - Gradle
 - Docker
+
+
+## 시작하기
+
+### 사전 요구 사항
+
+- JDK 17
+- MySQL 8.x
+- Gemini API 키
+
+### 환경 변수
+
+다음 환경 변수를 설정해야 합니다.
+
+| 변수 | 필수 | 기본값 | 설명 |
+| --- | --- | --- | --- |
+| `DB_URL` | 예 | - | JDBC 연결 URL (예: `jdbc:mysql://localhost:3306/romantic_agent`) |
+| `DB_USER` | 예 | - | MySQL 사용자 이름 |
+| `DB_PW` | 예 | - | MySQL 비밀번호 |
+| `GEMINI_API_KEY` | 예 | - | Gemini API 키 |
+| `GEMINI_MODEL` | 아니요 | `gemini-2.5-flash` | 사용할 Gemini 모델 |
+| `AI_INTERNAL_TOKEN` | 예 | - | API 요청 인증에 사용할 내부 토큰 |
+| `SERVER_PORT` | 아니요 | `8081` | 애플리케이션 포트 |
+| `AWS_REGION` | 아니요 | `ap-northeast-2` | AWS 리전 |
+
+PowerShell에서는 아래와 같이 현재 세션에 환경 변수를 설정할 수 있습니다.
+
+```powershell
+$env:DB_URL="jdbc:mysql://localhost:3306/romantic_agent?serverTimezone=Asia/Seoul&characterEncoding=UTF-8"
+$env:DB_USER="root"
+$env:DB_PW="your-password"
+$env:GEMINI_API_KEY="your-gemini-api-key"
+$env:AI_INTERNAL_TOKEN="your-internal-token"
+```
+
+> 루트의 `.env` 파일은 Git에서 제외되지만 Spring Boot가 자동으로 읽지는 않습니다. 로컬 셸에 직접 주입하거나 IDE의 실행 구성에서 환경 변수로 등록하세요.
+
+### 로컬 실행
+
+```powershell
+.\gradlew.bat bootRun
+```
+
+서버는 기본적으로 `http://localhost:8081`에서 실행됩니다. 데이터베이스 테이블은 JPA의 `ddl-auto: update` 설정에 따라 갱신됩니다.
+
+헬스 체크:
+
+```powershell
+Invoke-RestMethod http://localhost:8081/actuator/health
+```
+
+### 테스트
+
+```powershell
+.\gradlew.bat test
+```
+
+### Docker 실행
+
+```powershell
+docker build -t romantic-agent .
+docker run --rm -p 8081:8081 --env-file .env romantic-agent
+```
+
+MySQL이 호스트에서 실행 중이라면 컨테이너의 `DB_URL`에서 `localhost` 대신 `host.docker.internal`을 사용해야 합니다.
+
+## API 인증
+
+헬스 체크와 `OPTIONS` 요청을 제외한 모든 API는 인증 토큰이 필요합니다. 다음 헤더 중 하나를 사용하세요.
+
+```http
+Authorization: Bearer <AI_INTERNAL_TOKEN>
+```
+
+또는:
+
+```http
+X-Internal-Api-Key: <AI_INTERNAL_TOKEN>
+```
+
+## API
+
+| Method | Path | 설명 |
+| --- | --- | --- |
+| `POST` | `/chat` | JSON 또는 이미지가 포함된 채팅 |
+| `POST` | `/chat/stream` | SSE 스트리밍 채팅 |
+| `POST` | `/api/chat/stream` | SSE 스트리밍 채팅 별칭 |
+| `POST` | `/api/chat/proactive/send` | 선제 메시지 즉시 생성 |
+| `PUT` | `/internal/characters/{characterId}/snapshot` | 캐릭터 스냅샷 저장 또는 갱신 |
+| `DELETE` | `/internal/characters/{characterId}/data` | 캐릭터 관련 파생 데이터 삭제 |
+| `POST` | `/internal/calls/topic` | 통화 내용을 바탕으로 주제 생성 |
+| `POST` | `/internal/conversations/summary` | 대화 요약 생성 |
+| `GET` | `/actuator/health` | 서버 상태 확인 (인증 불필요) |
+
+### 채팅 요청 예시
+
+`character`, `relationship`, `channel`, `message`는 일반 채팅의 필수 값입니다. 특성 값은 `0~10`, 관계 지표는 `0~100` 범위를 사용합니다.
+
+```bash
+curl -X POST http://localhost:8081/chat \
+  -H "Authorization: Bearer your-internal-token" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "requestId": "chat-20260814-001",
+    "channel": "CHAT",
+    "userName": "민수",
+    "user": {
+      "birth": "1998-05-12",
+      "gender": "MALE",
+      "job": "개발자",
+      "mbti": "INTJ"
+    },
+    "character": {
+      "characterId": 1,
+      "name": "하린",
+      "mind": "다정하고 솔직하다",
+      "responseStyle": "짧고 자연스러운 반말",
+      "job": "디자이너",
+      "lifeType": "WORKER",
+      "preferTime": "ANYTIME",
+      "romanceStyleScore": 70,
+      "keywords": ["다정함", "장난기"],
+      "age": 27,
+      "gender": "FEMALE",
+      "traits": {
+        "humor": 7,
+        "playfulness": 6,
+        "affection": 8,
+        "empathy": 8,
+        "attachment": 5,
+        "jealousy": 3,
+        "dominance": 4,
+        "confidence": 7,
+        "expressiveness": 8,
+        "emotionalStability": 7,
+        "calculationVersion": 1
+      }
+    },
+    "relationship": {
+      "relationshipId": 10,
+      "relationshipStage": "DATING",
+      "relationshipTemperatureScore": 65,
+      "trust": 70,
+      "closeness": 68,
+      "conflictLevel": 10,
+      "repairProgress": 0,
+      "breakupRisk": 5,
+      "daysTogether": 30,
+      "strategy": "NORMAL"
+    },
+    "history": [],
+    "message": "오늘 하루 어땠어?"
+  }'
+```
+
+관계 단계는 `CRUSH`, `DATING`, `DEEP_LOVE`를 지원하며, 채널은 `CHAT` 또는 `CALL`입니다. 이미지 채팅은 `multipart/form-data`로 JSON 요청을 `request` 파트에, 10MB 이하의 JPEG·PNG·WebP 파일을 `image` 파트에 전달합니다.
+
+## 프로젝트 구조
+
+```text
+src/
+├─ main/
+│  ├─ java/com/example/aidatingagentbackend/
+│  │  ├─ config/       # 인증, Gemini 설정
+│  │  ├─ context/      # 대화 컨텍스트와 기억 검색
+│  │  ├─ controller/   # HTTP API
+│  │  ├─ dto/          # 요청·응답 모델
+│  │  ├─ engine/       # 이벤트, 기억, 관계 처리 엔진
+│  │  ├─ entity/       # JPA 엔티티와 도메인 열거형
+│  │  ├─ prompt/       # 페르소나 및 프롬프트 구성
+│  │  ├─ repository/   # 데이터 접근 계층
+│  │  └─ service/      # 애플리케이션 비즈니스 로직
+│  └─ resources/application.yml
+└─ test/               # 단위·통합·회귀 테스트
+```
+
+## 보안 주의 사항
+
+- `.env`, API 키, 데이터베이스 비밀번호를 커밋하지 마세요.
+- 운영 환경에서는 충분히 긴 `AI_INTERNAL_TOKEN`을 사용하고 HTTPS 뒤에서 서비스를 노출하세요.
+- 현재 JPA 스키마 설정은 `update`입니다. 운영 배포에서는 Flyway/Liquibase 같은 명시적 마이그레이션 도구 사용을 권장합니다.
+=======
+
