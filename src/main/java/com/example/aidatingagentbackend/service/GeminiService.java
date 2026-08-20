@@ -35,6 +35,7 @@ public class GeminiService {
 
     private static final Logger log = LoggerFactory.getLogger(GeminiService.class);
     private static final int MAX_ERROR_BODY_LOG_LENGTH = 2_048;
+    private static final int CALL_MAX_OUTPUT_TOKENS = 96;
     private static final ThreadLocal<Integer> CALL_COUNT = ThreadLocal.withInitial(() -> 0);
 
     private final RestClient restClient;
@@ -227,9 +228,11 @@ public class GeminiService {
         if (channel == MemoryChannel.CALL || maxOutputTokens != null) {
             Map<String, Object> generationConfig = new LinkedHashMap<>();
             if (channel == MemoryChannel.CALL) {
-                generationConfig.put("thinkingConfig", Map.of("thinkingBudget", 0));
+                generationConfig.put("thinkingConfig", Map.of("thinkingLevel", "minimal"));
+                generationConfig.put("maxOutputTokens",
+                        maxOutputTokens == null ? CALL_MAX_OUTPUT_TOKENS : maxOutputTokens);
             }
-            if (maxOutputTokens != null) {
+            if (channel != MemoryChannel.CALL && maxOutputTokens != null) {
                 generationConfig.put("maxOutputTokens", maxOutputTokens);
             }
             requestBody.put("generationConfig", generationConfig);

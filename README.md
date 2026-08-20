@@ -189,7 +189,7 @@ Gemini가 답변을 생성하면 다음 후처리를 수행합니다.
 | `DB_USER` | 예 | - | MySQL 사용자 이름 |
 | `DB_PW` | 예 | - | MySQL 비밀번호 |
 | `GEMINI_API_KEY` | 예 | - | Gemini API 키 |
-| `GEMINI_MODEL` | 아니요 | `gemini-2.5-flash` | 사용할 Gemini 모델 |
+| `GEMINI_MODEL` | 아니요 | `gemini-3.6-flash` | 사용할 Gemini 모델 |
 | `AI_INTERNAL_TOKEN` | 예 | - | API 요청 인증에 사용할 내부 토큰 |
 | `SERVER_PORT` | 아니요 | `8081` | 애플리케이션 포트 |
 | `AWS_REGION` | 아니요 | `ap-northeast-2` | AWS 리전 |
