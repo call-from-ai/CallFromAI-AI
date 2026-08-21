@@ -25,11 +25,11 @@ class SnapshotValidationControllerTests {
         mvc.perform(post("/chat/stream")
                         .contentType(MediaType.APPLICATION_JSON)
                         .accept(MediaType.TEXT_EVENT_STREAM)
-                        .content(outOfRangeAgePayload()))
+                        .content(snapshotPayload(null)))
                 .andExpect(status().isBadRequest())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.status").value(400))
-                .andExpect(jsonPath("$.message").value("userAge must be between 1 and 120"))
+                .andExpect(jsonPath("$.message").value("message is required"))
                 .andExpect(jsonPath("$.path").value("/chat/stream"));
     }
 
@@ -94,13 +94,6 @@ class SnapshotValidationControllerTests {
 
     private String traits() {
         return "{\"humor\":5,\"playfulness\":5,\"affection\":5,\"empathy\":5,\"attachment\":5,\"jealousy\":5,\"dominance\":5,\"confidence\":5,\"expressiveness\":5,\"emotionalStability\":5}";
-    }
-
-    private String outOfRangeAgePayload() {
-        return snapshotPayload("hello").replace(
-                "\"requestId\":\"r1\"",
-                "\"requestId\":\"r1\",\"userAge\":121"
-        );
     }
 
     private String snapshotPayload(String message) {

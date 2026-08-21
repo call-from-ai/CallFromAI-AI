@@ -56,4 +56,26 @@ class ChatRequestUserSnapshotTests {
 
         assertThat(request.getUserAge()).isEqualTo(25);
     }
+
+    @Test
+    void treatsAnyOutOfRangeLegacyAgeAsMissing() {
+        ChatRequest request = new ChatRequest();
+
+        request.setUserAge(-1);
+        assertThat(request.getUserAge()).isNull();
+
+        request.setUserAge(121);
+        assertThat(request.getUserAge()).isNull();
+
+        request.setUserAge(2000);
+        assertThat(request.getUserAge()).isNull();
+    }
+
+    @Test
+    void treatsOutOfRangeBirthDerivedAgeAsMissing() {
+        ChatRequest request = new ChatRequest();
+        request.setUser(new UserSnapshot(LocalDate.now().plusYears(1), "FEMALE", null, null));
+
+        assertThat(request.getUserAge()).isNull();
+    }
 }

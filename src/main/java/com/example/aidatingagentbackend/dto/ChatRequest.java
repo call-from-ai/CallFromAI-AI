@@ -92,10 +92,6 @@ public class ChatRequest {
         if (relationship == null) {
             throw new IllegalArgumentException("relationship snapshot is required");
         }
-        Integer resolvedUserAge = getUserAge();
-        if (resolvedUserAge != null && (resolvedUserAge < 1 || resolvedUserAge > 120)) {
-            throw new IllegalArgumentException("userAge must be between 1 and 120");
-        }
         validateTemporalContext();
     }
 
@@ -121,15 +117,20 @@ public class ChatRequest {
     }
 
     public Integer getUserAge() {
-        // The legacy backend uses 0 to represent an unknown age.
-        // Prefer a birth-derived age when available; otherwise expose it as missing.
-        if (userAge != null && userAge != 0) return userAge;
+        // Invalid legacy values are treated as unknown so optional profile data
+        // never prevents chat or call processing.
+        if (isValidAge(userAge)) return userAge;
         if (user == null || user.birth() == null) return null;
 
         LocalDate referenceDate = localDateTime == null
                 ? LocalDate.now()
                 : localDateTime.toLocalDate();
-        return Period.between(user.birth(), referenceDate).getYears();
+        int calculatedAge = Period.between(user.birth(), referenceDate).getYears();
+        return isValidAge(calculatedAge) ? calculatedAge : null;
+    }
+
+    private boolean isValidAge(Integer age) {
+        return age != null && age >= 1 && age <= 120;
     }
 
     public String getUserGender() {
