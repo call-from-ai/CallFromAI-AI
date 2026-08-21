@@ -121,7 +121,9 @@ public class ChatRequest {
     }
 
     public Integer getUserAge() {
-        if (userAge != null) return userAge;
+        // The legacy backend uses 0 to represent an unknown age.
+        // Prefer a birth-derived age when available; otherwise expose it as missing.
+        if (userAge != null && userAge != 0) return userAge;
         if (user == null || user.birth() == null) return null;
 
         LocalDate referenceDate = localDateTime == null

@@ -38,4 +38,22 @@ class ChatRequestUserSnapshotTests {
         assertThat(request.getUserAge()).isEqualTo(30);
         assertThat(request.getUserGender()).isEqualTo("MALE");
     }
+
+    @Test
+    void treatsLegacyZeroAgeAsMissing() {
+        ChatRequest request = new ChatRequest();
+        request.setUserAge(0);
+
+        assertThat(request.getUserAge()).isNull();
+    }
+
+    @Test
+    void derivesAgeFromBirthWhenLegacyAgeIsZero() {
+        ChatRequest request = new ChatRequest();
+        request.setUserAge(0);
+        request.setUser(new UserSnapshot(LocalDate.of(2000, 8, 12), "FEMALE", null, null));
+        request.setLocalDateTime(java.time.OffsetDateTime.parse("2026-08-11T12:00:00+09:00"));
+
+        assertThat(request.getUserAge()).isEqualTo(25);
+    }
 }
