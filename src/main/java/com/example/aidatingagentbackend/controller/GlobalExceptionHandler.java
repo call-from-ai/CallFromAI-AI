@@ -7,6 +7,7 @@ import com.example.aidatingagentbackend.exception.GeminiTimeoutException;
 import com.example.aidatingagentbackend.exception.ProactivePolicyRejectedException;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -63,7 +64,7 @@ public class GlobalExceptionHandler {
     }
 
     private ResponseEntity<ErrorResponse> response(HttpStatus status, String message, HttpServletRequest request) {
-        return ResponseEntity.status(status).body(new ErrorResponse(
+        return ResponseEntity.status(status).contentType(MediaType.APPLICATION_JSON).body(new ErrorResponse(
                 Instant.now(), status.value(), status.getReasonPhrase(), message, request.getRequestURI(),
                 RequestIdSupport.resolve(request)));
     }
